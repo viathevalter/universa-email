@@ -32,14 +32,16 @@ interface AppContextType {
   tenant: Tenant;
   updateTenant: (updates: Partial<Tenant>) => void;
   
-  // Leads
+  // Leads & CRM
   leads: Lead[];
   addLead: (lead: Omit<Lead, 'id' | 'tenant_id' | 'created_at' | 'updated_at'>) => Promise<Lead>;
   updateLead: (id: string, updates: Partial<Lead>) => Promise<void>;
   deleteLead: (id: string) => Promise<void>;
+  deleteMultipleLeads: (ids: string[]) => Promise<void>;
   batchImportLeads: (leads: Array<Omit<Lead, 'id' | 'tenant_id' | 'created_at' | 'updated_at'>>) => Promise<number>;
   toggleOptOut: (leadId: string) => Promise<void>;
   verifyLeadMx: (leadId: string) => Promise<void>;
+  clearAllLeads: () => void;
   
   // B2C Missions & Continuous Auto-Pilot
   missions: LeadProspectingMission[];
@@ -50,6 +52,7 @@ interface AppContextType {
   startAutoMissions: () => void;
   stopAutoMissions: () => void;
   
+  // Staging / Prospecting Results
   prospectingJobs: LeadProspectingJob[];
   prospectingResults: LeadProspectingResult[];
   addProspectingJob: (job: LeadProspectingJob, results: LeadProspectingResult[]) => Promise<void>;
@@ -85,9 +88,10 @@ interface AppContextType {
   addAudience: (audience: Omit<SavedAudience, 'id' | 'tenant_id' | 'created_at'>) => Promise<SavedAudience>;
   deleteAudience: (id: string) => Promise<void>;
 
-  // Supabase Connection Status
+  // Supabase Connection Status & Sync
   isSupabaseConnected: boolean;
   isLoadingDb: boolean;
+  syncWithSupabase: () => Promise<void>;
 }
 
 const STORAGE_KEYS = {
@@ -185,47 +189,8 @@ const INITIAL_TEMPLATES: MarketingTemplate[] = [
   },
 ];
 
-const INITIAL_LEADS: Lead[] = [
-  {
-    id: 'lead_b2c_01',
-    tenant_id: '00000000-0000-0000-0000-000000000001',
-    name: 'Alejandro Martínez',
-    company_name: 'Aficionado Real Madrid (Madrid)',
-    email: 'alejandro.martinez84@gmail.com',
-    phone: '+34 612 34 56 78',
-    source_url: 'https://instagram.com/alejandro_madridista',
-    sector: 'Streaming & Esportes B2C',
-    role: 'Torcedor LaLiga / Smart TV',
-    company_size: 'B2C (Consumidor)',
-    city: 'Madrid',
-    province: 'Comunidad de Madrid',
-    country: 'Espanha',
-    tags: ['LaLiga', 'Futebol ES', 'Madrid', 'MX Verificado'],
-    status: 'qualified',
-    opted_out: false,
-    mx_valid: true,
-    mx_record: 'gmail-smtp-in.l.google.com',
-    target_niche: 'laliga_es',
-    created_at: new Date(Date.now() - 86400000 * 3).toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-];
-
-const INITIAL_AUDIENCES: SavedAudience[] = [
-  {
-    id: 'aud_laliga_es',
-    tenant_id: '00000000-0000-0000-0000-000000000001',
-    name: '⚽ Torcedores LaLiga & Esportes Espanha (MX Válido)',
-    description: 'Aficionados por futebol na Espanha com e-mail verificado',
-    filters: {
-      tags: ['LaLiga'],
-      mx_valid_only: true,
-      exclude_opted_out: true,
-    },
-    lead_count: 1,
-    created_at: new Date().toISOString(),
-  },
-];
+const INITIAL_LEADS: Lead[] = [];
+const INITIAL_AUDIENCES: SavedAudience[] = [];
 
 const SPANISH_CITIES_ROTATION = [
   'Madrid',
@@ -306,7 +271,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isAutoDorkingActive, setIsAutoDorkingActive] = useState(false);
   const autoDorkingIntervalRef = useRef<any>(null);
 
-  // Prospecting Jobs & Results
+  // Prospecting Jobs & Results (Staging)
   const [prospectingJobs, setProspectingJobs] = useState<LeadProspectingJob[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.JOBS);
     return saved ? JSON.parse(saved) : [];
@@ -340,7 +305,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return saved ? JSON.parse(saved) : INITIAL_AUDIENCES;
   });
 
-  // Sincronização com Supabase
+  // Sincronização em Lote com Supabase (SEM LIMITE DE 1.000 - RANGE EXPANDIDO ATÉ 50.000)
   const syncWithSupabase = useCallback(async () => {
     const supabase = getSupabaseClient();
     if (!supabase) {
@@ -349,7 +314,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     try {
-      const { data: dbLeads, error: leadsErr } = await supabase.from('leads').select('*').order('created_at', { ascending: false });
+      const { data: dbLeads, error: leadsErr } = await supabase
+        .from('leads')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .range(0, 49999);
+
       if (!leadsErr && dbLeads && dbLeads.length > 0) {
         setLeads(dbLeads);
       }
@@ -359,12 +329,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setTemplates(dbTemplates);
       }
 
-      const { data: dbCampaigns, error: campErr } = await supabase.from('marketing_campaigns').select('*').order('created_at', { ascending: false });
+      const { data: dbCampaigns, error: campErr } = await supabase
+        .from('marketing_campaigns')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .range(0, 49999);
+
       if (!campErr && dbCampaigns && dbCampaigns.length > 0) {
         setCampaigns(dbCampaigns);
       }
 
-      const { data: dbResults, error: resErr } = await supabase.from('lead_prospecting_results').select('*').order('created_at', { ascending: false });
+      const { data: dbResults, error: resErr } = await supabase
+        .from('lead_prospecting_results')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .range(0, 49999);
+
       if (!resErr && dbResults && dbResults.length > 0) {
         setProspectingResults(dbResults);
       }
@@ -438,6 +418,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     setLeads((prev) => [newLead, ...prev]);
+
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      supabase.from('leads').insert({
+        tenant_id: tenant.id,
+        name: newLead.name,
+        company_name: newLead.company_name,
+        email: newLead.email,
+        phone: newLead.phone,
+        website: newLead.website,
+        source_url: newLead.source_url,
+        sector: newLead.sector,
+        role: newLead.role,
+        company_size: newLead.company_size,
+        city: newLead.city,
+        province: newLead.province,
+        country: newLead.country,
+        tags: newLead.tags,
+        status: newLead.status,
+        opted_out: newLead.opted_out,
+        mx_valid: newLead.mx_valid,
+        mx_record: newLead.mx_record,
+      }).then();
+    }
+
     return newLead;
   };
 
@@ -445,10 +450,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setLeads((prev) =>
       prev.map((lead) => (lead.id === id ? { ...lead, ...updates, updated_at: new Date().toISOString() } : lead))
     );
+
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      supabase.from('leads').update({
+        ...updates,
+        updated_at: new Date().toISOString(),
+      }).eq('id', id).then();
+    }
   };
 
   const deleteLead = async (id: string) => {
     setLeads((prev) => prev.filter((lead) => lead.id !== id));
+
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      supabase.from('leads').delete().eq('id', id).then();
+    }
+  };
+
+  const deleteMultipleLeads = async (ids: string[]) => {
+    setLeads((prev) => prev.filter((lead) => !ids.includes(lead.id)));
+
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      supabase.from('leads').delete().in('id', ids).then();
+    }
+  };
+
+  const clearAllLeads = () => {
+    setLeads([]);
   };
 
   const batchImportLeads = async (
@@ -474,6 +505,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (leadsToAdd.length > 0) {
       setLeads((prev) => [...leadsToAdd, ...prev]);
+
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        // Inserção em chunks para alta performance
+        const chunkSize = 100;
+        for (let i = 0; i < leadsToAdd.length; i += chunkSize) {
+          const chunk = leadsToAdd.slice(i, i + chunkSize);
+          supabase.from('leads').insert(chunk).then();
+        }
+      }
     }
     return leadsToAdd.length;
   };
@@ -685,9 +726,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const stopAutoDorking = () => {
     setIsAutoDorkingActive(false);
-    if (autoDorkingIntervalRef.current) {
-      clearInterval(autoDorkingIntervalRef.current);
-      autoDorkingIntervalRef.current = null;
+    if (autoMissionsIntervalRef.current) {
+      clearInterval(autoMissionsIntervalRef.current);
+      autoMissionsIntervalRef.current = null;
     }
   };
 
@@ -922,6 +963,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addLead,
         updateLead,
         deleteLead,
+        deleteMultipleLeads,
+        clearAllLeads,
         batchImportLeads,
         toggleOptOut,
         verifyLeadMx,
@@ -960,6 +1003,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteAudience,
         isSupabaseConnected,
         isLoadingDb,
+        syncWithSupabase,
       }}
     >
       {children}

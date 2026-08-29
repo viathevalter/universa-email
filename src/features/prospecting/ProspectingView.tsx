@@ -1246,11 +1246,11 @@ export const ProspectingView: React.FC = () => {
             </div>
           ) : (
             <div>
-              <div className="overflow-x-auto">
+              <div className="max-h-[560px] overflow-y-auto overflow-x-auto scrollbar-thin">
                 <table className={`w-full text-left text-xs ${isLight ? 'text-slate-700' : 'text-zinc-300'}`}>
                   <thead
-                    className={`border-b text-[11px] font-semibold uppercase tracking-wider ${
-                      isLight ? 'border-slate-200 bg-slate-50 text-slate-600' : 'border-zinc-800 bg-zinc-950/60 text-zinc-400'
+                    className={`sticky top-0 z-10 border-b text-[11px] font-semibold uppercase tracking-wider ${
+                      isLight ? 'border-slate-200 bg-slate-100 text-slate-700 shadow-xs' : 'border-zinc-800 bg-zinc-950 text-zinc-300 shadow-xs'
                     }`}
                   >
                     <tr>
