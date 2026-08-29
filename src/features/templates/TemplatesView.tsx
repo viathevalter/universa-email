@@ -2,19 +2,23 @@ import React, { useState } from 'react';
 import {
   FileCode,
   Plus,
+  Trash2,
+  Save,
   Monitor,
   Smartphone,
   Eye,
   Tag,
+  Copy,
   Check,
-  Code,
 } from 'lucide-react';
 import { useApp } from '../../shared/context/AppContext';
-import type { MarketingTemplate, Lead } from '../../types';
 import { interpolateEmailVariables } from '../../shared/services/resendService';
+import type { MarketingTemplate, Lead } from '../../types';
 
 export const TemplatesView: React.FC = () => {
-  const { templates, addTemplate, updateTemplate, leads } = useApp();
+  const { templates, addTemplate, updateTemplate, deleteTemplate, leads, theme } = useApp();
+
+  const isLight = theme === 'light';
 
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>(
     templates[0]?.id || ''
@@ -23,23 +27,27 @@ export const TemplatesView: React.FC = () => {
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
   const [copiedTag, setCopiedTag] = useState<string | null>(null);
 
-  // Active or Draft Template
   const activeTemplate = templates.find((t) => t.id === selectedTemplateId) || templates[0];
 
-  const [formData, setFormData] = useState<Partial<MarketingTemplate>>({
-    title: '',
-    subject: '',
-    html_content: '',
+  // Form State
+  const [formData, setFormData] = useState({
+    title: activeTemplate?.title || '',
+    subject: activeTemplate?.subject || '',
+    html_content: activeTemplate?.html_content || '',
   });
 
-  // Mock Lead for Live Preview
+  // Sample Lead for Live Preview interpolation
   const sampleLead: Lead = leads[0] || {
-    id: 'sample_01',
-    tenant_id: 'default',
+    id: 'sample_lead',
+    tenant_id: '00000000-0000-0000-0000-000000000001',
     name: 'Carlos Eduardo Silveira',
-    company_name: 'Nexus Logística S.A.',
+    company_name: 'Nexus Logística e Transportes',
     email: 'carlos.silveira@nexuslog.com.br',
+    phone: '+55 (11) 98765-4321',
+    website: 'https://nexuslog.com.br',
+    sector: 'Logística & Transportes',
     role: 'Diretor de Operações (COO)',
+    company_size: 'Tier 1 (Enterprise)',
     city: 'São Paulo',
     province: 'SP',
     country: 'Brasil',
@@ -55,7 +63,7 @@ export const TemplatesView: React.FC = () => {
     { tag: '{{empresa}}', label: 'Nome da Empresa', example: sampleLead.company_name },
     { tag: '{{cargo}}', label: 'Cargo / Posição', example: sampleLead.role },
     { tag: '{{cidade}}', label: 'Cidade', example: sampleLead.city },
-    { tag: '{{link_descadastro}}', label: 'Link de Opt-out', example: 'https://app.kotrik.com/opt-out' },
+    { tag: '{{link_descadastro}}', label: 'Link de Opt-out', example: 'https://universaemail.com/opt-out' },
   ];
 
   const handleStartCreate = () => {
@@ -65,10 +73,9 @@ export const TemplatesView: React.FC = () => {
       subject: 'Oportunidade para a {{empresa}}',
       html_content: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #18181b; line-height: 1.6; padding: 20px;">
   <p>Olá <strong>{{nome}}</strong>,</p>
-  <p>Espero que este e-mail o encontre bem.</p>
-  <p>Acompanho o trabalho da <strong>{{empresa}}</strong> em {{cidade}} e gostaria de compartilhar uma solução para impulsionar seus resultados operacionais.</p>
-  <p>Podemos conversar brevemente esta semana?</p>
-  <p style="margin-top: 24px;">Atenciosamente,<br><strong>Sua Equipe</strong></p>
+  <p>Espero que este e-mail o encontre bem. Acompanho o trabalho da <strong>{{empresa}}</strong> em {{cidade}} e gostaria de compartilhar uma solução para otimizar seus resultados.</p>
+  <p>Podemos agendar uma breve conversa de 10 minutos?</p>
+  <p>Atenciosamente,<br><strong>Equipe Comercial</strong></p>
 </div>`,
     });
   };
@@ -105,29 +112,18 @@ export const TemplatesView: React.FC = () => {
     });
   };
 
-  const currentContent = isCreatingNew
-    ? formData.html_content || ''
-    : formData.html_content !== undefined && formData.html_content !== ''
-    ? formData.html_content
-    : activeTemplate?.html_content || '';
-
-  const currentSubject = isCreatingNew
-    ? formData.subject || ''
-    : formData.subject !== undefined && formData.subject !== ''
-    ? formData.subject
-    : activeTemplate?.subject || '';
-
-  const interpolatedPreview = interpolateEmailVariables(currentContent, sampleLead);
-  const interpolatedSubject = interpolateEmailVariables(currentSubject, sampleLead);
-
-  const insertTagToEditor = (tag: string) => {
+  const insertTag = (tag: string) => {
     setFormData((prev) => ({
       ...prev,
-      html_content: (prev.html_content || currentContent) + ` ${tag} `,
+      html_content: prev.html_content + ` ${tag} `,
     }));
     setCopiedTag(tag);
     setTimeout(() => setCopiedTag(null), 1500);
   };
+
+  // Interpolated Preview Content
+  const previewSubject = interpolateEmailVariables(formData.subject, sampleLead);
+  const previewHtml = interpolateEmailVariables(formData.html_content, sampleLead);
 
   return (
     <div className="space-y-6">
@@ -135,48 +131,79 @@ export const TemplatesView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-              <FileCode className="h-6 w-6 text-purple-400" />
-              Editor de Templates & Mensagens Dinâmicas
+            <h1 className={`text-2xl font-bold tracking-tight flex items-center gap-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              <FileCode className="h-6 w-6 text-indigo-500" />
+              Editor de Templates & Variáveis Dinâmicas
             </h1>
+            <span
+              className={`rounded-full px-2.5 py-0.5 text-xs font-semibold border ${
+                isLight ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
+              }`}
+            >
+              {templates.length} Modelos
+            </span>
           </div>
-          <p className="text-sm text-zinc-400 mt-1">
-            Crie templates responsivos de alta entregabilidade com inserção dinâmica de variáveis e preview mobile.
+          <p className={`text-sm mt-1 ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>
+            Crie emails altamente personalizados com tags dinâmicas e teste a renderização em tempo real para Desktop e Mobile.
           </p>
         </div>
 
         <button
           onClick={handleStartCreate}
-          className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-600 px-4 py-2.5 text-xs font-semibold text-white shadow-lg shadow-purple-500/20 hover:opacity-95 transition-all cursor-pointer"
+          className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-2.5 text-xs font-semibold text-white shadow-lg shadow-indigo-500/20 hover:opacity-95 transition-all cursor-pointer"
         >
           <Plus className="h-4 w-4" />
           Novo Template
         </button>
       </div>
 
-      {/* Main Split Layout: Templates List + Editor + Live Preview */}
+      {/* Main Grid: Sidebar + Editor + Live Preview */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        {/* Left Col (3 cols): Templates Selector */}
+        {/* Templates List Sidebar (3 cols) */}
         <div className="lg:col-span-3 space-y-3">
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 backdrop-blur-sm">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-3">
-              Modelos Salvos ({templates.length})
+          <div
+            className={`rounded-2xl border p-4 backdrop-blur-sm shadow-xs ${
+              isLight ? 'border-slate-200 bg-white' : 'border-zinc-800 bg-zinc-900/60'
+            }`}
+          >
+            <h2 className={`text-xs font-bold uppercase tracking-wider mb-3 ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>
+              Seus Templates
             </h2>
             <div className="space-y-2">
               {templates.map((tmpl) => {
-                const isSelected = !isCreatingNew && activeTemplate?.id === tmpl.id;
+                const isSelected = tmpl.id === selectedTemplateId && !isCreatingNew;
                 return (
                   <div
                     key={tmpl.id}
                     onClick={() => handleSelectTemplate(tmpl)}
-                    className={`cursor-pointer rounded-xl p-3 border transition-all text-left ${
+                    className={`rounded-xl border p-3 cursor-pointer transition-all ${
                       isSelected
-                        ? 'border-indigo-500 bg-indigo-950/30 text-white shadow-sm'
-                        : 'border-zinc-800 bg-zinc-950 hover:border-zinc-700 text-zinc-300'
+                        ? isLight
+                          ? 'border-indigo-400 bg-indigo-50/70 shadow-xs'
+                          : 'border-indigo-500/50 bg-indigo-500/10 shadow-xs'
+                        : isLight
+                        ? 'border-slate-200 bg-slate-50 hover:bg-slate-100'
+                        : 'border-zinc-800/80 bg-zinc-950/40 hover:bg-zinc-800/40'
                     }`}
                   >
-                    <div className="font-semibold text-xs truncate">{tmpl.title}</div>
-                    <div className="text-[11px] text-zinc-500 truncate mt-1">Assunto: {tmpl.subject}</div>
+                    <div className="flex items-center justify-between">
+                      <h3 className={`font-semibold text-xs truncate ${isSelected ? 'text-indigo-600' : isLight ? 'text-slate-800' : 'text-zinc-200'}`}>
+                        {tmpl.title}
+                      </h3>
+                      {templates.length > 1 && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteTemplate(tmpl.id);
+                          }}
+                          className={`opacity-60 hover:opacity-100 transition-opacity p-1 ${isLight ? 'text-slate-400 hover:text-rose-600' : 'text-zinc-500 hover:text-rose-400'}`}
+                          title="Excluir"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
+                    <div className={`text-[11px] mt-1 truncate ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>{tmpl.subject}</div>
                   </div>
                 );
               })}
@@ -184,148 +211,195 @@ export const TemplatesView: React.FC = () => {
           </div>
 
           {/* Dynamic Tags Toolbox */}
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 backdrop-blur-sm space-y-3">
-            <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-indigo-400">
-              <Tag className="h-3.5 w-3.5" />
-              Tags Dinâmicas (Clique para inserir)
+          <div
+            className={`rounded-2xl border p-4 backdrop-blur-sm ${
+              isLight ? 'border-slate-200 bg-white shadow-xs' : 'border-zinc-800 bg-zinc-900/60'
+            }`}
+          >
+            <div className="flex items-center gap-1.5 mb-2 text-indigo-500">
+              <Tag className="h-4 w-4" />
+              <h2 className="text-xs font-bold uppercase tracking-wider">Tags Dinâmicas</h2>
             </div>
-            <div className="space-y-1.5">
-              {dynamicTags.map((item) => (
+            <p className={`text-[11px] mb-3 ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
+              Clique para inserir no conteúdo do e-mail:
+            </p>
+            <div className="space-y-2">
+              {dynamicTags.map((tagItem) => (
                 <button
-                  key={item.tag}
+                  key={tagItem.tag}
                   type="button"
-                  onClick={() => insertTagToEditor(item.tag)}
-                  className="w-full flex items-center justify-between rounded-lg border border-zinc-800 bg-zinc-950 px-2.5 py-1.5 text-left text-xs hover:border-indigo-500 hover:bg-indigo-950/20 transition-all group cursor-pointer"
+                  onClick={() => insertTag(tagItem.tag)}
+                  className={`w-full flex items-center justify-between rounded-lg border p-2 text-left transition-all text-xs cursor-pointer ${
+                    isLight
+                      ? 'border-slate-200 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-200 text-slate-800'
+                      : 'border-zinc-800 bg-zinc-950/60 hover:bg-indigo-950/20 hover:border-indigo-500/30 text-zinc-300'
+                  }`}
                 >
-                  <span className="font-mono text-indigo-300 font-semibold text-[11px]">{item.tag}</span>
-                  <span className="text-[10px] text-zinc-500 group-hover:text-zinc-300">
-                    {copiedTag === item.tag ? <Check className="h-3 w-3 text-emerald-400" /> : item.label}
-                  </span>
+                  <div>
+                    <span className="font-mono text-indigo-500 font-semibold">{tagItem.tag}</span>
+                    <span className={`block text-[10px] ${isLight ? 'text-slate-500' : 'text-zinc-500'}`}>{tagItem.label}</span>
+                  </div>
+                  {copiedTag === tagItem.tag ? (
+                    <Check className="h-3.5 w-3.5 text-emerald-500" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5 opacity-40 hover:opacity-100" />
+                  )}
                 </button>
               ))}
             </div>
           </div>
         </div>
 
-        {/* Center Col (5 cols): HTML / Text Code Editor */}
-        <div className="lg:col-span-5 space-y-4">
+        {/* Editor Form (4 cols) */}
+        <div className="lg:col-span-4 space-y-4">
           <form
             onSubmit={handleSave}
-            className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 backdrop-blur-sm space-y-4"
+            className={`rounded-2xl border p-5 backdrop-blur-sm shadow-xs space-y-4 ${
+              isLight ? 'border-slate-200 bg-white' : 'border-zinc-800 bg-zinc-900/60'
+            }`}
           >
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-              <h2 className="text-sm font-bold text-white flex items-center gap-2">
-                <Code className="h-4 w-4 text-indigo-400" />
-                {isCreatingNew ? 'Criando Novo Template' : 'Editando Template'}
+            <div className="flex items-center justify-between">
+              <h2 className={`text-sm font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                {isCreatingNew ? 'Criando Novo Template' : 'Editar Template'}
               </h2>
-
               <button
                 type="submit"
-                className="rounded-xl bg-indigo-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 transition-colors shadow-sm cursor-pointer"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 cursor-pointer shadow-xs"
               >
-                Salvar Alterações
+                <Save className="h-3.5 w-3.5" />
+                Salvar
               </button>
             </div>
 
-            {/* Template Title */}
             <div>
-              <label className="block text-xs font-medium text-zinc-400 mb-1">Título Interno do Template</label>
+              <label className={`block text-xs font-medium mb-1 ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>Nome Interno do Template</label>
               <input
                 type="text"
                 required
-                value={isCreatingNew ? formData.title : formData.title || activeTemplate?.title || ''}
+                value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs text-white focus:border-indigo-500 focus:outline-none"
+                className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
+                  isLight
+                    ? 'border-slate-300 bg-slate-50 text-slate-900'
+                    : 'border-zinc-800 bg-zinc-950 text-white'
+                }`}
               />
             </div>
 
-            {/* Subject */}
             <div>
-              <label className="block text-xs font-medium text-zinc-400 mb-1">
-                Linha de Assunto (Suporta Tags)
+              <label className={`block text-xs font-medium mb-1 ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>
+                Assunto do E-mail (Suporta Tags)
               </label>
               <input
                 type="text"
                 required
-                value={isCreatingNew ? formData.subject : formData.subject || activeTemplate?.subject || ''}
+                value={formData.subject}
                 onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                placeholder="Ex: Parceria estratégica com a {{empresa}}"
-                className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs text-white focus:border-indigo-500 focus:outline-none"
+                placeholder="Ex: Parceria com a {{empresa}}"
+                className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
+                  isLight
+                    ? 'border-slate-300 bg-slate-50 text-slate-900 placeholder-slate-400'
+                    : 'border-zinc-800 bg-zinc-950 text-white placeholder-zinc-500'
+                }`}
               />
             </div>
 
-            {/* HTML Content Body */}
             <div>
-              <label className="block text-xs font-medium text-zinc-400 mb-1">Conteúdo HTML / E-mail</label>
+              <label className={`block text-xs font-medium mb-1 ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>
+                Corpo do E-mail (HTML & Texto)
+              </label>
               <textarea
-                rows={16}
                 required
-                value={isCreatingNew ? formData.html_content : formData.html_content || activeTemplate?.html_content || ''}
+                rows={16}
+                value={formData.html_content}
                 onChange={(e) => setFormData({ ...formData, html_content: e.target.value })}
-                className="w-full rounded-xl border border-zinc-800 bg-zinc-950 p-3 font-mono text-xs text-zinc-200 focus:border-indigo-500 focus:outline-none"
+                className={`w-full rounded-xl border p-3 font-mono text-xs focus:outline-none leading-relaxed ${
+                  isLight
+                    ? 'border-slate-300 bg-slate-50 text-slate-900'
+                    : 'border-zinc-800 bg-zinc-950 text-zinc-200'
+                }`}
               />
             </div>
           </form>
         </div>
 
-        {/* Right Col (4 cols): Live Responsive Preview */}
-        <div className="lg:col-span-4 space-y-4">
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 backdrop-blur-sm space-y-4">
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-white">
-                <Eye className="h-4 w-4 text-indigo-400" />
-                Live Preview com Dados Reais
+        {/* Live Preview Panel (5 cols) */}
+        <div className="lg:col-span-5 space-y-3">
+          <div
+            className={`rounded-2xl border p-5 backdrop-blur-sm shadow-xs ${
+              isLight ? 'border-slate-200 bg-white' : 'border-zinc-800 bg-zinc-900/60'
+            }`}
+          >
+            {/* Preview Toolbar */}
+            <div className={`flex items-center justify-between pb-3 border-b ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
+              <div className="flex items-center gap-2">
+                <Eye className="h-4 w-4 text-indigo-500" />
+                <span className={`text-xs font-bold uppercase tracking-wider ${isLight ? 'text-slate-800' : 'text-zinc-300'}`}>
+                  Live Preview com Dados Reais
+                </span>
               </div>
 
-              {/* Device Toggle */}
-              <div className="flex rounded-lg bg-zinc-950 p-1 border border-zinc-800">
+              <div className={`flex rounded-lg p-1 border text-xs ${isLight ? 'bg-slate-100 border-slate-200' : 'bg-zinc-950 border-zinc-800'}`}>
                 <button
-                  type="button"
                   onClick={() => setPreviewDevice('desktop')}
-                  className={`p-1.5 rounded-md transition-all cursor-pointer ${
-                    previewDevice === 'desktop' ? 'bg-zinc-800 text-white' : 'text-zinc-500'
+                  className={`flex items-center gap-1 rounded-md px-2 py-1 transition-all cursor-pointer ${
+                    previewDevice === 'desktop'
+                      ? isLight
+                        ? 'bg-white text-slate-900 shadow-xs'
+                        : 'bg-zinc-800 text-white'
+                      : isLight
+                      ? 'text-slate-600'
+                      : 'text-zinc-400'
                   }`}
-                  title="Desktop Preview"
                 >
-                  <Monitor className="h-3.5 w-3.5" />
+                  <Monitor className="h-3 w-3" />
+                  Desktop
                 </button>
                 <button
-                  type="button"
                   onClick={() => setPreviewDevice('mobile')}
-                  className={`p-1.5 rounded-md transition-all cursor-pointer ${
-                    previewDevice === 'mobile' ? 'bg-zinc-800 text-white' : 'text-zinc-500'
+                  className={`flex items-center gap-1 rounded-md px-2 py-1 transition-all cursor-pointer ${
+                    previewDevice === 'mobile'
+                      ? isLight
+                        ? 'bg-white text-slate-900 shadow-xs'
+                        : 'bg-zinc-800 text-white'
+                      : isLight
+                      ? 'text-slate-600'
+                      : 'text-zinc-400'
                   }`}
-                  title="Mobile Preview (375px)"
                 >
-                  <Smartphone className="h-3.5 w-3.5" />
+                  <Smartphone className="h-3 w-3" />
+                  Mobile
                 </button>
               </div>
             </div>
 
-            {/* Email Header Preview Bar */}
-            <div className="rounded-xl bg-zinc-950 p-3 border border-zinc-800 text-xs space-y-1">
-              <div className="text-zinc-400 text-[11px]">
-                <strong className="text-zinc-300">Para:</strong> {sampleLead.name} &lt;{sampleLead.email}&gt;
-              </div>
-              <div className="text-zinc-400 text-[11px]">
-                <strong className="text-zinc-300">Assunto:</strong>{' '}
-                <span className="text-white font-medium">{interpolatedSubject}</span>
-              </div>
-            </div>
-
-            {/* Render Container */}
-            <div className="flex justify-center bg-zinc-950/80 p-4 rounded-xl border border-zinc-800/80 overflow-hidden">
+            {/* Email Client Simulation Frame */}
+            <div className="mt-4 space-y-3">
+              {/* Header Details */}
               <div
-                className={`bg-white text-zinc-900 rounded-lg shadow-lg overflow-y-auto transition-all ${
-                  previewDevice === 'mobile' ? 'w-[320px] min-h-[400px] text-xs' : 'w-full min-h-[400px]'
+                className={`rounded-xl border p-3 text-xs space-y-1 ${
+                  isLight ? 'border-slate-200 bg-slate-50 text-slate-700' : 'border-zinc-800 bg-zinc-950 text-zinc-300'
                 }`}
-                style={{ maxHeight: '520px' }}
               >
-                <div
-                  className="p-4"
-                  dangerouslySetInnerHTML={{ __html: interpolatedPreview }}
-                />
+                <div>
+                  <span className={isLight ? 'text-slate-400 font-semibold' : 'text-zinc-500 font-semibold'}>De:</span> Time UniversaEmail &lt;contato@universaemail.com&gt;
+                </div>
+                <div>
+                  <span className={isLight ? 'text-slate-400 font-semibold' : 'text-zinc-500 font-semibold'}>Para:</span> {sampleLead.name} &lt;{sampleLead.email}&gt;
+                </div>
+                <div className={`font-semibold pt-1 border-t ${isLight ? 'border-slate-200 text-slate-900' : 'border-zinc-800 text-white'}`}>
+                  <span className={isLight ? 'text-slate-400 font-normal' : 'text-zinc-500 font-normal'}>Assunto:</span> {previewSubject}
+                </div>
               </div>
+
+              {/* Rendered Body */}
+              <div
+                className={`mx-auto rounded-xl border bg-white text-zinc-900 p-6 overflow-y-auto shadow-inner transition-all ${
+                  previewDevice === 'mobile' ? 'max-w-[340px] text-xs' : 'w-full min-h-[380px]'
+                }`}
+                style={{ minHeight: '380px' }}
+                dangerouslySetInnerHTML={{ __html: previewHtml }}
+              />
             </div>
           </div>
         </div>

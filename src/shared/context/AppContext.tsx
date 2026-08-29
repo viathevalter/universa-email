@@ -13,7 +13,13 @@ import { verifyEmailDns } from '../services/dnsService';
 import { processCampaignQueueBatch } from '../services/resendService';
 import { getSupabaseClient } from '../services/supabaseClient';
 
+export type AppTheme = 'dark' | 'light';
+
 interface AppContextType {
+  theme: AppTheme;
+  toggleTheme: () => void;
+  setThemeMode: (mode: AppTheme) => void;
+
   tenant: Tenant;
   updateTenant: (updates: Partial<Tenant>) => void;
   
@@ -57,23 +63,24 @@ interface AppContextType {
 }
 
 const STORAGE_KEYS = {
-  TENANT: 'saas_tenant_data',
-  LEADS: 'saas_leads_data',
-  JOBS: 'saas_jobs_data',
-  RESULTS: 'saas_results_data',
-  TEMPLATES: 'saas_templates_data',
-  CAMPAIGNS: 'saas_campaigns_data',
-  QUEUE: 'saas_queue_data',
-  AUDIENCES: 'saas_audiences_data',
+  THEME: 'universa_theme_mode',
+  TENANT: 'universa_tenant_data',
+  LEADS: 'universa_leads_data',
+  JOBS: 'universa_jobs_data',
+  RESULTS: 'universa_results_data',
+  TEMPLATES: 'universa_templates_data',
+  CAMPAIGNS: 'universa_campaigns_data',
+  QUEUE: 'universa_queue_data',
+  AUDIENCES: 'universa_audiences_data',
 };
 
 const DEFAULT_TENANT: Tenant = {
   id: '00000000-0000-0000-0000-000000000001',
-  name: 'Kotrik Growth Labs',
-  trade_name: 'Kotrik B2B Intelligence',
+  name: 'UniversaEmail Enterprise',
+  trade_name: 'UniversaEmail SaaS',
   resend_api_key: import.meta.env.VITE_RESEND_API_KEY || '',
-  marketing_sender_email: 'contato@kotrik.com.br',
-  sender_name: 'Time Comercial Kotrik',
+  marketing_sender_email: 'contato@universaemail.com',
+  sender_name: 'Time UniversaEmail',
   gemini_api_key: import.meta.env.VITE_GEMINI_API_KEY || '',
   created_at: new Date().toISOString(),
 };
@@ -92,7 +99,7 @@ const INITIAL_TEMPLATES: MarketingTemplate[] = [
     <p style="margin: 0; font-size: 14px;"><em>"Aumentamos a taxa de resposta qualificada em 3.2x no primeiro mês de implementação."</em></p>
   </div>
   <p>Você teria 10 minutos nesta quinta-feira para conversarmos brevemente sobre essa oportunidade?</p>
-  <p style="margin-top: 24px;">Um abraço,<br><strong>Time Comercial</strong><br>Kotrik Growth Labs</p>
+  <p style="margin-top: 24px;">Um abraço,<br><strong>Time Comercial</strong><br>UniversaEmail</p>
 </div>`,
     variables: ['{{nome}}', '{{empresa}}', '{{cargo}}', '{{cidade}}', '{{link_descadastro}}'],
     created_at: new Date().toISOString(),
@@ -108,9 +115,9 @@ const INITIAL_TEMPLATES: MarketingTemplate[] = [
   <p>Passando apenas para saber se você conseguiu dar uma olhada na minha mensagem anterior sobre a <strong>{{empresa}}</strong>.</p>
   <p>Preparamos um diagnóstico rápido com 3 oportunidades imediatas no seu setor em {{cidade}}.</p>
   <p style="text-align: center; margin: 30px 0;">
-    <a href="https://kotrik.com.br" style="background-color: #4f46e5; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Agendar Breve Demonstração</a>
+    <a href="https://universaemail.com" style="background-color: #4f46e5; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Agendar Breve Demonstração</a>
   </p>
-  <p>Atenciosamente,<br>Equipe de Parcerias</p>
+  <p>Atenciosamente,<br>Equipe UniversaEmail</p>
 </div>`,
     variables: ['{{nome}}', '{{empresa}}', '{{cargo}}', '{{cidade}}', '{{link_descadastro}}'],
     created_at: new Date().toISOString(),
@@ -264,6 +271,33 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isLoadingDb, setIsLoadingDb] = useState(true);
 
+  // Theme Mode State
+  const [theme, setTheme] = useState<AppTheme>(() => {
+    const savedTheme = localStorage.getItem(STORAGE_KEYS.THEME) as AppTheme | null;
+    return savedTheme === 'light' ? 'light' : 'dark';
+  });
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
+
+  const setThemeMode = (mode: AppTheme) => {
+    setTheme(mode);
+  };
+
+  // Sync theme with HTML class
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.THEME, theme);
+    const root = document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+      root.classList.remove('light');
+    } else {
+      root.classList.add('light');
+      root.classList.remove('dark');
+    }
+  }, [theme]);
+
   // Tenant State
   const [tenant, setTenant] = useState<Tenant>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.TENANT);
@@ -310,7 +344,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return saved ? JSON.parse(saved) : INITIAL_AUDIENCES;
   });
 
-  // Sincronização inicial direta com Supabase
+  // Sincronização direta com Supabase
   const syncWithSupabase = useCallback(async () => {
     const supabase = getSupabaseClient();
     if (!supabase) {
@@ -323,43 +357,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const { data: dbLeads, error: leadsErr } = await supabase.from('leads').select('*').order('created_at', { ascending: false });
       if (!leadsErr && dbLeads && dbLeads.length > 0) {
         setLeads(dbLeads);
-      } else if (!leadsErr && dbLeads && dbLeads.length === 0 && leads.length > 0) {
-        // Se a tabela estiver vazia, faz o seed inicial dos leads no Supabase
-        const seedPayload = leads.map((l) => ({
-          tenant_id: tenant.id,
-          name: l.name,
-          company_name: l.company_name,
-          email: l.email,
-          phone: l.phone,
-          website: l.website,
-          sector: l.sector,
-          role: l.role,
-          company_size: l.company_size,
-          city: l.city,
-          province: l.province,
-          country: l.country,
-          tags: l.tags,
-          status: l.status,
-          opted_out: l.opted_out,
-          mx_valid: l.mx_valid,
-          mx_record: l.mx_record,
-        }));
-        await supabase.from('leads').insert(seedPayload);
       }
 
       // 2. Carrega Templates
       const { data: dbTemplates, error: tmplErr } = await supabase.from('marketing_templates').select('*');
       if (!tmplErr && dbTemplates && dbTemplates.length > 0) {
         setTemplates(dbTemplates);
-      } else if (!tmplErr && dbTemplates && dbTemplates.length === 0 && templates.length > 0) {
-        const seedTmpl = templates.map((t) => ({
-          tenant_id: tenant.id,
-          title: t.title,
-          subject: t.subject,
-          html_content: t.html_content,
-          variables: t.variables,
-        }));
-        await supabase.from('marketing_templates').insert(seedTmpl);
       }
 
       // 3. Carrega Campanhas
@@ -394,7 +397,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } finally {
       setIsLoadingDb(false);
     }
-  }, [tenant.id]);
+  }, []);
 
   useEffect(() => {
     syncWithSupabase();
@@ -888,6 +891,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   return (
     <AppContext.Provider
       value={{
+        theme,
+        toggleTheme,
+        setThemeMode,
         tenant,
         updateTenant,
         leads,

@@ -23,10 +23,10 @@ CREATE TABLE IF NOT EXISTS public.tenants (
 INSERT INTO public.tenants (id, name, trade_name, marketing_sender_email, sender_name)
 VALUES (
     '00000000-0000-0000-0000-000000000001',
-    'Kotrik Growth Labs',
-    'Kotrik B2B Intelligence',
-    'contato@kotrik.com.br',
-    'Time Comercial Kotrik'
+    'UniversaEmail Enterprise',
+    'UniversaEmail SaaS',
+    'contato@universaemail.com',
+    'Time UniversaEmail'
 )
 ON CONFLICT (id) DO NOTHING;
 

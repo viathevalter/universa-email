@@ -18,7 +18,7 @@ export interface SendEmailResult {
 /**
  * Substitui tags dinâmicas como {{nome}}, {{empresa}}, {{cargo}}, {{cidade}}, {{link_descadastro}}
  */
-export function interpolateEmailVariables(template: string, lead: Lead, appBaseUrl: string = 'https://app.kotrik.com'): string {
+export function interpolateEmailVariables(template: string, lead: Lead, appBaseUrl: string = 'https://app.universaemail.com'): string {
   let content = template;
   
   const replacements: Record<string, string> = {

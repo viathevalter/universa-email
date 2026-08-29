@@ -1,32 +1,42 @@
-# React + TypeScript + Vite
+# UniversaEmail - SaaS de Email Marketing, Inteligência de Leads com IA & Resend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Plataforma SaaS moderna, rápida e multi-tenant para **prospecção ativa de tomadores de decisão B2B com IA (Google Gemini)**, **validação em tempo real de MX via DNS over HTTPS (Google & Cloudflare)** e **motor de disparos resiliente integrado ao Resend**.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 🌟 Funcionalidades Core
 
-## React Compiler
+1. **AI Lead Machine**: Descoberta ativa de empresas e decisores com enriquecimento e validação DNS/MX em tempo real.
+2. **CRM Central de Leads**: Visualização dinâmica em Tabela e Quadro Kanban, filtros por porte (Tier 1, 2, 3), importação e exportação de CSV, governança de opt-out e audiências salvas.
+3. **Editor de Templates**: Tags dinâmicas (`{{nome}}`, `{{empresa}}`, `{{cargo}}`, `{{cidade}}`, `{{link_descadastro}}`) com Live Preview responsivo para Desktop e Mobile.
+4. **Motor de Disparos Resend**: Fila resiliente com controle de taxa de envios (Rate Limiting) e tracking de entregas/aberturas/cliques.
+5. **Modo Claro & Escuro (Light & Dark)**: Seletor de temas com transições suaves e design refinado.
+6. **Integração Supabase & Resend**: PostgreSQL com RLS para isolamento multi-tenant e autenticação SPF/DKIM/DMARC.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the Oxlint configuration
+## 🚀 Como Executar Localmente
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+1. Clone o repositório e instale as dependências:
+```bash
+npm install
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+2. Crie o arquivo `.env` baseado em `.env.example`:
+```env
+VITE_SUPABASE_URL=https://seu-projeto.supabase.co
+VITE_SUPABASE_ANON_KEY=sua_chave_publica_anon
+VITE_RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxxxxxx
+VITE_GEMINI_API_KEY=sua_chave_gemini
+```
+
+3. Inicie o servidor de desenvolvimento:
+```bash
+npm run dev
+```
+
+---
+
+## 📦 Deploy na Vercel
+
+O projeto conta com arquivo `vercel.json` configurado para SPA. Basta conectar seu repositório no painel da Vercel e adicionar as variáveis de ambiente.
