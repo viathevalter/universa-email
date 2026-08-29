@@ -221,10 +221,12 @@ export async function searchB2BLeadsWithAI(
   // 1. Tenta consulta ao Gemini com Grounded Search (Web Real do Google)
   if (apiKey && apiKey.trim().length > 10) {
     try {
+      const randomSeed = Math.random().toString(36).substring(2, 6);
       const prompt = isB2C
-        ? `Você é um robô de busca e rastreamento de dados públicos reais na Espanha.
-Execute uma pesquisa no Google e na web indexada por perfis públicos, tópicos de fóruns, diretórios de peñas esportivas e grupos na Espanha sobre "${keywords}" em "${location}".
-Encontre até ${targetCount} contatos e pessoas reais ou menções públicas.
+        ? `Você é um robô de busca e rastreamento de dados públicos na Espanha.
+Execute uma pesquisa no Google e na web indexada por perfis públicos, tópicos de fóruns, peñas esportivas e grupos na Espanha sobre "${keywords}" em "${location}" (variação aleatória seed: ${randomSeed}).
+Busque em diferentes distritos, provedores (@gmail.com, @hotmail.es, @outlook.es, @yahoo.es, @telefonica.net) e tópicos de comunidades de Smart TV, futebol, cine 4K e expatriados.
+Encontre até ${targetCount} contatos e pessoas reais ou menções públicas não repetidas.
 Extraia:
 - contact_name: Nome da pessoa ou responsável
 - company_name: Associação / Perfil / Referência (ex: "Peña Madridista La Gran Familia", "Perfil Instagram Aficionado LaLiga", "Comunidade Brasileiros Madrid")
@@ -252,7 +254,7 @@ Retorne em JSON: {"leads": [{"contact_name": "...", "company_name": "...", "role
             // Ativa o Google Search Grounding oficial para buscar na web viva
             tools: [{ googleSearch: {} }],
             generationConfig: {
-              temperature: 0.2,
+              temperature: 0.7,
             },
           }),
         }

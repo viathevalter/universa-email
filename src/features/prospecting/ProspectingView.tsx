@@ -573,37 +573,61 @@ export const ProspectingView: React.FC = () => {
       {prospectingResults.length > 0 && (
         <div
           className={`flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 rounded-2xl p-5 border shadow-xl transition-all ${
-            isLight
-              ? 'border-emerald-200 bg-gradient-to-r from-emerald-500 via-teal-600 to-emerald-700 text-white shadow-emerald-500/20'
-              : 'border-emerald-500/50 bg-gradient-to-r from-emerald-950 via-zinc-900 to-teal-950 text-white shadow-emerald-500/10'
+            prospectingResults.some((r) => r.status !== 'imported')
+              ? isLight
+                ? 'border-emerald-200 bg-gradient-to-r from-emerald-500 via-teal-600 to-emerald-700 text-white shadow-emerald-500/20'
+                : 'border-emerald-500/50 bg-gradient-to-r from-emerald-950 via-zinc-900 to-teal-950 text-white shadow-emerald-500/10'
+              : isLight
+              ? 'border-indigo-200 bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-indigo-500/20'
+              : 'border-indigo-500/50 bg-gradient-to-r from-indigo-950 via-zinc-900 to-purple-950 text-white shadow-indigo-500/10'
           }`}
         >
           <div className="flex items-center gap-3.5">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/20 backdrop-blur-md">
-              <Download className="h-6 w-6 text-white" />
+              {prospectingResults.some((r) => r.status !== 'imported') ? (
+                <Download className="h-6 w-6 text-white" />
+              ) : (
+                <CheckCircle className="h-6 w-6 text-emerald-300" />
+              )}
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-extrabold text-base sm:text-lg tracking-tight">
-                  {prospectingResults.length.toLocaleString()} Leads Capturados Prontos para o CRM
+                  {prospectingResults.some((r) => r.status !== 'imported')
+                    ? `${prospectingResults.filter((r) => r.status !== 'imported').length.toLocaleString()} Novos Leads Prontos para o CRM`
+                    : `✅ Todos os ${prospectingResults.length.toLocaleString()} Leads já foram Convertidos para o CRM!`}
                 </h3>
                 <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider">
                   Auditados DoH MX
                 </span>
               </div>
-              <p className="text-xs text-emerald-100 opacity-90 mt-0.5">
-                Transfira todos os contatos da fila temporária diretamente para a sua Base Central de Leads & CRM.
+              <p className="text-xs text-white/90 opacity-90 mt-0.5">
+                {prospectingResults.some((r) => r.status !== 'imported')
+                  ? 'Transfira os contatos pendentes da fila temporária diretamente para a sua Base Central de Leads & CRM.'
+                  : 'Os contatos já estão salvos permanentemente no seu CRM. Você pode limpar a fila ou continuar minerando novos contatos!'}
               </p>
             </div>
           </div>
 
-          <button
-            onClick={handleImportAllValid}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-6 py-3 text-xs sm:text-sm font-extrabold text-emerald-800 shadow-lg hover:bg-emerald-50 transition-all cursor-pointer shrink-0"
-          >
-            <Download className="h-4.5 w-4.5 text-emerald-700" />
-            <span>CONVERTER AGORA ({prospectingResults.length.toLocaleString()}) PARA O CRM</span>
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {prospectingResults.some((r) => r.status !== 'imported') ? (
+              <button
+                onClick={handleImportAllValid}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-6 py-3 text-xs sm:text-sm font-extrabold text-emerald-800 shadow-lg hover:bg-emerald-50 transition-all cursor-pointer"
+              >
+                <Download className="h-4.5 w-4.5 text-emerald-700" />
+                <span>CONVERTER AGORA ({prospectingResults.filter((r) => r.status !== 'imported').length.toLocaleString()}) PARA O CRM</span>
+              </button>
+            ) : (
+              <button
+                onClick={clearStaging}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/20 hover:bg-white/30 border border-white/30 px-5 py-2.5 text-xs font-bold text-white transition-all cursor-pointer"
+              >
+                <Trash2 className="h-4 w-4" />
+                <span>Limpar Fila Concluída</span>
+              </button>
+            )}
+          </div>
         </div>
       )}
 
