@@ -189,7 +189,26 @@ const INITIAL_TEMPLATES: MarketingTemplate[] = [
   },
 ];
 
-const INITIAL_LEADS: Lead[] = [];
+const MOCK_EMAILS_TO_PURGE = new Set([
+  'carlos.silveira@nexuslog.com.br',
+  'm.vasconcelos@atlasmetal.ind.br',
+  'roberto@primesolucoes.com.br',
+  'comercial@deltadistribuidora.com.br',
+  'fernando@inovasolucoes.com.br',
+  'alejandro.martinez84@gmail.com',
+]);
+
+const sanitizeLeads = (leadsArray: Lead[]): Lead[] => {
+  return (leadsArray || []).filter(
+    (l) =>
+      l &&
+      l.email &&
+      !MOCK_EMAILS_TO_PURGE.has(l.email.toLowerCase().trim()) &&
+      !l.id?.startsWith('lead_b2b_') &&
+      !l.id?.startsWith('lead_mock_')
+  );
+};
+
 const INITIAL_AUDIENCES: SavedAudience[] = [];
 
 const SPANISH_CITIES_ROTATION = [
@@ -243,10 +262,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return saved ? JSON.parse(saved) : DEFAULT_TENANT;
   });
 
-  // Leads State
+  // Leads State with Auto-Sanitize on Load
   const [leads, setLeads] = useState<Lead[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.LEADS);
-    return saved ? JSON.parse(saved) : INITIAL_LEADS;
+    if (!saved) return [];
+    try {
+      const parsed = JSON.parse(saved);
+      return Array.isArray(parsed) ? sanitizeLeads(parsed) : [];
+    } catch {
+      return [];
+    }
   });
 
   // Missions State
@@ -320,8 +345,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         .order('created_at', { ascending: false })
         .range(0, 49999);
 
-      if (!leadsErr && dbLeads && dbLeads.length > 0) {
-        setLeads(dbLeads);
+      if (!leadsErr && dbLeads) {
+        setLeads(sanitizeLeads(dbLeads));
       }
 
       const { data: dbTemplates, error: tmplErr } = await supabase.from('marketing_templates').select('*');
