@@ -35,6 +35,18 @@ export interface LeadProspectingMission {
   status: 'active' | 'paused' | 'completed';
 }
 
+export interface DorkTargetJob {
+  id: string;
+  title: string;
+  platform: 'instagram' | 'facebook' | 'foros' | 'peñas' | 'twitter';
+  query: string;
+  city: string;
+  niche: string;
+  status: 'queued' | 'running' | 'completed' | 'paused';
+  leads_found: number;
+  last_run_at?: string;
+}
+
 export interface Tenant {
   id: string;
   name: string;
@@ -55,6 +67,7 @@ export interface Lead {
   email: string;
   phone?: string;
   website?: string;
+  source_url?: string;
   sector?: string;
   role?: string;
   company_size?: CompanySize | string;
@@ -97,6 +110,7 @@ export interface LeadProspectingResult {
   email: string;
   phone?: string;
   website?: string;
+  source_url?: string;
   address?: string;
   city?: string;
   province?: string;

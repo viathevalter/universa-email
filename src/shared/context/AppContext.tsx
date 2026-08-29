@@ -1,10 +1,11 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import type {
   Tenant,
   Lead,
   LeadProspectingJob,
   LeadProspectingResult,
   LeadProspectingMission,
+  DorkTargetJob,
   MarketingTemplate,
   MarketingCampaign,
   MarketingCampaignQueue,
@@ -13,7 +14,13 @@ import type {
 import { verifyEmailDns } from '../services/dnsService';
 import { processCampaignQueueBatch } from '../services/resendService';
 import { getSupabaseClient } from '../services/supabaseClient';
-import { SPAIN_B2C_MISSIONS, searchB2BLeadsWithAI, deduplicateProspects } from '../services/geminiService';
+import {
+  SPAIN_B2C_MISSIONS,
+  INITIAL_DORK_QUEUE,
+  searchB2BLeadsWithAI,
+  executeDorkTargetJob,
+  deduplicateProspects,
+} from '../services/geminiService';
 
 export type AppTheme = 'dark' | 'light';
 
@@ -43,6 +50,15 @@ interface AppContextType {
   updateProspectingResultStatus: (resultId: string, status: 'imported' | 'discarded') => Promise<void>;
   importProspectsToLeads: (resultIds: string[]) => Promise<number>;
   
+  // Automated Dork Harvester
+  dorkQueue: DorkTargetJob[];
+  runDorkTarget: (targetId: string, onProgress?: (c: number, t: number) => void) => Promise<number>;
+  addDorkTarget: (target: Omit<DorkTargetJob, 'id' | 'status' | 'leads_found'>) => void;
+  deleteDorkTarget: (id: string) => void;
+  isAutoDorkingActive: boolean;
+  startAutoDorking: () => void;
+  stopAutoDorking: () => void;
+  
   // Templates
   templates: MarketingTemplate[];
   addTemplate: (template: Omit<MarketingTemplate, 'id' | 'tenant_id' | 'created_at' | 'updated_at'>) => Promise<MarketingTemplate>;
@@ -71,6 +87,7 @@ const STORAGE_KEYS = {
   TENANT: 'universa_tenant_data',
   LEADS: 'universa_leads_data',
   MISSIONS: 'universa_missions_data',
+  DORK_QUEUE: 'universa_dork_queue_data',
   JOBS: 'universa_jobs_data',
   RESULTS: 'universa_results_data',
   TEMPLATES: 'universa_templates_data',
@@ -198,6 +215,7 @@ const INITIAL_LEADS: Lead[] = [
     company_name: 'Aficionado Real Madrid (Madrid)',
     email: 'alejandro.martinez84@gmail.com',
     phone: '+34 612 34 56 78',
+    source_url: 'https://instagram.com/alejandro_madridista',
     sector: 'Streaming & Esportes B2C',
     role: 'Torcedor LaLiga / Smart TV',
     company_size: 'B2C (Consumidor)',
@@ -220,6 +238,7 @@ const INITIAL_LEADS: Lead[] = [
     company_name: 'Aficionado FC Barcelona (Barcelona)',
     email: 'mateo.gonzalez.bcn@hotmail.es',
     phone: '+34 655 43 21 09',
+    source_url: 'https://facebook.com/groups/barcelonistas.catalunya',
     sector: 'Streaming & Esportes B2C',
     role: 'Torcedor Barça / DAZN',
     company_size: 'B2C (Consumidor)',
@@ -242,6 +261,7 @@ const INITIAL_LEADS: Lead[] = [
     company_name: 'Brasileiros em Madrid (Comunidade BR)',
     email: 'rodrigo.silva.es@gmail.com',
     phone: '+34 689 11 22 33',
+    source_url: 'https://facebook.com/groups/brasileiros.em.madrid',
     sector: 'Comunidade Expat',
     role: 'Brasileiro na Espanha (Globo/Premiere)',
     company_size: 'B2C (Consumidor)',
@@ -271,18 +291,6 @@ const INITIAL_AUDIENCES: SavedAudience[] = [
       exclude_opted_out: true,
     },
     lead_count: 2,
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: 'aud_brasileiros_es',
-    tenant_id: '00000000-0000-0000-0000-000000000001',
-    name: '🇧🇷 Brasileiros na Espanha (Canais do Brasil)',
-    description: 'Comunidade brasileira residente na Espanha',
-    filters: {
-      tags: ['Brasileiro na Espanha'],
-      exclude_opted_out: true,
-    },
-    lead_count: 1,
     created_at: new Date().toISOString(),
   },
 ];
@@ -335,6 +343,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const saved = localStorage.getItem(STORAGE_KEYS.MISSIONS);
     return saved ? JSON.parse(saved) : SPAIN_B2C_MISSIONS;
   });
+
+  // Dork Queue State
+  const [dorkQueue, setDorkQueue] = useState<DorkTargetJob[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.DORK_QUEUE);
+    return saved ? JSON.parse(saved) : INITIAL_DORK_QUEUE;
+  });
+
+  // Auto-Dorking Active State
+  const [isAutoDorkingActive, setIsAutoDorkingActive] = useState(false);
+  const autoDorkingIntervalRef = useRef<any>(null);
 
   // Prospecting Jobs & Results
   const [prospectingJobs, setProspectingJobs] = useState<LeadProspectingJob[]>(() => {
@@ -394,21 +412,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setCampaigns(dbCampaigns);
       }
 
-      const { data: dbAudiences, error: audErr } = await supabase.from('saved_audiences').select('*');
-      if (!audErr && dbAudiences && dbAudiences.length > 0) {
-        setAudiences(
-          dbAudiences.map((a: any) => ({
-            id: a.id,
-            tenant_id: a.tenant_id,
-            name: a.name,
-            description: a.description,
-            filters: a.filters_json || {},
-            lead_count: 0,
-            created_at: a.created_at,
-          }))
-        );
-      }
-
       const { data: dbResults, error: resErr } = await supabase.from('lead_prospecting_results').select('*').order('created_at', { ascending: false });
       if (!resErr && dbResults && dbResults.length > 0) {
         setProspectingResults(dbResults);
@@ -438,6 +441,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [missions]);
 
   useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.DORK_QUEUE, JSON.stringify(dorkQueue));
+  }, [dorkQueue]);
+
+  useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.JOBS, JSON.stringify(prospectingJobs));
   }, [prospectingJobs]);
 
@@ -463,18 +470,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateTenant = (updates: Partial<Tenant>) => {
     setTenant((prev) => ({ ...prev, ...updates }));
-    const supabase = getSupabaseClient();
-    if (supabase) {
-      supabase.from('tenants').upsert({
-        id: tenant.id,
-        name: updates.name || tenant.name,
-        trade_name: updates.trade_name !== undefined ? updates.trade_name : tenant.trade_name,
-        resend_api_key: updates.resend_api_key !== undefined ? updates.resend_api_key : tenant.resend_api_key,
-        marketing_sender_email: updates.marketing_sender_email !== undefined ? updates.marketing_sender_email : tenant.marketing_sender_email,
-        sender_name: updates.sender_name !== undefined ? updates.sender_name : tenant.sender_name,
-        gemini_api_key: updates.gemini_api_key !== undefined ? updates.gemini_api_key : tenant.gemini_api_key,
-      }).then();
-    }
   };
 
   // Lead Operations
@@ -501,6 +496,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         email: newLead.email,
         phone: newLead.phone,
         website: newLead.website,
+        source_url: newLead.source_url,
         sector: newLead.sector,
         role: newLead.role,
         company_size: newLead.company_size,
@@ -571,6 +567,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           email: l.email,
           phone: l.phone,
           website: l.website,
+          source_url: l.source_url,
           sector: l.sector,
           role: l.role,
           company_size: l.company_size,
@@ -596,11 +593,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setLeads((prev) =>
       prev.map((l) => (l.id === leadId ? { ...l, opted_out: newOptOut, updated_at: new Date().toISOString() } : l))
     );
-
-    const supabase = getSupabaseClient();
-    if (supabase) {
-      supabase.from('leads').update({ opted_out: newOptOut }).eq('id', leadId).then();
-    }
   };
 
   const verifyLeadMx = async (leadId: string) => {
@@ -663,7 +655,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     await addProspectingJob(completedJob, unique);
 
-    // Atualiza contadores da missão
     setMissions((prev) =>
       prev.map((m) =>
         m.id === missionId
@@ -677,6 +668,98 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
 
     return unique.length;
+  };
+
+  // Run Dork Target Job
+  const runDorkTarget = async (
+    targetId: string,
+    onProgress?: (c: number, t: number) => void
+  ): Promise<number> => {
+    const target = dorkQueue.find((d) => d.id === targetId);
+    if (!target) return 0;
+
+    setDorkQueue((prev) =>
+      prev.map((d) => (d.id === targetId ? { ...d, status: 'running' } : d))
+    );
+
+    const results = await executeDorkTargetJob(target, tenant.id, tenant.gemini_api_key, onProgress);
+    const existingEmails = new Set(leads.map((l) => l.email.toLowerCase().trim()));
+    const unique = deduplicateProspects(results, existingEmails);
+
+    const jobId = `job_dork_${targetId}_${Date.now()}`;
+    const completedJob: LeadProspectingJob = {
+      id: jobId,
+      tenant_id: tenant.id,
+      title: `Social Dork: ${target.title}`,
+      keywords: target.query,
+      location: `${target.city}, Espanha`,
+      target_count: 15,
+      processed_count: results.length,
+      found_emails_count: unique.length,
+      status: 'completed',
+      created_at: new Date().toISOString(),
+    };
+
+    await addProspectingJob(completedJob, unique);
+
+    setDorkQueue((prev) =>
+      prev.map((d) =>
+        d.id === targetId
+          ? {
+              ...d,
+              status: 'completed',
+              leads_found: d.leads_found + unique.length,
+              last_run_at: new Date().toISOString(),
+            }
+          : d
+      )
+    );
+
+    return unique.length;
+  };
+
+  const addDorkTarget = (targetData: Omit<DorkTargetJob, 'id' | 'status' | 'leads_found'>) => {
+    const newTarget: DorkTargetJob = {
+      ...targetData,
+      id: `dork_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+      status: 'queued',
+      leads_found: 0,
+    };
+    setDorkQueue((prev) => [newTarget, ...prev]);
+  };
+
+  const deleteDorkTarget = (id: string) => {
+    setDorkQueue((prev) => prev.filter((d) => d.id !== id));
+  };
+
+  // Continuous Auto-Dorking Engine Loop
+  const startAutoDorking = () => {
+    if (isAutoDorkingActive) return;
+    setIsAutoDorkingActive(true);
+
+    let currentIndex = 0;
+    const processNext = async () => {
+      if (dorkQueue.length === 0) return;
+      const target = dorkQueue[currentIndex % dorkQueue.length];
+      currentIndex++;
+
+      try {
+        await runDorkTarget(target.id);
+      } catch (e) {
+        console.warn('[Auto-Dorking Loop Target Fail]', e);
+      }
+    };
+
+    processNext();
+    autoDorkingIntervalRef.current = setInterval(processNext, 12000);
+  };
+
+  const stopAutoDorking = () => {
+    setIsAutoDorkingActive(false);
+    if (autoDorkingIntervalRef.current) {
+      clearInterval(autoDorkingIntervalRef.current);
+      autoDorkingIntervalRef.current = null;
+    }
   };
 
   // Prospecting Operations
@@ -706,6 +789,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         email: r.email,
         phone: r.phone,
         website: r.website,
+        source_url: r.source_url,
         address: r.address,
         city: r.city,
         province: r.province,
@@ -727,11 +811,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setProspectingResults((prev) =>
       prev.map((r) => (r.id === resultId ? { ...r, status } : r))
     );
-
-    const supabase = getSupabaseClient();
-    if (supabase) {
-      supabase.from('lead_prospecting_results').update({ status }).eq('id', resultId).then();
-    }
   };
 
   const importProspectsToLeads = async (resultIds: string[]): Promise<number> => {
@@ -744,6 +823,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       email: p.email,
       phone: p.phone,
       website: p.website,
+      source_url: p.source_url,
       sector: p.sector || 'Streaming & Esportes',
       role: p.role || 'Consumidor B2C',
       company_size: p.company_size || 'B2C (Consumidor)',
@@ -777,19 +857,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updated_at: new Date().toISOString(),
     };
     setTemplates((prev) => [newTmpl, ...prev]);
-
-    const supabase = getSupabaseClient();
-    if (supabase) {
-      supabase.from('marketing_templates').insert({
-        tenant_id: tenant.id,
-        title: newTmpl.title,
-        subject: newTmpl.subject,
-        html_content: newTmpl.html_content,
-        preview_text: newTmpl.preview_text,
-        variables: newTmpl.variables,
-      }).then();
-    }
-
     return newTmpl;
   };
 
@@ -797,20 +864,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTemplates((prev) =>
       prev.map((t) => (t.id === id ? { ...t, ...updates, updated_at: new Date().toISOString() } : t))
     );
-
-    const supabase = getSupabaseClient();
-    if (supabase) {
-      supabase.from('marketing_templates').update(updates).eq('id', id).then();
-    }
   };
 
   const deleteTemplate = async (id: string) => {
     setTemplates((prev) => prev.filter((t) => t.id !== id));
-
-    const supabase = getSupabaseClient();
-    if (supabase) {
-      supabase.from('marketing_templates').delete().eq('id', id).then();
-    }
   };
 
   // Campaign Operations
@@ -851,21 +908,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setCampaigns((prev) => [newCampaign, ...prev]);
     setCampaignQueue((prev) => ({ ...prev, [campaignId]: queueItems }));
-
-    const supabase = getSupabaseClient();
-    if (supabase) {
-      supabase.from('marketing_campaigns').insert({
-        tenant_id: tenant.id,
-        title: newCampaign.title,
-        subject: newCampaign.subject,
-        sender_name: newCampaign.sender_name,
-        sender_email: newCampaign.sender_email,
-        reply_to: newCampaign.reply_to,
-        status: newCampaign.status,
-        total_recipients: newCampaign.total_recipients,
-        rate_limit_per_second: newCampaign.rate_limit_per_second,
-      }).then();
-    }
 
     return newCampaign;
   };
@@ -924,11 +966,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           : c
       )
     );
-
-    const supabase = getSupabaseClient();
-    if (supabase) {
-      supabase.from('marketing_campaigns').update({ status: 'completed' }).eq('id', campaignId).then();
-    }
   };
 
   const pauseCampaign = (campaignId: string) => {
@@ -946,27 +983,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       created_at: new Date().toISOString(),
     };
     setAudiences((prev) => [newAudience, ...prev]);
-
-    const supabase = getSupabaseClient();
-    if (supabase) {
-      supabase.from('saved_audiences').insert({
-        tenant_id: tenant.id,
-        name: newAudience.name,
-        description: newAudience.description,
-        filters_json: newAudience.filters,
-      }).then();
-    }
-
     return newAudience;
   };
 
   const deleteAudience = async (id: string) => {
     setAudiences((prev) => prev.filter((a) => a.id !== id));
-
-    const supabase = getSupabaseClient();
-    if (supabase) {
-      supabase.from('saved_audiences').delete().eq('id', id).then();
-    }
   };
 
   const isSupabaseConnected = Boolean(
@@ -995,6 +1016,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addProspectingJob,
         updateProspectingResultStatus,
         importProspectsToLeads,
+        dorkQueue,
+        runDorkTarget,
+        addDorkTarget,
+        deleteDorkTarget,
+        isAutoDorkingActive,
+        startAutoDorking,
+        stopAutoDorking,
         templates,
         addTemplate,
         updateTemplate,

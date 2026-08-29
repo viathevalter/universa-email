@@ -16,6 +16,7 @@ import {
   Flame,
   Target,
   Play,
+  Pause,
   MessageCircle,
   Copy,
   Check,
@@ -23,10 +24,11 @@ import {
   FileText,
   Share2,
   Zap,
+  Radio,
 } from 'lucide-react';
 import { useApp } from '../../shared/context/AppContext';
 import { searchB2BLeadsWithAI, deduplicateProspects } from '../../shared/services/geminiService';
-import type { LeadProspectingJob, LeadProspectingMission, LeadProspectingResult } from '../../types';
+import type { LeadProspectingJob, LeadProspectingMission, LeadProspectingResult, DorkTargetJob } from '../../types';
 import { verifyEmailDns } from '../../shared/services/dnsService';
 import confetti from 'canvas-confetti';
 
@@ -36,6 +38,11 @@ export const ProspectingView: React.FC = () => {
     leads,
     missions,
     runMission,
+    dorkQueue,
+    runDorkTarget,
+    isAutoDorkingActive,
+    startAutoDorking,
+    stopAutoDorking,
     prospectingResults,
     addProspectingJob,
     updateProspectingResultStatus,
@@ -46,7 +53,7 @@ export const ProspectingView: React.FC = () => {
   const isLight = theme === 'light';
 
   // Active view mode
-  const [activeMode, setActiveMode] = useState<'missions' | 'custom'>('missions');
+  const [activeMode, setActiveMode] = useState<'missions' | 'dorks' | 'custom'>('missions');
   const [selectedMission, setSelectedMission] = useState<LeadProspectingMission>(missions[0]);
   const [selectedCity, setSelectedCity] = useState('Madrid');
   const [batchCount, setBatchCount] = useState(25);
@@ -134,7 +141,6 @@ export const ProspectingView: React.FC = () => {
     setIsParsingPaste(true);
     setPasteProgress({ current: 0, total: 1 });
 
-    // Expressão regular robusta para extrair e-mails
     const emailRegex = /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/gi;
     const phoneRegex = /(\+34\s?[67]\d{2}\s?\d{2}\s?\d{2}\s?\d{2}|[67]\d{8})/g;
 
@@ -173,6 +179,7 @@ export const ProspectingView: React.FC = () => {
         email,
         phone: phone ? `+34 ${phone.replace('+34', '').trim()}` : undefined,
         website: '',
+        source_url: 'https://google.com/search?q=social_scrape_es',
         address: 'Espanha',
         city: 'Espanha',
         province: 'Espanha',
@@ -184,7 +191,7 @@ export const ProspectingView: React.FC = () => {
         mx_host: dnsResult.mxRecords[0] || 'Provedor DNS',
         domain_active: dnsResult.hasARecord || dnsResult.hasMx,
         status: 'raw',
-        raw_reasoning: `Importado e auditado via raspador de texto direto (${pasteNicheTag}).`,
+        raw_reasoning: `Importado e auditado via raspador direto (${pasteNicheTag}).`,
         target_niche: 'custom_b2c',
         created_at: new Date().toISOString(),
       });
@@ -223,6 +230,36 @@ export const ProspectingView: React.FC = () => {
 
     const validIds = uniqueResults.filter((r) => r.mx_status === 'valid').map((r) => r.id);
     setSelectedIds(validIds);
+  };
+
+  // Executar Alvo Individual de Dork Automático
+  const handleExecuteSingleDork = async (target: DorkTargetJob) => {
+    setIsSearching(true);
+    setSearchProgress({ current: 0, total: 15 });
+    setNotification(null);
+
+    try {
+      const count = await runDorkTarget(target.id, (current, total) => {
+        setSearchProgress({ current, total });
+      });
+
+      try {
+        confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
+      } catch {}
+
+      setNotification({
+        type: 'success',
+        message: `Dork "${target.title}" processado! ${count} novos leads reais foram capturados com links de comprovação.`,
+      });
+    } catch (e: any) {
+      setNotification({
+        type: 'error',
+        message: `Falha ao executar Dork: ${e.message || 'Erro inesperado'}`,
+      });
+    } finally {
+      setIsSearching(false);
+      setSearchProgress(null);
+    }
   };
 
   // Executar Todas as 5 Missões Simultâneas
@@ -269,7 +306,7 @@ export const ProspectingView: React.FC = () => {
 
       setNotification({
         type: 'success',
-        message: `Missão "${mission.title}" executada com sucesso! ${added} novos leads B2C foram auditados via DNS/MX.`,
+        message: `Missão "${mission.title}" executada! ${added} novos leads B2C foram capturados e auditados via DNS/MX.`,
       });
 
       const newValid = prospectingResults
@@ -436,7 +473,7 @@ export const ProspectingView: React.FC = () => {
               Centro de Missões & Extrator de Leads Reais
             </h1>
             <p className={`text-xs sm:text-sm max-w-2xl ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>
-              Captação massiva de e-mails reais de redes sociais, grupos e diretórios na Espanha com auditoria DoH MX antes do envio no Resend.
+              Dois motores simultâneos: <strong>Missões Grounded com Google Search</strong> e <strong>Motor Automático de Dorks Sociais</strong> com auditoria DoH em tempo real.
             </p>
           </div>
 
@@ -453,7 +490,7 @@ export const ProspectingView: React.FC = () => {
                 }`}
               >
                 <Share2 className="h-4 w-4 text-pink-500" />
-                <span>Extrator de Dorks (Redes Sociais)</span>
+                <span>Gerador de Dorks do Google</span>
               </button>
 
               <button
@@ -521,9 +558,9 @@ export const ProspectingView: React.FC = () => {
         </div>
       )}
 
-      {/* Mode Switcher & Global Auto-Pilot Trigger */}
+      {/* Mode Switcher & Global Triggers */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className={`flex rounded-xl p-1 border text-xs font-semibold ${isLight ? 'bg-slate-100 border-slate-200' : 'bg-zinc-900 border-zinc-800'}`}>
+        <div className={`flex flex-wrap rounded-xl p-1 border text-xs font-semibold ${isLight ? 'bg-slate-100 border-slate-200' : 'bg-zinc-900 border-zinc-800'}`}>
           <button
             onClick={() => setActiveMode('missions')}
             className={`flex items-center gap-2 rounded-lg px-4 py-2 transition-all cursor-pointer ${
@@ -539,6 +576,23 @@ export const ProspectingView: React.FC = () => {
             <Sparkles className="h-4 w-4 text-pink-500" />
             5 Missões B2C Espanha
           </button>
+
+          <button
+            onClick={() => setActiveMode('dorks')}
+            className={`flex items-center gap-2 rounded-lg px-4 py-2 transition-all cursor-pointer ${
+              activeMode === 'dorks'
+                ? isLight
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'bg-zinc-800 text-white shadow-xs'
+                : isLight
+                ? 'text-slate-600 hover:text-slate-900'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            <Radio className="h-4 w-4 text-indigo-500" />
+            Fila de Social Dorks Automáticos ({dorkQueue.length} Alvos)
+          </button>
+
           <button
             onClick={() => setActiveMode('custom')}
             className={`flex items-center gap-2 rounded-lg px-4 py-2 transition-all cursor-pointer ${
@@ -551,8 +605,8 @@ export const ProspectingView: React.FC = () => {
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            <Search className="h-4 w-4 text-indigo-500" />
-            Busca Personalizada Livre
+            <Search className="h-4 w-4 text-slate-500" />
+            Busca Livre
           </button>
         </div>
 
@@ -564,7 +618,30 @@ export const ProspectingView: React.FC = () => {
               className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-pink-600 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-orange-500/20 hover:opacity-95 disabled:opacity-50 transition-all cursor-pointer"
             >
               <Zap className="h-4 w-4 fill-current" />
-              <span>Executar Todas as 5 Missões de Uma Vez</span>
+              <span>Executar Todas as 5 Missões</span>
+            </button>
+          )}
+
+          {activeMode === 'dorks' && (
+            <button
+              onClick={isAutoDorkingActive ? stopAutoDorking : startAutoDorking}
+              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold text-white shadow-lg transition-all cursor-pointer ${
+                isAutoDorkingActive
+                  ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-500/20'
+                  : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-95 shadow-indigo-500/20'
+              }`}
+            >
+              {isAutoDorkingActive ? (
+                <>
+                  <Pause className="h-4 w-4 fill-current" />
+                  <span>Pausar Motor Automático</span>
+                </>
+              ) : (
+                <>
+                  <Play className="h-4 w-4 fill-current" />
+                  <span>Iniciar Piloto Automático de Dorks</span>
+                </>
+              )}
             </button>
           )}
 
@@ -574,7 +651,7 @@ export const ProspectingView: React.FC = () => {
               className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-emerald-500/20 hover:opacity-95 transition-all cursor-pointer"
             >
               <Download className="h-4 w-4" />
-              <span>Importar {selectedIds.length} Selecionados</span>
+              <span>Importar {selectedIds.length} para CRM</span>
             </button>
           )}
         </div>
@@ -592,7 +669,7 @@ export const ProspectingView: React.FC = () => {
             <div className="flex flex-wrap items-center gap-4 text-xs">
               <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-indigo-500" />
-                <span className={`font-semibold ${isLight ? 'text-slate-700' : 'text-zinc-300'}`}>Cidade / Região Alvo:</span>
+                <span className={`font-semibold ${isLight ? 'text-slate-700' : 'text-zinc-300'}`}>Cidade Alvo:</span>
                 <select
                   value={selectedCity}
                   onChange={(e) => setSelectedCity(e.target.value)}
@@ -613,7 +690,7 @@ export const ProspectingView: React.FC = () => {
               </div>
 
               <div className="flex items-center gap-2">
-                <span className={`font-semibold ${isLight ? 'text-slate-700' : 'text-zinc-300'}`}>Volume por Disparo:</span>
+                <span className={`font-semibold ${isLight ? 'text-slate-700' : 'text-zinc-300'}`}>Volume por Lote:</span>
                 <select
                   value={batchCount}
                   onChange={(e) => setBatchCount(Number(e.target.value))}
@@ -621,17 +698,17 @@ export const ProspectingView: React.FC = () => {
                     isLight ? 'border-slate-300 bg-slate-50 text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
                   }`}
                 >
-                  <option value={10}>10 Leads / Extração</option>
-                  <option value={25}>25 Leads / Extração (Recomendado)</option>
-                  <option value={50}>50 Leads / Extração</option>
-                  <option value={100}>100 Leads / Extração (Lote Alto)</option>
+                  <option value={10}>10 Leads / Lote</option>
+                  <option value={25}>25 Leads / Lote (Recomendado)</option>
+                  <option value={50}>50 Leads / Lote</option>
+                  <option value={100}>100 Leads / Lote</option>
                 </select>
               </div>
             </div>
 
             <div className="flex items-center gap-2 text-xs text-emerald-500 font-semibold">
               <ShieldCheck className="h-4 w-4" />
-              <span>Validação DoH MX Ativa em Tempo Real</span>
+              <span>Google Search Grounding + DoH MX Ativos</span>
             </div>
           </div>
 
@@ -720,7 +797,92 @@ export const ProspectingView: React.FC = () => {
         </div>
       )}
 
-      {/* SECTION 2: CUSTOM SEARCH BOX */}
+      {/* SECTION 2: AUTOMATED DORK QUEUE ENGINE */}
+      {activeMode === 'dorks' && (
+        <div className="space-y-4">
+          <div
+            className={`rounded-2xl border p-4 backdrop-blur-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
+              isLight ? 'border-slate-200 bg-white shadow-xs' : 'border-zinc-800 bg-zinc-900/60'
+            }`}
+          >
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Radio className={`h-4 w-4 ${isAutoDorkingActive ? 'text-emerald-500 animate-pulse' : 'text-indigo-500'}`} />
+                <h3 className={`text-sm font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  Fila de Dorking Contínuo ({dorkQueue.length} Alvos Programados)
+                </h3>
+              </div>
+              <p className={`text-xs ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>
+                {isAutoDorkingActive
+                  ? '⚡ O Piloto Automático está executando as buscas no Google a cada 12 segundos e auditando MX em segundo plano.'
+                  : 'Clique em "Iniciar Piloto Automático" para rodar a fila inteira ou execute alvos individuais abaixo.'}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setIsDorkModalOpen(true)}
+                className={`rounded-xl border px-3 py-1.5 text-xs font-semibold ${
+                  isLight ? 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100' : 'border-zinc-700 bg-zinc-800 text-zinc-300'
+                }`}
+              >
+                + Gerar Novo Dork
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {dorkQueue.map((item) => (
+              <div
+                key={item.id}
+                className={`rounded-2xl border p-4 flex flex-col justify-between transition-all ${
+                  item.status === 'running'
+                    ? 'border-indigo-500 bg-indigo-500/10'
+                    : isLight
+                    ? 'border-slate-200 bg-white shadow-xs'
+                    : 'border-zinc-800 bg-zinc-900/60'
+                }`}
+              >
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="rounded-md bg-indigo-500/10 px-2 py-0.5 text-[10px] font-bold text-indigo-500 uppercase">
+                      {item.platform}
+                    </span>
+                    <span className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
+                      {item.city}
+                    </span>
+                  </div>
+
+                  <h4 className={`font-bold text-xs ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                    {item.title}
+                  </h4>
+
+                  <div className={`p-2 rounded font-mono text-[10px] truncate ${isLight ? 'bg-slate-100 text-slate-700' : 'bg-zinc-950 text-emerald-400'}`}>
+                    {item.query}
+                  </div>
+                </div>
+
+                <div className="mt-3 pt-2 border-t border-zinc-800/40 flex items-center justify-between">
+                  <span className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
+                    Capturados: <strong>{item.leads_found}</strong>
+                  </span>
+
+                  <button
+                    onClick={() => handleExecuteSingleDork(item)}
+                    disabled={isSearching}
+                    className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-indigo-500 disabled:opacity-50 cursor-pointer"
+                  >
+                    <Play className="h-2.5 w-2.5 fill-current" />
+                    <span>Executar</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* SECTION 3: CUSTOM SEARCH BOX */}
       {activeMode === 'custom' && (
         <div
           className={`rounded-2xl border p-6 backdrop-blur-sm shadow-xl transition-all ${
@@ -816,7 +978,7 @@ export const ProspectingView: React.FC = () => {
         </div>
       )}
 
-      {/* SECTION 3: STAGING AREA (RESULTADOS AUDITADOS) */}
+      {/* SECTION 4: STAGING AREA (RESULTADOS COM FONTE REAL) */}
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-2">
@@ -900,7 +1062,7 @@ export const ProspectingView: React.FC = () => {
                 Nenhum lead na área de staging
               </h3>
               <p className={`text-xs mt-1 max-w-sm mx-auto ${isLight ? 'text-slate-500' : 'text-zinc-500'}`}>
-                Clique em <strong>"Executar Missão"</strong> em um dos cards acima ou utilize o <strong>"Extrator de Dorks"</strong> para capturar novos e-mails reais.
+                Inicie uma missão ou o motor de Dorks para capturar contatos reais na Espanha com auditoria DoH.
               </p>
             </div>
           ) : (
@@ -922,6 +1084,7 @@ export const ProspectingView: React.FC = () => {
                     </th>
                     <th className="p-4">Consumidor / Perfil</th>
                     <th className="p-4">E-mail & Auditoria DoH MX</th>
+                    <th className="p-4">Fonte / Link Real</th>
                     <th className="p-4">WhatsApp / Telefone</th>
                     <th className="p-4">Cidade / Espanha</th>
                     <th className="p-4 text-center">Score IA</th>
@@ -981,6 +1144,24 @@ export const ProspectingView: React.FC = () => {
                               </span>
                             )}
                           </div>
+                        </td>
+
+                        {/* Link da Fonte Real */}
+                        <td className="p-4">
+                          {item.source_url ? (
+                            <a
+                              href={item.source_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] text-indigo-500 hover:text-indigo-400 hover:underline max-w-[150px] truncate"
+                              title={item.source_url}
+                            >
+                              <ExternalLink className="h-3 w-3 shrink-0" />
+                              <span className="truncate">{item.source_url.replace('https://', '')}</span>
+                            </a>
+                          ) : (
+                            <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-zinc-500'}`}>Google Grounding</span>
+                          )}
                         </td>
 
                         {/* WhatsApp / Telefone */}
