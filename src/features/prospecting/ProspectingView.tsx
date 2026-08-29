@@ -569,6 +569,44 @@ export const ProspectingView: React.FC = () => {
         </div>
       </div>
 
+      {/* MEGA BANNER DE CONVERSÃO PARA O CRM */}
+      {prospectingResults.length > 0 && (
+        <div
+          className={`flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 rounded-2xl p-5 border shadow-xl transition-all ${
+            isLight
+              ? 'border-emerald-200 bg-gradient-to-r from-emerald-500 via-teal-600 to-emerald-700 text-white shadow-emerald-500/20'
+              : 'border-emerald-500/50 bg-gradient-to-r from-emerald-950 via-zinc-900 to-teal-950 text-white shadow-emerald-500/10'
+          }`}
+        >
+          <div className="flex items-center gap-3.5">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/20 backdrop-blur-md">
+              <Download className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-extrabold text-base sm:text-lg tracking-tight">
+                  {prospectingResults.length.toLocaleString()} Leads Capturados Prontos para o CRM
+                </h3>
+                <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider">
+                  Auditados DoH MX
+                </span>
+              </div>
+              <p className="text-xs text-emerald-100 opacity-90 mt-0.5">
+                Transfira todos os contatos da fila temporária diretamente para a sua Base Central de Leads & CRM.
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={handleImportAllValid}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-6 py-3 text-xs sm:text-sm font-extrabold text-emerald-800 shadow-lg hover:bg-emerald-50 transition-all cursor-pointer shrink-0"
+          >
+            <Download className="h-4.5 w-4.5 text-emerald-700" />
+            <span>CONVERTER AGORA ({prospectingResults.length.toLocaleString()}) PARA O CRM</span>
+          </button>
+        </div>
+      )}
+
       {/* LIVE AUTO-PILOT RUNNING STATUS STRIP */}
       {isAutoMissionsActive && (
         <div

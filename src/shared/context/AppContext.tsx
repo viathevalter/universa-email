@@ -754,7 +754,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const importAllValidProspects = async (): Promise<number> => {
     const validIds = prospectingResults
-      .filter((r) => r.mx_status === 'valid' && r.status !== 'imported')
+      .filter((r) => r.status !== 'imported')
       .map((r) => r.id);
     return await importProspectsToLeads(validIds);
   };
