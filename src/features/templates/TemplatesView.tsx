@@ -40,18 +40,18 @@ export const TemplatesView: React.FC = () => {
   const sampleLead: Lead = leads[0] || {
     id: 'sample_lead',
     tenant_id: '00000000-0000-0000-0000-000000000001',
-    name: 'Carlos Eduardo Silveira',
-    company_name: 'Nexus Logística e Transportes',
-    email: 'carlos.silveira@nexuslog.com.br',
-    phone: '+55 (11) 98765-4321',
-    website: 'https://nexuslog.com.br',
-    sector: 'Logística & Transportes',
-    role: 'Diretor de Operações (COO)',
-    company_size: 'Tier 1 (Enterprise)',
-    city: 'São Paulo',
-    province: 'SP',
-    country: 'Brasil',
-    tags: ['B2B'],
+    name: 'Alejandro Martínez',
+    company_name: 'Aficionado LaLiga (Madrid)',
+    email: 'alejandro.martinez@gmail.com',
+    phone: '+34 612 34 56 78',
+    website: '',
+    sector: 'Streaming & Esportes',
+    role: 'Consumidor B2C',
+    company_size: 'B2C (Consumidor)',
+    city: 'Madrid',
+    province: 'Comunidad de Madrid',
+    country: 'Espanha',
+    tags: ['LaLiga', 'Futebol ES'],
     status: 'qualified',
     opted_out: false,
     created_at: new Date().toISOString(),
@@ -59,11 +59,9 @@ export const TemplatesView: React.FC = () => {
   };
 
   const dynamicTags = [
-    { tag: '{{nome}}', label: 'Nome do Contato', example: sampleLead.name },
-    { tag: '{{empresa}}', label: 'Nome da Empresa', example: sampleLead.company_name },
-    { tag: '{{cargo}}', label: 'Cargo / Posição', example: sampleLead.role },
-    { tag: '{{cidade}}', label: 'Cidade', example: sampleLead.city },
-    { tag: '{{link_descadastro}}', label: 'Link de Opt-out', example: 'https://universaemail.com/opt-out' },
+    { tag: '{{nome}}', label: 'Nome do Destinatário', example: sampleLead.name },
+    { tag: '{{cidade}}', label: 'Cidade / Região', example: sampleLead.city },
+    { tag: '{{link_descadastro}}', label: 'Link de Opt-out Seguro', example: 'https://universaemail.com/opt-out' },
   ];
 
   const handleStartCreate = () => {

@@ -4,6 +4,7 @@ import type {
   Lead,
   LeadProspectingJob,
   LeadProspectingResult,
+  LeadProspectingMission,
   MarketingTemplate,
   MarketingCampaign,
   MarketingCampaignQueue,
@@ -12,6 +13,7 @@ import type {
 import { verifyEmailDns } from '../services/dnsService';
 import { processCampaignQueueBatch } from '../services/resendService';
 import { getSupabaseClient } from '../services/supabaseClient';
+import { SPAIN_B2C_MISSIONS, searchB2BLeadsWithAI, deduplicateProspects } from '../services/geminiService';
 
 export type AppTheme = 'dark' | 'light';
 
@@ -32,7 +34,9 @@ interface AppContextType {
   toggleOptOut: (leadId: string) => Promise<void>;
   verifyLeadMx: (leadId: string) => Promise<void>;
   
-  // Prospecting
+  // B2C Missions & Prospecting
+  missions: LeadProspectingMission[];
+  runMission: (missionId: string, location: string, count: number, onProgress?: (c: number, t: number) => void) => Promise<number>;
   prospectingJobs: LeadProspectingJob[];
   prospectingResults: LeadProspectingResult[];
   addProspectingJob: (job: LeadProspectingJob, results: LeadProspectingResult[]) => Promise<void>;
@@ -66,6 +70,7 @@ const STORAGE_KEYS = {
   THEME: 'universa_theme_mode',
   TENANT: 'universa_tenant_data',
   LEADS: 'universa_leads_data',
+  MISSIONS: 'universa_missions_data',
   JOBS: 'universa_jobs_data',
   RESULTS: 'universa_results_data',
   TEMPLATES: 'universa_templates_data',
@@ -76,50 +81,110 @@ const STORAGE_KEYS = {
 
 const DEFAULT_TENANT: Tenant = {
   id: '00000000-0000-0000-0000-000000000001',
-  name: 'UniversaEmail Enterprise',
-  trade_name: 'UniversaEmail SaaS',
+  name: 'Universa TV España',
+  trade_name: 'Universa Streaming & IPTV',
   resend_api_key: import.meta.env.VITE_RESEND_API_KEY || '',
-  marketing_sender_email: 'contato@universaemail.com',
-  sender_name: 'Time UniversaEmail',
+  marketing_sender_email: 'soporte@universaemail.com',
+  sender_name: 'Universa TV España',
   gemini_api_key: import.meta.env.VITE_GEMINI_API_KEY || '',
+  whatsapp_support_number: '+34 600 000 000',
   created_at: new Date().toISOString(),
 };
 
 const INITIAL_TEMPLATES: MarketingTemplate[] = [
   {
-    id: 'tmpl_cold_01',
+    id: 'tmpl_laliga_24h_es',
     tenant_id: '00000000-0000-0000-0000-000000000001',
-    title: 'Prospecção B2B Direta - Otimização de Processos',
-    subject: 'Parceria estratégica com a {{empresa}}',
-    html_content: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #18181b; line-height: 1.6; padding: 20px;">
-  <p>Olá <strong>{{nome}}</strong>, tudo bem?</p>
-  <p>Notei sua atuação como <strong>{{cargo}}</strong> na <strong>{{empresa}}</strong> em {{cidade}} e fiquei impressionado com o crescimento recente da empresa.</p>
-  <p>Estamos ajudando empresas do seu segmento a acelerar a automação comercial e reduzir custos operacionais em até 40% com inteligência de dados.</p>
-  <div style="background-color: #f4f4f5; padding: 16px; border-left: 4px solid #6366f1; margin: 20px 0; border-radius: 4px;">
-    <p style="margin: 0; font-size: 14px;"><em>"Aumentamos a taxa de resposta qualificada em 3.2x no primeiro mês de implementação."</em></p>
+    title: '⚽ [ES] LaLiga & Fútbol - Prueba de 24 Horas Gratis',
+    subject: '⚽ ¿Ver todo el fútbol y Champions sin pagar 120€/mes? (Test 24 Horas Gratis)',
+    category: 'b2c_es',
+    html_content: `<div style="font-family: Arial, Helvetica, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; color: #18181b; line-height: 1.6; padding: 24px; border-radius: 8px; border: 1px solid #e4e4e7;">
+  <div style="text-align: center; margin-bottom: 24px;">
+    <h2 style="color: #4f46e5; margin: 0; font-size: 22px;">⚽ Universa TV España</h2>
+    <p style="color: #71717a; font-size: 14px; margin-top: 4px;">Toda LaLiga, Champions League, DAZN y +8.000 Canales en 4K</p>
   </div>
-  <p>Você teria 10 minutos nesta quinta-feira para conversarmos brevemente sobre essa oportunidade?</p>
-  <p style="margin-top: 24px;">Um abraço,<br><strong>Time Comercial</strong><br>UniversaEmail</p>
+
+  <p>Hola <strong>{{nome}}</strong>,</p>
+  <p>Sabemos que pagar más de <strong>120€ al mes</strong> en plataformas de televisión para ver el fútbol y tus series favoritas es excesivo.</p>
+  <p>Por eso, queremos que pruebes nuestro servicio <strong>completamente gratis durante 24 Horas</strong> en tu Smart TV, Fire Stick, Móvil o Tablet antes de decidir nada:</p>
+
+  <div style="background-color: #f8fafc; border: 2px dashed #6366f1; border-radius: 8px; padding: 18px; margin: 24px 0; text-align: center;">
+    <h3 style="margin: 0 0 10px 0; color: #1e293b; font-size: 17px;">🎁 Tu Prueba Gratuita de 24 Horas</h3>
+    <p style="font-size: 13px; color: #64748b; margin-bottom: 16px;">Sin cortes, calidad Full HD/4K real y soporte en español 24/7.</p>
+    <a href="https://api.whatsapp.com/send?phone=34600000000&text=Hola,%20quiero%20activar%20mi%20prueba%20gratis%20de%2024%20horas" style="background-color: #22c55e; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 15px; display: inline-block;">👉 Activar Mi Prueba de 24 Horas por WhatsApp</a>
+  </div>
+
+  <div style="background-color: #f1f5f9; padding: 16px; border-radius: 6px; margin: 20px 0;">
+    <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #334155;">Nuestros Planes Oficiales en España:</h4>
+    <ul style="margin: 0; padding-left: 20px; font-size: 13px; color: #475569;">
+      <li><strong>Mensual:</strong> 9,50€ / mes</li>
+      <li><strong>Trimestral:</strong> 25€ (Ahorras 15%)</li>
+      <li><strong>Semestral:</strong> 40€ (Ahorras 30%)</li>
+      <li><strong>Anual:</strong> 70€ (Menos de 6€ al mes - ¡Super Oferta!)</li>
+    </ul>
+  </div>
+
+  <p style="font-size: 13px; color: #64748b; margin-top: 24px;">¿Tienes alguna pregunta? Respóndenos a este e-mail o escríbenos directo por WhatsApp.<br><strong>Equipo Universa TV España</strong></p>
 </div>`,
-    variables: ['{{nome}}', '{{empresa}}', '{{cargo}}', '{{cidade}}', '{{link_descadastro}}'],
+    variables: ['{{nome}}', '{{cidade}}', '{{link_descadastro}}'],
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
   {
-    id: 'tmpl_followup_02',
+    id: 'tmpl_cine_24h_es',
     tenant_id: '00000000-0000-0000-0000-000000000001',
-    title: 'Follow-up Rápido - Apresentação de Resultados',
-    subject: 'Re: Oportunidade para a {{empresa}}',
-    html_content: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #18181b; line-height: 1.6; padding: 20px;">
-  <p>Olá <strong>{{nome}}</strong>,</p>
-  <p>Passando apenas para saber se você conseguiu dar uma olhada na minha mensagem anterior sobre a <strong>{{empresa}}</strong>.</p>
-  <p>Preparamos um diagnóstico rápido com 3 oportunidades imediatas no seu setor em {{cidade}}.</p>
-  <p style="text-align: center; margin: 30px 0;">
-    <a href="https://universaemail.com" style="background-color: #4f46e5; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Agendar Breve Demonstração</a>
+    title: '🎬 [ES] Cine, Series y +8.000 Canales - Test 24 Horas',
+    subject: '🎬 Todos los estrenos de cine, series y TV en 4K - Prueba 24 Horas Gratis',
+    category: 'b2c_es',
+    html_content: `<div style="font-family: Arial, Helvetica, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; color: #18181b; line-height: 1.6; padding: 24px; border-radius: 8px; border: 1px solid #e4e4e7;">
+  <div style="text-align: center; margin-bottom: 20px;">
+    <h2 style="color: #6366f1; margin: 0; font-size: 22px;">🍿 Cine & Series en 4K en Casa</h2>
+    <p style="color: #71717a; font-size: 14px;">Netflix, HBO Max, Disney+, SkyShowtime y +8.000 Canales en una sola app</p>
+  </div>
+
+  <p>Hola <strong>{{nome}}</strong>,</p>
+  <p>¿Cansado de pagar múltiples suscripciones mensuales que suman más de 60€ al mes? En <strong>Universa TV</strong> tienes todas las plataformas, canales de cine 24/7 y estrenos de cartelera unificados en tu Smart TV o Fire Stick.</p>
+
+  <p style="text-align: center; margin: 28px 0;">
+    <a href="https://api.whatsapp.com/send?phone=34600000000&text=Hola,%20quiero%20probar%20Universa%20TV%20por%2024%20horas" style="background-color: #4f46e5; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 15px; display: inline-block;">🍿 Solicitar Test de 24 Horas Gratis</a>
   </p>
-  <p>Atenciosamente,<br>Equipe UniversaEmail</p>
+
+  <div style="border-top: 1px solid #e2e8f0; padding-top: 16px; font-size: 13px; color: #475569;">
+    <p style="margin: 0 0 6px 0;"><strong>Planes Disponibles:</strong></p>
+    <p style="margin: 0;">• Mensual: <strong>9.50€</strong> | Trimestral: <strong>25€</strong> | Semestral: <strong>40€</strong> | Anual: <strong>70€</strong></p>
+  </div>
 </div>`,
-    variables: ['{{nome}}', '{{empresa}}', '{{cargo}}', '{{cidade}}', '{{link_descadastro}}'],
+    variables: ['{{nome}}', '{{cidade}}', '{{link_descadastro}}'],
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'tmpl_brasileiros_24h_pt',
+    tenant_id: '00000000-0000-0000-0000-000000000001',
+    title: '🇧🇷 [PT] Brasileiros na Espanha - TV do Brasil sem travas (Teste 24h)',
+    subject: '🇧🇷 Assista TV Globo, Premiere, Novelas e Brasileirão na Espanha (Teste 24h Grátis)',
+    category: 'b2c_pt',
+    html_content: `<div style="font-family: Arial, Helvetica, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; color: #18181b; line-height: 1.6; padding: 24px; border-radius: 8px; border: 1px solid #e4e4e7;">
+  <div style="text-align: center; margin-bottom: 20px;">
+    <h2 style="color: #16a34a; margin: 0; font-size: 22px;">🇧🇷 Todos os Canais do Brasil na Espanha</h2>
+    <p style="color: #71717a; font-size: 14px;">Globo ao vivo, Premiere Futebol, BBB, Novelas e Filmes dublados</p>
+  </div>
+
+  <p>Olá <strong>{{nome}}</strong>, tudo bem?</p>
+  <p>Mora na Espanha e está com saudades de acompanhar o futebol brasileiro, as novelas da Globo, notícias e canais infantis com a família?</p>
+  <p>O <strong>Universa TV</strong> foi configurado com servidores ultrarrápidos na Europa para garantir transmissão 100% lisa, sem travamentos na sua Smart TV, TV Box, Fire Stick ou Celular.</p>
+
+  <div style="background-color: #f0fdf4; border: 2px solid #86efac; border-radius: 8px; padding: 18px; margin: 24px 0; text-align: center;">
+    <h3 style="margin: 0 0 10px 0; color: #15803d; font-size: 16px;">🎁 Teste Grátis de 24 Horas Liberado</h3>
+    <a href="https://api.whatsapp.com/send?phone=34600000000&text=Ola,%20sou%20brasileiro%20na%20Espanha%20e%20quero%20o%20teste%20de%2024h" style="background-color: #16a34a; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">👉 Pedir Teste de 24 Horas no WhatsApp</a>
+  </div>
+
+  <p style="font-size: 13px; color: #475569;">
+    <strong>Planos:</strong> Mensal 9,50€ | Trimestral 25€ | Semestral 40€ | Anual 70€ (Super Econômico).
+  </p>
+  <p style="font-size: 12px; color: #94a3b8; margin-top: 20px;">Atenciosamente,<br>Equipe Universa TV Espanha</p>
+</div>`,
+    variables: ['{{nome}}', '{{cidade}}', '{{link_descadastro}}'],
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -127,125 +192,81 @@ const INITIAL_TEMPLATES: MarketingTemplate[] = [
 
 const INITIAL_LEADS: Lead[] = [
   {
-    id: 'lead_01',
+    id: 'lead_b2c_01',
     tenant_id: '00000000-0000-0000-0000-000000000001',
-    name: 'Carlos Eduardo Silveira',
-    company_name: 'Nexus Logística e Transportes',
-    email: 'carlos.silveira@nexuslog.com.br',
-    phone: '+55 (11) 98765-4321',
-    website: 'https://nexuslog.com.br',
-    sector: 'Logística & Cadeia de Suprimentos',
-    role: 'Diretor de Operações (COO)',
-    company_size: 'Tier 1 (Enterprise)',
-    city: 'São Paulo',
-    province: 'SP',
-    country: 'Brasil',
-    tags: ['Decisor', 'Logística', 'Tier 1', 'Verificado MX'],
+    name: 'Alejandro Martínez',
+    company_name: 'Aficionado Real Madrid (Madrid)',
+    email: 'alejandro.martinez84@gmail.com',
+    phone: '+34 612 34 56 78',
+    sector: 'Streaming & Esportes B2C',
+    role: 'Torcedor LaLiga / Smart TV',
+    company_size: 'B2C (Consumidor)',
+    city: 'Madrid',
+    province: 'Comunidad de Madrid',
+    country: 'Espanha',
+    tags: ['LaLiga', 'Futebol ES', 'Madrid', 'MX Verificado'],
     status: 'qualified',
     opted_out: false,
     mx_valid: true,
-    mx_record: 'aspmx.l.google.com (Google Workspace)',
-    created_at: new Date(Date.now() - 86400000 * 4).toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: 'lead_02',
-    tenant_id: '00000000-0000-0000-0000-000000000001',
-    name: 'Mariana Vasconcelos',
-    company_name: 'Atlas Indústria Metalúrgica',
-    email: 'm.vasconcelos@atlasmetal.ind.br',
-    phone: '+55 (41) 99123-8877',
-    website: 'https://atlasmetal.ind.br',
-    sector: 'Manufatura & Metalmecânica',
-    role: 'Gerente Geral de Compras',
-    company_size: 'Tier 1 (Enterprise)',
-    city: 'Curitiba',
-    province: 'PR',
-    country: 'Brasil',
-    tags: ['Indústria', 'Compras B2B', 'Tier 1'],
-    status: 'contacted',
-    opted_out: false,
-    mx_valid: true,
-    mx_record: 'atlasmetal-ind-br.mail.protection.outlook.com',
+    mx_record: 'gmail-smtp-in.l.google.com',
+    target_niche: 'laliga_es',
     created_at: new Date(Date.now() - 86400000 * 3).toISOString(),
     updated_at: new Date().toISOString(),
   },
   {
-    id: 'lead_03',
+    id: 'lead_b2c_02',
     tenant_id: '00000000-0000-0000-0000-000000000001',
-    name: 'Roberto Alencar',
-    company_name: 'Prime Soluções em Tecnologia',
-    email: 'roberto@primesolucoes.com.br',
-    phone: '+55 (31) 98455-1122',
-    website: 'https://primesolucoes.com.br',
-    sector: 'Tecnologia da Informação',
-    role: 'CEO & Co-founder',
-    company_size: 'Tier 2 (Mid-Market)',
-    city: 'Belo Horizonte',
-    province: 'MG',
-    country: 'Brasil',
-    tags: ['Tech', 'CEO', 'Mid-Market'],
-    status: 'replied',
+    name: 'Mateo González',
+    company_name: 'Aficionado FC Barcelona (Barcelona)',
+    email: 'mateo.gonzalez.bcn@hotmail.es',
+    phone: '+34 655 43 21 09',
+    sector: 'Streaming & Esportes B2C',
+    role: 'Torcedor Barça / DAZN',
+    company_size: 'B2C (Consumidor)',
+    city: 'Barcelona',
+    province: 'Cataluña',
+    country: 'Espanha',
+    tags: ['LaLiga', 'Barcelona', 'Cataluña'],
+    status: 'contacted',
     opted_out: false,
     mx_valid: true,
-    mx_record: 'aspmx.l.google.com',
+    mx_record: 'hotmail-com.olc.protection.outlook.com',
+    target_niche: 'laliga_es',
     created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
     updated_at: new Date().toISOString(),
   },
   {
-    id: 'lead_04',
+    id: 'lead_b2c_03',
     tenant_id: '00000000-0000-0000-0000-000000000001',
-    name: 'Juliana Fagundes',
-    company_name: 'Delta Distribuidora de Peças',
-    email: 'comercial@deltadistribuidora.com.br',
-    phone: '+55 (51) 3344-9988',
-    website: 'https://deltadistribuidora.com.br',
-    sector: 'Distribuição & Atacado',
-    role: 'Head de Vendas B2B',
-    company_size: 'Tier 2 (Mid-Market)',
-    city: 'Porto Alegre',
-    province: 'RS',
-    country: 'Brasil',
-    tags: ['Distribuidor', 'Vendas'],
-    status: 'new',
+    name: 'Rodrigo Silva',
+    company_name: 'Brasileiros em Madrid (Comunidade BR)',
+    email: 'rodrigo.silva.es@gmail.com',
+    phone: '+34 689 11 22 33',
+    sector: 'Comunidade Expat',
+    role: 'Brasileiro na Espanha (Globo/Premiere)',
+    company_size: 'B2C (Consumidor)',
+    city: 'Madrid',
+    province: 'Madrid',
+    country: 'Espanha',
+    tags: ['Brasileiro na Espanha', 'Premiere', 'Globo'],
+    status: 'replied',
     opted_out: false,
     mx_valid: true,
-    mx_record: 'mail.deltadistribuidora.com.br',
+    mx_record: 'gmail-smtp-in.l.google.com',
+    target_niche: 'brasileiros_es',
     created_at: new Date(Date.now() - 86400000 * 1).toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: 'lead_05',
-    tenant_id: '00000000-0000-0000-0000-000000000001',
-    name: 'Fernando Guimarães',
-    company_name: 'Inova Soluções Ambientais',
-    email: 'fernando@inovasolucoes.com.br',
-    phone: '+55 (19) 97122-3344',
-    website: 'https://inovasolucoes.com.br',
-    sector: 'Engenharia & Meio Ambiente',
-    role: 'Sócio-Diretor Técnico',
-    company_size: 'Tier 3 (SMB / Small)',
-    city: 'Campinas',
-    province: 'SP',
-    country: 'Brasil',
-    tags: ['Engenharia', 'Diretoria'],
-    status: 'new',
-    opted_out: false,
-    mx_valid: true,
-    mx_record: 'mx.zoho.com',
-    created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
 ];
 
 const INITIAL_AUDIENCES: SavedAudience[] = [
   {
-    id: 'aud_tier1_mx',
+    id: 'aud_laliga_es',
     tenant_id: '00000000-0000-0000-0000-000000000001',
-    name: 'Grandes Empresas - Tier 1 (MX Verificado)',
-    description: 'Tomadores de decisão em empresas Enterprise com MX ativo',
+    name: '⚽ Torcedores LaLiga & Esportes Espanha (MX Válido)',
+    description: 'Aficionados por futebol na Espanha com e-mail verificado',
     filters: {
-      company_size: ['Tier 1 (Enterprise)'],
+      tags: ['LaLiga'],
       mx_valid_only: true,
       exclude_opted_out: true,
     },
@@ -253,15 +274,15 @@ const INITIAL_AUDIENCES: SavedAudience[] = [
     created_at: new Date().toISOString(),
   },
   {
-    id: 'aud_tech_sp',
+    id: 'aud_brasileiros_es',
     tenant_id: '00000000-0000-0000-0000-000000000001',
-    name: 'Lote Prioritário - São Paulo & Região',
-    description: 'Contatos comerciais ativos localizados no estado de SP',
+    name: '🇧🇷 Brasileiros na Espanha (Canais do Brasil)',
+    description: 'Comunidade brasileira residente na Espanha',
     filters: {
-      province: ['SP'],
+      tags: ['Brasileiro na Espanha'],
       exclude_opted_out: true,
     },
-    lead_count: 2,
+    lead_count: 1,
     created_at: new Date().toISOString(),
   },
 ];
@@ -285,7 +306,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTheme(mode);
   };
 
-  // Sync theme with HTML class
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.THEME, theme);
     const root = document.documentElement;
@@ -308,6 +328,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [leads, setLeads] = useState<Lead[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.LEADS);
     return saved ? JSON.parse(saved) : INITIAL_LEADS;
+  });
+
+  // Missions State
+  const [missions, setMissions] = useState<LeadProspectingMission[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.MISSIONS);
+    return saved ? JSON.parse(saved) : SPAIN_B2C_MISSIONS;
   });
 
   // Prospecting Jobs & Results
@@ -353,25 +379,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     try {
-      // 1. Carrega Leads
       const { data: dbLeads, error: leadsErr } = await supabase.from('leads').select('*').order('created_at', { ascending: false });
       if (!leadsErr && dbLeads && dbLeads.length > 0) {
         setLeads(dbLeads);
       }
 
-      // 2. Carrega Templates
       const { data: dbTemplates, error: tmplErr } = await supabase.from('marketing_templates').select('*');
       if (!tmplErr && dbTemplates && dbTemplates.length > 0) {
         setTemplates(dbTemplates);
       }
 
-      // 3. Carrega Campanhas
       const { data: dbCampaigns, error: campErr } = await supabase.from('marketing_campaigns').select('*').order('created_at', { ascending: false });
       if (!campErr && dbCampaigns && dbCampaigns.length > 0) {
         setCampaigns(dbCampaigns);
       }
 
-      // 4. Carrega Audiências
       const { data: dbAudiences, error: audErr } = await supabase.from('saved_audiences').select('*');
       if (!audErr && dbAudiences && dbAudiences.length > 0) {
         setAudiences(
@@ -387,7 +409,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         );
       }
 
-      // 5. Carrega Resultados de Prospecção
       const { data: dbResults, error: resErr } = await supabase.from('lead_prospecting_results').select('*').order('created_at', { ascending: false });
       if (!resErr && dbResults && dbResults.length > 0) {
         setProspectingResults(dbResults);
@@ -403,7 +424,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     syncWithSupabase();
   }, [syncWithSupabase]);
 
-  // Persistence side-effects (LocalStorage cache)
+  // Persistence side-effects
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.TENANT, JSON.stringify(tenant));
   }, [tenant]);
@@ -411,6 +432,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.LEADS, JSON.stringify(leads));
   }, [leads]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.MISSIONS, JSON.stringify(missions));
+  }, [missions]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.JOBS, JSON.stringify(prospectingJobs));
@@ -589,6 +614,71 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
+  // Run B2C Mission
+  const runMission = async (
+    missionId: string,
+    location: string,
+    count: number,
+    onProgress?: (c: number, t: number) => void
+  ): Promise<number> => {
+    const mission = missions.find((m) => m.id === missionId) || missions[0];
+    const jobId = `job_mission_${Date.now()}`;
+
+    const newJob: LeadProspectingJob = {
+      id: jobId,
+      tenant_id: tenant.id,
+      title: `${mission.title} - ${location}`,
+      keywords: mission.keywords,
+      location,
+      mission_id: mission.id,
+      target_count: count,
+      processed_count: 0,
+      found_emails_count: 0,
+      status: 'processing',
+      created_at: new Date().toISOString(),
+    };
+
+    const results = await searchB2BLeadsWithAI(
+      {
+        keywords: mission.keywords,
+        location,
+        niche: mission.niche,
+        targetCount: count,
+        apiKey: tenant.gemini_api_key,
+        jobId,
+        tenantId: tenant.id,
+      },
+      onProgress
+    );
+
+    const existingEmails = new Set(leads.map((l) => l.email.toLowerCase().trim()));
+    const unique = deduplicateProspects(results, existingEmails);
+
+    const completedJob: LeadProspectingJob = {
+      ...newJob,
+      processed_count: results.length,
+      found_emails_count: unique.length,
+      status: 'completed',
+    };
+
+    await addProspectingJob(completedJob, unique);
+
+    // Atualiza contadores da missão
+    setMissions((prev) =>
+      prev.map((m) =>
+        m.id === missionId
+          ? {
+              ...m,
+              captured_count: m.captured_count + unique.length,
+              valid_mx_count: m.valid_mx_count + unique.filter((r) => r.mx_status === 'valid').length,
+            }
+          : m
+      )
+    );
+
+    return unique.length;
+  };
+
   // Prospecting Operations
   const addProspectingJob = async (job: LeadProspectingJob, results: LeadProspectingResult[]) => {
     setProspectingJobs((prev) => [job, ...prev]);
@@ -654,22 +744,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       email: p.email,
       phone: p.phone,
       website: p.website,
-      sector: p.sector,
-      role: p.role,
-      company_size: p.company_size || 'Tier 2 (Mid-Market)',
-      city: p.city,
-      province: p.province,
-      country: p.country || 'Brasil',
-      tags: ['AI Prospecting', p.sector || 'Geral'].filter(Boolean),
+      sector: p.sector || 'Streaming & Esportes',
+      role: p.role || 'Consumidor B2C',
+      company_size: p.company_size || 'B2C (Consumidor)',
+      city: p.city || 'Madrid',
+      province: p.province || 'Espanha',
+      country: p.country || 'Espanha',
+      tags: ['B2C Espanha', p.target_niche ? p.target_niche.toUpperCase() : 'Streaming'].filter(Boolean),
       status: 'new',
       opted_out: false,
       mx_valid: p.mx_status === 'valid',
       mx_record: p.mx_host,
+      target_niche: p.target_niche,
     }));
 
     const count = await batchImportLeads(leadsToCreate);
     
-    // Marca como importados no staging
     setProspectingResults((prev) =>
       prev.map((r) => (resultIds.includes(r.id) ? { ...r, status: 'imported' } : r))
     );
@@ -748,7 +838,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updated_at: now,
     };
 
-    // Cria itens na fila de disparo
     const queueItems: MarketingCampaignQueue[] = targetLeads.map((lead) => ({
       id: `queue_${Date.now()}_${lead.id}`,
       campaign_id: campaignId,
@@ -788,14 +877,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (!targetCampaign || !targetTemplate) return;
 
-    // Atualiza status da campanha para enviando
     setCampaigns((prev) =>
       prev.map((c) => (c.id === campaignId ? { ...c, status: 'sending', updated_at: new Date().toISOString() } : c))
     );
 
     const leadsMap = new Map<string, Lead>(leads.map((l) => [l.id, l]));
 
-    // Executa o processamento em lote com a chave Resend configurada
     await processCampaignQueueBatch(
       targetCampaign,
       targetTemplate.html_content,
@@ -810,7 +897,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         });
       },
       (sent) => {
-        // Atualiza contadores na campanha
         setCampaigns((prev) =>
           prev.map((c) =>
             c.id === campaignId
@@ -827,7 +913,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     );
 
-    // Marca como concluída
     setCampaigns((prev) =>
       prev.map((c) =>
         c.id === campaignId
@@ -903,6 +988,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         batchImportLeads,
         toggleOptOut,
         verifyLeadMx,
+        missions,
+        runMission,
         prospectingJobs,
         prospectingResults,
         addProspectingJob,

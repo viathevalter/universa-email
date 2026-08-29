@@ -1,13 +1,39 @@
 // ============================================================================
-// SaaS Core Types: Multi-tenant, Leads, AI Prospecting, Campaigns & Resend
+// SaaS Core Types: Multi-tenant, Leads, AI Prospecting, B2C Missions & Resend
 // ============================================================================
 
 export type LeadStatus = 'new' | 'qualified' | 'contacted' | 'replied' | 'converted' | 'unqualified';
-export type CompanySize = 'Tier 1 (Enterprise)' | 'Tier 2 (Mid-Market)' | 'Tier 3 (SMB / Small)';
+export type CompanySize = 'Tier 1 (Enterprise)' | 'Tier 2 (Mid-Market)' | 'Tier 3 (SMB / Small)' | 'B2C (Consumidor)';
 export type ProspectingJobStatus = 'pending' | 'processing' | 'completed' | 'failed';
 export type ProspectingResultStatus = 'raw' | 'imported' | 'discarded';
 export type CampaignStatus = 'draft' | 'scheduled' | 'sending' | 'completed' | 'paused' | 'failed';
 export type QueueItemStatus = 'pending' | 'sending' | 'sent' | 'failed' | 'bounced' | 'complained';
+
+export type MissionNiche =
+  | 'laliga_es'
+  | 'cine_series_es'
+  | 'brasileiros_es'
+  | 'latinos_es'
+  | 'motorsport_es'
+  | 'custom_b2c';
+
+export interface LeadProspectingMission {
+  id: string;
+  title: string;
+  description: string;
+  niche: MissionNiche;
+  icon: string;
+  country: string;
+  target_regions: string[];
+  target_goal: number;
+  captured_count: number;
+  valid_mx_count: number;
+  keywords: string;
+  pitch_highlight: string;
+  pricing_reference: string;
+  default_template_id?: string;
+  status: 'active' | 'paused' | 'completed';
+}
 
 export interface Tenant {
   id: string;
@@ -17,6 +43,7 @@ export interface Tenant {
   marketing_sender_email?: string;
   sender_name?: string;
   gemini_api_key?: string;
+  whatsapp_support_number?: string;
   created_at: string;
 }
 
@@ -40,6 +67,7 @@ export interface Lead {
   opted_out: boolean;
   mx_valid?: boolean;
   mx_record?: string;
+  target_niche?: MissionNiche | string;
   created_at: string;
   updated_at: string;
 }
@@ -51,6 +79,7 @@ export interface LeadProspectingJob {
   keywords: string;
   location: string;
   sector_filter?: string;
+  mission_id?: string;
   target_count: number;
   processed_count: number;
   found_emails_count: number;
@@ -63,7 +92,7 @@ export interface LeadProspectingResult {
   job_id: string;
   tenant_id: string;
   company_name: string;
-  contact_name?: string;
+  contact_name: string;
   role?: string;
   email: string;
   phone?: string;
@@ -73,13 +102,15 @@ export interface LeadProspectingResult {
   province?: string;
   country?: string;
   sector?: string;
-  company_size?: CompanySize | string;
+  company_size?: string;
   confidence_score: number;
-  mx_status?: 'valid' | 'invalid' | 'checking' | 'unknown';
+  mx_status: 'valid' | 'invalid' | 'checking' | 'unknown';
   mx_host?: string;
-  domain_active?: boolean;
+  domain_active: boolean;
   status: ProspectingResultStatus;
   raw_reasoning?: string;
+  target_niche?: MissionNiche | string;
+  created_at: string;
 }
 
 export interface MarketingTemplate {
@@ -90,6 +121,7 @@ export interface MarketingTemplate {
   html_content: string;
   preview_text?: string;
   variables: string[];
+  category?: 'b2c_es' | 'b2c_pt' | 'b2b' | 'followup';
   created_at: string;
   updated_at: string;
 }
@@ -149,6 +181,7 @@ export interface SavedAudience {
     mx_valid_only?: boolean;
     exclude_opted_out?: boolean;
     search_query?: string;
+    niche?: string[];
   };
   lead_count?: number;
   created_at: string;
