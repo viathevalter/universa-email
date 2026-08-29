@@ -38,6 +38,9 @@ export const ProspectingView: React.FC = () => {
     leads,
     missions,
     runMission,
+    isAutoMissionsActive,
+    startAutoMissions,
+    stopAutoMissions,
     dorkQueue,
     runDorkTarget,
     isAutoDorkingActive,
@@ -612,14 +615,37 @@ export const ProspectingView: React.FC = () => {
 
         <div className="flex items-center gap-3">
           {activeMode === 'missions' && (
-            <button
-              onClick={handleExecuteAllMissions}
-              disabled={isSearching}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-pink-600 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-orange-500/20 hover:opacity-95 disabled:opacity-50 transition-all cursor-pointer"
-            >
-              <Zap className="h-4 w-4 fill-current" />
-              <span>Executar Todas as 5 Missões</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={isAutoMissionsActive ? stopAutoMissions : startAutoMissions}
+                className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold text-white shadow-lg transition-all cursor-pointer ${
+                  isAutoMissionsActive
+                    ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-500/20 animate-pulse'
+                    : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:opacity-95 shadow-emerald-500/20'
+                }`}
+              >
+                {isAutoMissionsActive ? (
+                  <>
+                    <Pause className="h-4 w-4 fill-current" />
+                    <span>Pausar Piloto Contínuo</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-4 w-4 fill-current" />
+                    <span>Ligar Piloto Automático das 5 Missões</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={handleExecuteAllMissions}
+                disabled={isSearching || isAutoMissionsActive}
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-pink-600 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-orange-500/20 hover:opacity-95 disabled:opacity-50 transition-all cursor-pointer"
+              >
+                <Zap className="h-4 w-4 fill-current" />
+                <span>Executar 1 Lote das 5</span>
+              </button>
+            </div>
           )}
 
           {activeMode === 'dorks' && (

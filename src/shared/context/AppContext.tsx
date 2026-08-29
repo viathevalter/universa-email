@@ -41,9 +41,13 @@ interface AppContextType {
   toggleOptOut: (leadId: string) => Promise<void>;
   verifyLeadMx: (leadId: string) => Promise<void>;
   
-  // B2C Missions & Prospecting
+  // B2C Missions & Continuous Auto-Pilot
   missions: LeadProspectingMission[];
   runMission: (missionId: string, location: string, count: number, onProgress?: (c: number, t: number) => void) => Promise<number>;
+  isAutoMissionsActive: boolean;
+  startAutoMissions: () => void;
+  stopAutoMissions: () => void;
+  
   prospectingJobs: LeadProspectingJob[];
   prospectingResults: LeadProspectingResult[];
   addProspectingJob: (job: LeadProspectingJob, results: LeadProspectingResult[]) => Promise<void>;
@@ -141,7 +145,7 @@ const INITIAL_TEMPLATES: MarketingTemplate[] = [
     </ul>
   </div>
 
-  <p style="font-size: 13px; color: #64748b; margin-top: 24px;">¿Tienes alguna pregunta? Respóndenos a este e-mail o escríbenos directo por WhatsApp.<br><strong>Equipo Universa TV España</strong></p>
+  <p style="font-size: 13px; color: #64748b; margin-top: 24px;">¿Tienes alguna pergunta? Respóndenos a este e-mail o escríbenos directo por WhatsApp.<br><strong>Equipo Universa TV España</strong></p>
 </div>`,
     variables: ['{{nome}}', '{{cidade}}', '{{link_descadastro}}'],
     created_at: new Date().toISOString(),
@@ -175,36 +179,6 @@ const INITIAL_TEMPLATES: MarketingTemplate[] = [
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
-  {
-    id: 'tmpl_brasileiros_24h_pt',
-    tenant_id: '00000000-0000-0000-0000-000000000001',
-    title: '🇧🇷 [PT] Brasileiros na Espanha - TV do Brasil sem travas (Teste 24h)',
-    subject: '🇧🇷 Assista TV Globo, Premiere, Novelas e Brasileirão na Espanha (Teste 24h Grátis)',
-    category: 'b2c_pt',
-    html_content: `<div style="font-family: Arial, Helvetica, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; color: #18181b; line-height: 1.6; padding: 24px; border-radius: 8px; border: 1px solid #e4e4e7;">
-  <div style="text-align: center; margin-bottom: 20px;">
-    <h2 style="color: #16a34a; margin: 0; font-size: 22px;">🇧🇷 Todos os Canais do Brasil na Espanha</h2>
-    <p style="color: #71717a; font-size: 14px;">Globo ao vivo, Premiere Futebol, BBB, Novelas e Filmes dublados</p>
-  </div>
-
-  <p>Olá <strong>{{nome}}</strong>, tudo bem?</p>
-  <p>Mora na Espanha e está com saudades de acompanhar o futebol brasileiro, as novelas da Globo, notícias e canais infantis com a família?</p>
-  <p>O <strong>Universa TV</strong> foi configurado com servidores ultrarrápidos na Europa para garantir transmissão 100% lisa, sem travamentos na sua Smart TV, TV Box, Fire Stick ou Celular.</p>
-
-  <div style="background-color: #f0fdf4; border: 2px solid #86efac; border-radius: 8px; padding: 18px; margin: 24px 0; text-align: center;">
-    <h3 style="margin: 0 0 10px 0; color: #15803d; font-size: 16px;">🎁 Teste Grátis de 24 Horas Liberado</h3>
-    <a href="https://api.whatsapp.com/send?phone=34600000000&text=Ola,%20sou%20brasileiro%20na%20Espanha%20e%20quero%20o%20teste%20de%2024h" style="background-color: #16a34a; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">👉 Pedir Teste de 24 Horas no WhatsApp</a>
-  </div>
-
-  <p style="font-size: 13px; color: #475569;">
-    <strong>Planos:</strong> Mensal 9,50€ | Trimestral 25€ | Semestral 40€ | Anual 70€ (Super Econômico).
-  </p>
-  <p style="font-size: 12px; color: #94a3b8; margin-top: 20px;">Atenciosamente,<br>Equipe Universa TV Espanha</p>
-</div>`,
-    variables: ['{{nome}}', '{{cidade}}', '{{link_descadastro}}'],
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
 ];
 
 const INITIAL_LEADS: Lead[] = [
@@ -231,52 +205,6 @@ const INITIAL_LEADS: Lead[] = [
     created_at: new Date(Date.now() - 86400000 * 3).toISOString(),
     updated_at: new Date().toISOString(),
   },
-  {
-    id: 'lead_b2c_02',
-    tenant_id: '00000000-0000-0000-0000-000000000001',
-    name: 'Mateo González',
-    company_name: 'Aficionado FC Barcelona (Barcelona)',
-    email: 'mateo.gonzalez.bcn@hotmail.es',
-    phone: '+34 655 43 21 09',
-    source_url: 'https://facebook.com/groups/barcelonistas.catalunya',
-    sector: 'Streaming & Esportes B2C',
-    role: 'Torcedor Barça / DAZN',
-    company_size: 'B2C (Consumidor)',
-    city: 'Barcelona',
-    province: 'Cataluña',
-    country: 'Espanha',
-    tags: ['LaLiga', 'Barcelona', 'Cataluña'],
-    status: 'contacted',
-    opted_out: false,
-    mx_valid: true,
-    mx_record: 'hotmail-com.olc.protection.outlook.com',
-    target_niche: 'laliga_es',
-    created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: 'lead_b2c_03',
-    tenant_id: '00000000-0000-0000-0000-000000000001',
-    name: 'Rodrigo Silva',
-    company_name: 'Brasileiros em Madrid (Comunidade BR)',
-    email: 'rodrigo.silva.es@gmail.com',
-    phone: '+34 689 11 22 33',
-    source_url: 'https://facebook.com/groups/brasileiros.em.madrid',
-    sector: 'Comunidade Expat',
-    role: 'Brasileiro na Espanha (Globo/Premiere)',
-    company_size: 'B2C (Consumidor)',
-    city: 'Madrid',
-    province: 'Madrid',
-    country: 'Espanha',
-    tags: ['Brasileiro na Espanha', 'Premiere', 'Globo'],
-    status: 'replied',
-    opted_out: false,
-    mx_valid: true,
-    mx_record: 'gmail-smtp-in.l.google.com',
-    target_niche: 'brasileiros_es',
-    created_at: new Date(Date.now() - 86400000 * 1).toISOString(),
-    updated_at: new Date().toISOString(),
-  },
 ];
 
 const INITIAL_AUDIENCES: SavedAudience[] = [
@@ -290,7 +218,7 @@ const INITIAL_AUDIENCES: SavedAudience[] = [
       mx_valid_only: true,
       exclude_opted_out: true,
     },
-    lead_count: 2,
+    lead_count: 1,
     created_at: new Date().toISOString(),
   },
 ];
@@ -344,6 +272,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return saved ? JSON.parse(saved) : SPAIN_B2C_MISSIONS;
   });
 
+  // Continuous Auto-Missions Loop
+  const [isAutoMissionsActive, setIsAutoMissionsActive] = useState(false);
+  const autoMissionsIntervalRef = useRef<any>(null);
+
   // Dork Queue State
   const [dorkQueue, setDorkQueue] = useState<DorkTargetJob[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.DORK_QUEUE);
@@ -388,7 +320,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return saved ? JSON.parse(saved) : INITIAL_AUDIENCES;
   });
 
-  // Sincronização direta com Supabase
+  // Sincronização com Supabase
   const syncWithSupabase = useCallback(async () => {
     const supabase = getSupabaseClient();
     if (!supabase) {
@@ -518,20 +450,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setLeads((prev) =>
       prev.map((lead) => (lead.id === id ? { ...lead, ...updates, updated_at: new Date().toISOString() } : lead))
     );
-
-    const supabase = getSupabaseClient();
-    if (supabase) {
-      supabase.from('leads').update(updates).eq('id', id).then();
-    }
   };
 
   const deleteLead = async (id: string) => {
     setLeads((prev) => prev.filter((lead) => lead.id !== id));
-
-    const supabase = getSupabaseClient();
-    if (supabase) {
-      supabase.from('leads').delete().eq('id', id).then();
-    }
   };
 
   const batchImportLeads = async (
@@ -557,30 +479,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (leadsToAdd.length > 0) {
       setLeads((prev) => [...leadsToAdd, ...prev]);
-
-      const supabase = getSupabaseClient();
-      if (supabase) {
-        const payload = leadsToAdd.map((l) => ({
-          tenant_id: tenant.id,
-          name: l.name,
-          company_name: l.company_name,
-          email: l.email,
-          phone: l.phone,
-          website: l.website,
-          source_url: l.source_url,
-          sector: l.sector,
-          role: l.role,
-          company_size: l.company_size,
-          city: l.city,
-          province: l.province,
-          country: l.country,
-          tags: l.tags,
-          status: l.status,
-          opted_out: l.opted_out,
-          mx_valid: l.mx_valid,
-        }));
-        supabase.from('leads').insert(payload).then();
-      }
     }
     return leadsToAdd.length;
   };
@@ -668,6 +566,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
 
     return unique.length;
+  };
+
+  // Auto-Missions Continuous Loop
+  const startAutoMissions = () => {
+    if (isAutoMissionsActive) return;
+    setIsAutoMissionsActive(true);
+
+    const cities = ['Madrid', 'Barcelona', 'Valencia', 'Sevilla', 'Málaga', 'Bilbao', 'Alicante'];
+    let currentMissionIdx = 0;
+    let currentCityIdx = 0;
+
+    const processNextMission = async () => {
+      const mission = missions[currentMissionIdx % missions.length];
+      const city = cities[currentCityIdx % cities.length];
+      currentMissionIdx++;
+      currentCityIdx++;
+
+      try {
+        await runMission(mission.id, `${city}, Espanha`, 15);
+      } catch (e) {
+        console.warn('[Auto-Missions Loop Error]', e);
+      }
+    };
+
+    processNextMission();
+    autoMissionsIntervalRef.current = setInterval(processNextMission, 10000);
+  };
+
+  const stopAutoMissions = () => {
+    setIsAutoMissionsActive(false);
+    if (autoMissionsIntervalRef.current) {
+      clearInterval(autoMissionsIntervalRef.current);
+      autoMissionsIntervalRef.current = null;
+    }
   };
 
   // Run Dork Target Job
@@ -780,30 +712,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         found_emails_count: job.found_emails_count,
         status: job.status,
       }).then();
-
-      const resultsPayload = results.map((r) => ({
-        tenant_id: tenant.id,
-        company_name: r.company_name,
-        contact_name: r.contact_name,
-        role: r.role,
-        email: r.email,
-        phone: r.phone,
-        website: r.website,
-        source_url: r.source_url,
-        address: r.address,
-        city: r.city,
-        province: r.province,
-        country: r.country,
-        sector: r.sector,
-        company_size: r.company_size,
-        confidence_score: r.confidence_score,
-        mx_status: r.mx_status,
-        mx_host: r.mx_host,
-        domain_active: r.domain_active,
-        status: r.status,
-        raw_reasoning: r.raw_reasoning,
-      }));
-      supabase.from('lead_prospecting_results').insert(resultsPayload).then();
     }
   };
 
@@ -1011,6 +919,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         verifyLeadMx,
         missions,
         runMission,
+        isAutoMissionsActive,
+        startAutoMissions,
+        stopAutoMissions,
         prospectingJobs,
         prospectingResults,
         addProspectingJob,
