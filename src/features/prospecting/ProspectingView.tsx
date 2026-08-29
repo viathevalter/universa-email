@@ -17,10 +17,17 @@ import {
   Target,
   Play,
   MessageCircle,
+  Copy,
+  Check,
+  ExternalLink,
+  FileText,
+  Share2,
+  Zap,
 } from 'lucide-react';
 import { useApp } from '../../shared/context/AppContext';
 import { searchB2BLeadsWithAI, deduplicateProspects } from '../../shared/services/geminiService';
-import type { LeadProspectingJob, LeadProspectingMission } from '../../types';
+import type { LeadProspectingJob, LeadProspectingMission, LeadProspectingResult } from '../../types';
+import { verifyEmailDns } from '../../shared/services/dnsService';
 import confetti from 'canvas-confetti';
 
 export const ProspectingView: React.FC = () => {
@@ -38,11 +45,28 @@ export const ProspectingView: React.FC = () => {
 
   const isLight = theme === 'light';
 
-  // Mode: B2C Missions vs Custom Search
+  // Active view mode
   const [activeMode, setActiveMode] = useState<'missions' | 'custom'>('missions');
   const [selectedMission, setSelectedMission] = useState<LeadProspectingMission>(missions[0]);
   const [selectedCity, setSelectedCity] = useState('Madrid');
   const [batchCount, setBatchCount] = useState(25);
+
+  // Modals state
+  const [isDorkModalOpen, setIsDorkModalOpen] = useState(false);
+  const [isRawPasteModalOpen, setIsRawPasteModalOpen] = useState(false);
+
+  // Dork Harvester state
+  const [dorkPlatform, setDorkPlatform] = useState<'instagram' | 'facebook' | 'foros' | 'peñas' | 'twitter'>('instagram');
+  const [dorkCity, setDorkCity] = useState('Madrid');
+  const [dorkNiche, setDorkNiche] = useState('futbol');
+  const [dorkEmailDomain, setDorkEmailDomain] = useState('@gmail.com OR @hotmail.es OR @yahoo.es');
+  const [copiedDork, setCopiedDork] = useState(false);
+
+  // Raw Paste Importer state
+  const [rawTextPaste, setRawTextPaste] = useState('');
+  const [pasteNicheTag, setPasteNicheTag] = useState('LaLiga Espanha');
+  const [isParsingPaste, setIsParsingPaste] = useState(false);
+  const [pasteProgress, setPasteProgress] = useState<{ current: number; total: number } | null>(null);
 
   // Custom search form state
   const [keywords, setKeywords] = useState('LaLiga aficion y futbol');
@@ -65,7 +89,170 @@ export const ProspectingView: React.FC = () => {
   const currentTotalCaptured = leads.length + prospectingResults.filter((r) => r.mx_status === 'valid').length;
   const globalProgressPercent = Math.min(100, Math.max(1, ((currentTotalCaptured / totalVerifiedGoal) * 100)));
 
-  // Executar Missão B2C com 1 clique
+  // Gerador dinâmico de Dorks para Google
+  const generateDorkQuery = () => {
+    let siteFilter = 'site:instagram.com';
+    let queryKeywords = `"${dorkCity}" "futbol" OR "laliga"`;
+
+    if (dorkPlatform === 'instagram') {
+      siteFilter = 'site:instagram.com';
+      queryKeywords = `"${dorkCity}" ("${dorkNiche}")`;
+    } else if (dorkPlatform === 'facebook') {
+      siteFilter = 'site:facebook.com/groups OR site:facebook.com';
+      queryKeywords = `"${dorkCity}" ("${dorkNiche}" OR "españa")`;
+    } else if (dorkPlatform === 'foros') {
+      siteFilter = 'site:forocoches.com OR site:mundoplus.tv OR site:avforos.com';
+      queryKeywords = `("${dorkNiche}" OR "dazn" OR "movistar" OR "futbol")`;
+    } else if (dorkPlatform === 'peñas') {
+      siteFilter = '("peña madridista" OR "peña barcelonista" OR "peña atletico")';
+      queryKeywords = `"${dorkCity}" ("contacto" OR "email" OR "correo")`;
+    } else if (dorkPlatform === 'twitter') {
+      siteFilter = 'site:x.com OR site:twitter.com';
+      queryKeywords = `"${dorkCity}" ("${dorkNiche}")`;
+    }
+
+    return `${siteFilter} (${dorkEmailDomain}) ${queryKeywords}`;
+  };
+
+  const currentDorkQuery = generateDorkQuery();
+
+  const handleCopyDork = () => {
+    navigator.clipboard.writeText(currentDorkQuery);
+    setCopiedDork(true);
+    setTimeout(() => setCopiedDork(false), 2000);
+  };
+
+  const handleOpenGoogleDork = () => {
+    const url = `https://www.google.com/search?q=${encodeURIComponent(currentDorkQuery)}`;
+    window.open(url, '_blank');
+  };
+
+  // Parser & Auditor de Texto Colado (Raw Web Scrape)
+  const handleProcessRawPaste = async () => {
+    if (!rawTextPaste.trim()) return;
+
+    setIsParsingPaste(true);
+    setPasteProgress({ current: 0, total: 1 });
+
+    // Expressão regular robusta para extrair e-mails
+    const emailRegex = /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/gi;
+    const phoneRegex = /(\+34\s?[67]\d{2}\s?\d{2}\s?\d{2}\s?\d{2}|[67]\d{8})/g;
+
+    const matchedEmails = Array.from(new Set(rawTextPaste.match(emailRegex) || []));
+
+    if (matchedEmails.length === 0) {
+      setIsParsingPaste(false);
+      setNotification({ type: 'error', message: 'Nenhum e-mail válido foi encontrado no texto colado.' });
+      return;
+    }
+
+    const matchedPhones = Array.from(new Set(rawTextPaste.match(phoneRegex) || []));
+    setPasteProgress({ current: 0, total: matchedEmails.length });
+
+    const newResults: LeadProspectingResult[] = [];
+    const jobId = `job_paste_${Date.now()}`;
+
+    for (let i = 0; i < matchedEmails.length; i++) {
+      const email = matchedEmails[i].toLowerCase().trim();
+      setPasteProgress({ current: i + 1, total: matchedEmails.length });
+
+      if (existingEmails.has(email)) continue;
+
+      const dnsResult = await verifyEmailDns(email);
+      const namePart = email.split('@')[0].replace(/[._-]/g, ' ');
+      const formattedName = namePart.charAt(0).toUpperCase() + namePart.slice(1);
+      const phone = matchedPhones[i] || '';
+
+      newResults.push({
+        id: `pres_paste_${Date.now()}_${i}`,
+        job_id: jobId,
+        tenant_id: tenant.id,
+        company_name: `Lead Raspado (${pasteNicheTag})`,
+        contact_name: formattedName || 'Consumidor Espanha',
+        role: 'Consumidor B2C / TV Streaming',
+        email,
+        phone: phone ? `+34 ${phone.replace('+34', '').trim()}` : undefined,
+        website: '',
+        address: 'Espanha',
+        city: 'Espanha',
+        province: 'Espanha',
+        country: 'Espanha',
+        sector: 'Streaming & Esportes B2C',
+        company_size: 'B2C (Consumidor)',
+        confidence_score: dnsResult.hasMx ? 95 : 30,
+        mx_status: dnsResult.hasMx ? 'valid' : 'invalid',
+        mx_host: dnsResult.mxRecords[0] || 'Provedor DNS',
+        domain_active: dnsResult.hasARecord || dnsResult.hasMx,
+        status: 'raw',
+        raw_reasoning: `Importado e auditado via raspador de texto direto (${pasteNicheTag}).`,
+        target_niche: 'custom_b2c',
+        created_at: new Date().toISOString(),
+      });
+    }
+
+    const uniqueResults = deduplicateProspects(newResults, existingEmails);
+
+    const completedJob: LeadProspectingJob = {
+      id: jobId,
+      tenant_id: tenant.id,
+      title: `Raspagem Direta: ${pasteNicheTag} (${uniqueResults.length} leads)`,
+      keywords: pasteNicheTag,
+      location: 'Espanha',
+      target_count: matchedEmails.length,
+      processed_count: matchedEmails.length,
+      found_emails_count: uniqueResults.length,
+      status: 'completed',
+      created_at: new Date().toISOString(),
+    };
+
+    await addProspectingJob(completedJob, uniqueResults);
+
+    setIsParsingPaste(false);
+    setPasteProgress(null);
+    setIsRawPasteModalOpen(false);
+    setRawTextPaste('');
+
+    try {
+      confetti({ particleCount: 70, spread: 80, origin: { y: 0.6 } });
+    } catch {}
+
+    setNotification({
+      type: 'success',
+      message: `Extração concluída! ${uniqueResults.length} e-mails reais foram extraídos e auditados via DoH MX.`,
+    });
+
+    const validIds = uniqueResults.filter((r) => r.mx_status === 'valid').map((r) => r.id);
+    setSelectedIds(validIds);
+  };
+
+  // Executar Todas as 5 Missões Simultâneas
+  const handleExecuteAllMissions = async () => {
+    setIsSearching(true);
+    setSearchProgress({ current: 0, total: missions.length * 15 });
+    setNotification(null);
+
+    let totalAdded = 0;
+    for (let i = 0; i < missions.length; i++) {
+      const m = missions[i];
+      setSearchProgress({ current: (i + 1) * 15, total: missions.length * 15 });
+      const added = await runMission(m.id, `${selectedCity}, Espanha`, 15);
+      totalAdded += added;
+    }
+
+    setIsSearching(false);
+    setSearchProgress(null);
+
+    try {
+      confetti({ particleCount: 90, spread: 100, origin: { y: 0.6 } });
+    } catch {}
+
+    setNotification({
+      type: 'success',
+      message: `Execução Completa Concluída! As 5 missões geraram ${totalAdded} novos leads auditados no Staging.`,
+    });
+  };
+
+  // Executar Missão Individual
   const handleExecuteMission = async (mission: LeadProspectingMission) => {
     setIsSearching(true);
     setSearchProgress({ current: 0, total: batchCount });
@@ -85,7 +272,6 @@ export const ProspectingView: React.FC = () => {
         message: `Missão "${mission.title}" executada com sucesso! ${added} novos leads B2C foram auditados via DNS/MX.`,
       });
 
-      // Auto seleciona válidos recém-chegados
       const newValid = prospectingResults
         .filter((r) => r.status === 'raw' && r.mx_status === 'valid')
         .map((r) => r.id);
@@ -233,7 +419,7 @@ export const ProspectingView: React.FC = () => {
       >
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div className="space-y-2">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-pink-500 to-indigo-600 px-3 py-0.5 text-xs font-bold text-white uppercase tracking-wider">
                 <Flame className="h-3.5 w-3.5" />
                 Motor B2C Espanha • Meta 200.000 Leads
@@ -247,35 +433,65 @@ export const ProspectingView: React.FC = () => {
               </span>
             </div>
             <h1 className={`text-2xl sm:text-3xl font-bold tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
-              Centro de Missões de Prospecção B2C
+              Centro de Missões & Extrator de Leads Reais
             </h1>
             <p className={`text-xs sm:text-sm max-w-2xl ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>
-              Captação massiva e auditada de consumidores na Espanha interessados em futebol, cinema 4K e canais internacionais para ativação do teste grátis de 24 horas.
+              Captação massiva de e-mails reais de redes sociais, grupos e diretórios na Espanha com auditoria DoH MX antes do envio no Resend.
             </p>
           </div>
 
-          {/* Goal Progress Card */}
-          <div
-            className={`rounded-xl border p-4 min-w-[280px] space-y-2 ${
-              isLight ? 'border-slate-200 bg-white/90 shadow-xs' : 'border-zinc-800 bg-zinc-950/80'
-            }`}
-          >
-            <div className="flex items-center justify-between text-xs">
-              <span className={`font-semibold flex items-center gap-1.5 ${isLight ? 'text-slate-700' : 'text-zinc-300'}`}>
-                <Target className="h-4 w-4 text-pink-500" />
-                Progresso para 200k Leads
-              </span>
-              <span className="font-bold text-indigo-500">{currentTotalCaptured.toLocaleString()} / 200.000</span>
+          {/* Action Tools & Goal Progress Card */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            {/* Quick Action Modals Triggers */}
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => setIsDorkModalOpen(true)}
+                className={`flex items-center justify-center gap-2 rounded-xl border p-2.5 text-xs font-bold transition-all cursor-pointer ${
+                  isLight
+                    ? 'border-indigo-200 bg-white text-indigo-600 hover:bg-indigo-50 shadow-xs'
+                    : 'border-indigo-500/40 bg-zinc-900 text-indigo-400 hover:bg-zinc-800 shadow-xs'
+                }`}
+              >
+                <Share2 className="h-4 w-4 text-pink-500" />
+                <span>Extrator de Dorks (Redes Sociais)</span>
+              </button>
+
+              <button
+                onClick={() => setIsRawPasteModalOpen(true)}
+                className={`flex items-center justify-center gap-2 rounded-xl border p-2.5 text-xs font-bold transition-all cursor-pointer ${
+                  isLight
+                    ? 'border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50 shadow-xs'
+                    : 'border-emerald-500/40 bg-zinc-900 text-emerald-400 hover:bg-zinc-800 shadow-xs'
+                }`}
+              >
+                <FileText className="h-4 w-4 text-emerald-500" />
+                <span>Colar Texto / Raspagem Direta</span>
+              </button>
             </div>
-            <div className={`h-2.5 w-full overflow-hidden rounded-full ${isLight ? 'bg-slate-100' : 'bg-zinc-800'}`}>
-              <div
-                className="h-full bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 rounded-full transition-all duration-500"
-                style={{ width: `${Math.max(2, globalProgressPercent)}%` }}
-              />
-            </div>
-            <div className={`flex items-center justify-between text-[11px] ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
-              <span>No CRM: {leads.length}</span>
-              <span>No Staging: {prospectingResults.length}</span>
+
+            {/* Progress Card */}
+            <div
+              className={`rounded-xl border p-4 min-w-[240px] space-y-2 ${
+                isLight ? 'border-slate-200 bg-white/90 shadow-xs' : 'border-zinc-800 bg-zinc-950/80'
+              }`}
+            >
+              <div className="flex items-center justify-between text-xs">
+                <span className={`font-semibold flex items-center gap-1.5 ${isLight ? 'text-slate-700' : 'text-zinc-300'}`}>
+                  <Target className="h-4 w-4 text-pink-500" />
+                  Meta 200k Leads
+                </span>
+                <span className="font-bold text-indigo-500">{currentTotalCaptured.toLocaleString()} / 200.000</span>
+              </div>
+              <div className={`h-2.5 w-full overflow-hidden rounded-full ${isLight ? 'bg-slate-100' : 'bg-zinc-800'}`}>
+                <div
+                  className="h-full bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 rounded-full transition-all duration-500"
+                  style={{ width: `${Math.max(2, globalProgressPercent)}%` }}
+                />
+              </div>
+              <div className={`flex items-center justify-between text-[10px] ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
+                <span>CRM: {leads.length}</span>
+                <span>Staging: {prospectingResults.length}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -305,8 +521,8 @@ export const ProspectingView: React.FC = () => {
         </div>
       )}
 
-      {/* Mode Switcher Tabs */}
-      <div className="flex items-center justify-between">
+      {/* Mode Switcher & Global Auto-Pilot Trigger */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className={`flex rounded-xl p-1 border text-xs font-semibold ${isLight ? 'bg-slate-100 border-slate-200' : 'bg-zinc-900 border-zinc-800'}`}>
           <button
             onClick={() => setActiveMode('missions')}
@@ -321,7 +537,7 @@ export const ProspectingView: React.FC = () => {
             }`}
           >
             <Sparkles className="h-4 w-4 text-pink-500" />
-            5 Missões B2C Espanha (Streaming & Esportes)
+            5 Missões B2C Espanha
           </button>
           <button
             onClick={() => setActiveMode('custom')}
@@ -340,15 +556,28 @@ export const ProspectingView: React.FC = () => {
           </button>
         </div>
 
-        {selectedIds.length > 0 && (
-          <button
-            onClick={handleImportSelected}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-emerald-500/20 hover:opacity-95 transition-all cursor-pointer"
-          >
-            <Download className="h-4 w-4" />
-            <span>Importar {selectedIds.length} Selecionados para o CRM</span>
-          </button>
-        )}
+        <div className="flex items-center gap-3">
+          {activeMode === 'missions' && (
+            <button
+              onClick={handleExecuteAllMissions}
+              disabled={isSearching}
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-pink-600 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-orange-500/20 hover:opacity-95 disabled:opacity-50 transition-all cursor-pointer"
+            >
+              <Zap className="h-4 w-4 fill-current" />
+              <span>Executar Todas as 5 Missões de Uma Vez</span>
+            </button>
+          )}
+
+          {selectedIds.length > 0 && (
+            <button
+              onClick={handleImportSelected}
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-emerald-500/20 hover:opacity-95 transition-all cursor-pointer"
+            >
+              <Download className="h-4 w-4" />
+              <span>Importar {selectedIds.length} Selecionados</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* SECTION 1: 5 B2C MISSIONS CARDS */}
@@ -671,7 +900,7 @@ export const ProspectingView: React.FC = () => {
                 Nenhum lead na área de staging
               </h3>
               <p className={`text-xs mt-1 max-w-sm mx-auto ${isLight ? 'text-slate-500' : 'text-zinc-500'}`}>
-                Clique em <strong>"Executar Missão"</strong> em um dos cards acima para capturar e auditar um novo lote de contatos.
+                Clique em <strong>"Executar Missão"</strong> em um dos cards acima ou utilize o <strong>"Extrator de Dorks"</strong> para capturar novos e-mails reais.
               </p>
             </div>
           ) : (
@@ -825,6 +1054,254 @@ export const ProspectingView: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* MODAL 1: EXTRATOR DE DORKS DE REDES SOCIAIS */}
+      {isDorkModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div
+            className={`w-full max-w-2xl rounded-2xl border p-6 shadow-2xl space-y-5 ${
+              isLight ? 'border-slate-200 bg-white text-slate-900' : 'border-zinc-800 bg-zinc-900 text-white'
+            }`}
+          >
+            <div className="flex items-center justify-between border-b pb-3 border-zinc-800">
+              <div className="flex items-center gap-2">
+                <Share2 className="h-5 w-5 text-pink-500" />
+                <h2 className="text-base font-bold">Extrator de Dorks de Redes Sociais & Fóruns Espanha</h2>
+              </div>
+              <button
+                onClick={() => setIsDorkModalOpen(false)}
+                className="text-xs opacity-60 hover:opacity-100 cursor-pointer"
+              >
+                ✕ Fechar
+              </button>
+            </div>
+
+            <p className={`text-xs ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>
+              Gere consultas de alta densidade para encontrar e-mails reais indexados publicamente no Google em perfis de torcedores, cinéfilos e expatriados na Espanha.
+            </p>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+              <div>
+                <label className={`block text-[11px] font-semibold mb-1 ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>Plataforma Alvo</label>
+                <select
+                  value={dorkPlatform}
+                  onChange={(e) => setDorkPlatform(e.target.value as any)}
+                  className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
+                    isLight ? 'border-slate-300 bg-slate-50 text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
+                  }`}
+                >
+                  <option value="instagram">Instagram Espanha</option>
+                  <option value="facebook">Grupos Facebook ES</option>
+                  <option value="foros">ForoCoches & Foros TV</option>
+                  <option value="peñas">Diretórios Peñas Futebol</option>
+                  <option value="twitter">X / Twitter Espanha</option>
+                </select>
+              </div>
+
+              <div>
+                <label className={`block text-[11px] font-semibold mb-1 ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>Cidade / Região</label>
+                <select
+                  value={dorkCity}
+                  onChange={(e) => setDorkCity(e.target.value)}
+                  className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
+                    isLight ? 'border-slate-300 bg-slate-50 text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
+                  }`}
+                >
+                  <option value="Madrid">Madrid</option>
+                  <option value="Barcelona">Barcelona</option>
+                  <option value="Valencia">Valencia</option>
+                  <option value="Sevilla">Sevilla</option>
+                  <option value="Málaga">Málaga</option>
+                  <option value="Bilbao">Bilbao</option>
+                  <option value="Alicante">Alicante</option>
+                  <option value="España">Toda España</option>
+                </select>
+              </div>
+
+              <div>
+                <label className={`block text-[11px] font-semibold mb-1 ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>Interesse / Nicho</label>
+                <select
+                  value={dorkNiche}
+                  onChange={(e) => setDorkNiche(e.target.value)}
+                  className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
+                    isLight ? 'border-slate-300 bg-slate-50 text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
+                  }`}
+                >
+                  <option value="futbol OR laliga">Futebol & LaLiga</option>
+                  <option value="cine OR series OR peliculas">Cine, Séries & 4K</option>
+                  <option value="brasileiros OR brasil">Brasileiros na Espanha</option>
+                  <option value="argentinos OR colombianos">Latinos na Espanha</option>
+                  <option value="f1 OR motogp OR dazn">F1, MotoGP & DAZN</option>
+                </select>
+              </div>
+
+              <div>
+                <label className={`block text-[11px] font-semibold mb-1 ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>Provedores de E-mail</label>
+                <select
+                  value={dorkEmailDomain}
+                  onChange={(e) => setDorkEmailDomain(e.target.value)}
+                  className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
+                    isLight ? 'border-slate-300 bg-slate-50 text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
+                  }`}
+                >
+                  <option value="@gmail.com OR @hotmail.es OR @yahoo.es">Todos os Principais ES</option>
+                  <option value="@gmail.com">Apenas @gmail.com</option>
+                  <option value="@hotmail.es OR @outlook.es">Apenas Hotmail / Outlook ES</option>
+                  <option value="@yahoo.es">Apenas @yahoo.es</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Generated Dork Display */}
+            <div
+              className={`rounded-xl border p-3 font-mono text-xs space-y-2 ${
+                isLight ? 'border-slate-300 bg-slate-50 text-slate-800' : 'border-zinc-800 bg-zinc-950 text-emerald-400'
+              }`}
+            >
+              <div className="flex items-center justify-between text-[10px] text-slate-500">
+                <span>Comando de Dorking Gerado:</span>
+                <span>Copie e cole no Google ou clique abaixo</span>
+              </div>
+              <div className="p-2 rounded bg-black/10 break-all select-all font-semibold">{currentDorkQuery}</div>
+            </div>
+
+            <div className={`flex flex-wrap items-center justify-between gap-3 pt-2 border-t ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleCopyDork}
+                  className={`inline-flex items-center gap-1.5 rounded-xl border px-4 py-2 text-xs font-semibold cursor-pointer ${
+                    isLight ? 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50' : 'border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
+                  }`}
+                >
+                  {copiedDork ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
+                  <span>{copiedDork ? 'Dork Copiado!' : 'Copiar Dork'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleOpenGoogleDork}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-pink-500 to-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-md hover:opacity-95 cursor-pointer"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  <span>Abrir Busca no Google</span>
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsDorkModalOpen(false);
+                  setIsRawPasteModalOpen(true);
+                }}
+                className="text-xs font-semibold text-indigo-500 hover:underline cursor-pointer"
+              >
+                Colar Resultados Aqui ➔
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: RASPAGEM DIRETA / COLAR TEXTO */}
+      {isRawPasteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div
+            className={`w-full max-w-2xl rounded-2xl border p-6 shadow-2xl space-y-4 ${
+              isLight ? 'border-slate-200 bg-white text-slate-900' : 'border-zinc-800 bg-zinc-900 text-white'
+            }`}
+          >
+            <div className="flex items-center justify-between border-b pb-3 border-zinc-800">
+              <div className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-emerald-500" />
+                <h2 className="text-base font-bold">Importador & Auditor de Raspagens Reais (Colar Texto / HTML)</h2>
+              </div>
+              <button
+                onClick={() => setIsRawPasteModalOpen(false)}
+                className="text-xs opacity-60 hover:opacity-100 cursor-pointer"
+              >
+                ✕ Fechar
+              </button>
+            </div>
+
+            <p className={`text-xs ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>
+              Cole qualquer texto, código HTML, bios do Instagram, tópicos de fóruns ou postagens de grupos. O sistema extrai automaticamente todos os <strong>e-mails</strong> e <strong>telefones espanhóis</strong> e executa a <strong>auditoria DoH MX</strong> em tempo real!
+            </p>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={`block text-[11px] font-semibold mb-1 ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>Identificação / Tag do Lote</label>
+                <input
+                  type="text"
+                  value={pasteNicheTag}
+                  onChange={(e) => setPasteNicheTag(e.target.value)}
+                  placeholder="Ex: Peñas Madrid, Fórum LaLiga, Instagram Expat"
+                  className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
+                    isLight ? 'border-slate-300 bg-slate-50 text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
+                  }`}
+                />
+              </div>
+
+              <div>
+                <label className={`block text-[11px] font-semibold mb-1 ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>Auditoria Automática</label>
+                <div className="flex items-center gap-1.5 text-xs text-emerald-500 font-semibold pt-2">
+                  <ShieldCheck className="h-4 w-4" />
+                  <span>Google & Cloudflare DoH Ativo</span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className={`block text-[11px] font-semibold mb-1 ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>
+                Cole o Conteúdo Bruto / Lista de Contatos:
+              </label>
+              <textarea
+                rows={8}
+                value={rawTextPaste}
+                onChange={(e) => setRawTextPaste(e.target.value)}
+                placeholder="Exemplo de conteúdo para colar:
+Alejandro martinez.real@gmail.com +34 612 34 56 78 Madrid
+Contacto peña: penamadridista@hotmail.es
+Mateo BCN mateo.cine4k@yahoo.es"
+                className={`w-full rounded-xl border p-3 font-mono text-xs focus:outline-none leading-relaxed ${
+                  isLight ? 'border-slate-300 bg-slate-50 text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
+                }`}
+              />
+            </div>
+
+            <div className={`flex items-center justify-between pt-2 border-t ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
+              <button
+                type="button"
+                onClick={() => setIsRawPasteModalOpen(false)}
+                className={`rounded-xl border px-4 py-2 text-xs font-semibold cursor-pointer ${
+                  isLight ? 'border-slate-300 bg-white text-slate-700' : 'border-zinc-700 bg-zinc-800 text-zinc-300'
+                }`}
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                disabled={!rawTextPaste.trim() || isParsingPaste}
+                onClick={handleProcessRawPaste}
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-5 py-2 text-xs font-semibold text-white shadow-lg disabled:opacity-50 cursor-pointer"
+              >
+                {isParsingPaste ? (
+                  <>
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    <span>Auditando ({pasteProgress?.current}/{pasteProgress?.total})</span>
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="h-4 w-4" />
+                    <span>Extrair & Auditar MX</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
