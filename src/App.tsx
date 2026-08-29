@@ -89,10 +89,14 @@ const MainApp: React.FC = () => {
   );
 };
 
+import { ErrorBoundary } from './shared/components/ErrorBoundary';
+
 export default function App() {
   return (
-    <AppProvider>
-      <MainApp />
-    </AppProvider>
+    <ErrorBoundary>
+      <AppProvider>
+        <MainApp />
+      </AppProvider>
+    </ErrorBoundary>
   );
 }

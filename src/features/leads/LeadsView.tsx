@@ -39,6 +39,7 @@ export const LeadsView: React.FC = () => {
     clearAllLeads,
     batchImportLeads,
     verifyLeadMx,
+    verifyAllPendingMx,
     addAudience,
     syncWithSupabase,
     theme,
@@ -432,6 +433,20 @@ export const LeadsView: React.FC = () => {
           >
             <Upload className="h-4 w-4 text-indigo-500" />
             <span>Importar CSV</span>
+          </button>
+
+          <button
+            onClick={async () => {
+              const count = await verifyAllPendingMx();
+              setNotification({ type: 'success', message: `${count} leads auditados via DoH MX com sucesso!` });
+            }}
+            className={`flex items-center gap-1.5 rounded-xl border p-2.5 text-xs font-semibold transition-all cursor-pointer ${
+              isLight ? 'border-emerald-200 bg-emerald-50/50 text-emerald-700 hover:bg-emerald-50' : 'border-emerald-500/30 bg-emerald-950/20 text-emerald-400 hover:bg-emerald-950/40'
+            }`}
+            title="Auditar MX de todos os leads pendentes"
+          >
+            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+            <span>Auditar MX em Massa</span>
           </button>
 
           <button

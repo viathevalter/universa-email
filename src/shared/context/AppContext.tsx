@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import type {
   Tenant,
   Lead,
+  LeadStatus,
   LeadProspectingJob,
   LeadProspectingResult,
   LeadProspectingMission,
@@ -41,6 +42,7 @@ interface AppContextType {
   batchImportLeads: (leads: Array<Omit<Lead, 'id' | 'tenant_id' | 'created_at' | 'updated_at'>>) => Promise<number>;
   toggleOptOut: (leadId: string) => Promise<void>;
   verifyLeadMx: (leadId: string) => Promise<void>;
+  verifyAllPendingMx: () => Promise<number>;
   clearAllLeads: () => void;
   
   // B2C Missions & Continuous Auto-Pilot
@@ -106,6 +108,14 @@ const STORAGE_KEYS = {
   CAMPAIGNS: 'universa_campaigns_data',
   QUEUE: 'universa_queue_data',
   AUDIENCES: 'universa_audiences_data',
+};
+
+const safeStorageSet = (key: string, data: any) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (e) {
+    console.warn(`[Storage Quota Notice for ${key}]`, e);
+  }
 };
 
 const DEFAULT_TENANT: Tenant = {
@@ -232,8 +242,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Theme Mode State
   const [theme, setTheme] = useState<AppTheme>(() => {
-    const savedTheme = localStorage.getItem(STORAGE_KEYS.THEME) as AppTheme | null;
-    return savedTheme === 'light' ? 'light' : 'dark';
+    try {
+      const savedTheme = localStorage.getItem(STORAGE_KEYS.THEME) as AppTheme | null;
+      return savedTheme === 'light' ? 'light' : 'dark';
+    } catch {
+      return 'dark';
+    }
   });
 
   const toggleTheme = () => {
@@ -245,7 +259,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.THEME, theme);
+    safeStorageSet(STORAGE_KEYS.THEME, theme);
     const root = document.documentElement;
     if (theme === 'dark') {
       root.classList.add('dark');
@@ -258,15 +272,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Tenant State
   const [tenant, setTenant] = useState<Tenant>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.TENANT);
-    return saved ? JSON.parse(saved) : DEFAULT_TENANT;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.TENANT);
+      return saved ? JSON.parse(saved) : DEFAULT_TENANT;
+    } catch {
+      return DEFAULT_TENANT;
+    }
   });
 
   // Leads State with Auto-Sanitize on Load
   const [leads, setLeads] = useState<Lead[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.LEADS);
-    if (!saved) return [];
     try {
+      const saved = localStorage.getItem(STORAGE_KEYS.LEADS);
+      if (!saved) return [];
       const parsed = JSON.parse(saved);
       return Array.isArray(parsed) ? sanitizeLeads(parsed) : [];
     } catch {
@@ -276,8 +294,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Missions State
   const [missions, setMissions] = useState<LeadProspectingMission[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.MISSIONS);
-    return saved ? JSON.parse(saved) : SPAIN_B2C_MISSIONS;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.MISSIONS);
+      return saved ? JSON.parse(saved) : SPAIN_B2C_MISSIONS;
+    } catch {
+      return SPAIN_B2C_MISSIONS;
+    }
   });
 
   // Continuous Auto-Missions Loop
@@ -288,8 +310,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Dork Queue State
   const [dorkQueue, setDorkQueue] = useState<DorkTargetJob[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.DORK_QUEUE);
-    return saved ? JSON.parse(saved) : INITIAL_DORK_QUEUE;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.DORK_QUEUE);
+      return saved ? JSON.parse(saved) : INITIAL_DORK_QUEUE;
+    } catch {
+      return INITIAL_DORK_QUEUE;
+    }
   });
 
   // Auto-Dorking Active State
@@ -298,39 +324,63 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Prospecting Jobs & Results (Staging)
   const [prospectingJobs, setProspectingJobs] = useState<LeadProspectingJob[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.JOBS);
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.JOBS);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
   });
 
   const [prospectingResults, setProspectingResults] = useState<LeadProspectingResult[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.RESULTS);
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.RESULTS);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
   });
 
   // Templates State
   const [templates, setTemplates] = useState<MarketingTemplate[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.TEMPLATES);
-    return saved ? JSON.parse(saved) : INITIAL_TEMPLATES;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.TEMPLATES);
+      return saved ? JSON.parse(saved) : INITIAL_TEMPLATES;
+    } catch {
+      return INITIAL_TEMPLATES;
+    }
   });
 
   // Campaigns & Queues
   const [campaigns, setCampaigns] = useState<MarketingCampaign[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.CAMPAIGNS);
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.CAMPAIGNS);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
   });
 
   const [campaignQueue, setCampaignQueue] = useState<Record<string, MarketingCampaignQueue[]>>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.QUEUE);
-    return saved ? JSON.parse(saved) : {};
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.QUEUE);
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
   });
 
   // Audiences State
   const [audiences, setAudiences] = useState<SavedAudience[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.AUDIENCES);
-    return saved ? JSON.parse(saved) : INITIAL_AUDIENCES;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.AUDIENCES);
+      return saved ? JSON.parse(saved) : INITIAL_AUDIENCES;
+    } catch {
+      return INITIAL_AUDIENCES;
+    }
   });
 
-  // Sincronização em Lote com Supabase (SEM LIMITE DE 1.000 - RANGE EXPANDIDO ATÉ 50.000)
+  // Sincronização em Lote com Supabase (SEM LIMITE DE 1.000)
   const syncWithSupabase = useCallback(async () => {
     const supabase = getSupabaseClient();
     if (!supabase) {
@@ -384,45 +434,46 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     syncWithSupabase();
   }, [syncWithSupabase]);
 
-  // Persistence side-effects
+  // Safe Persistence side-effects with Quota Protection
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.TENANT, JSON.stringify(tenant));
+    safeStorageSet(STORAGE_KEYS.TENANT, tenant);
   }, [tenant]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.LEADS, JSON.stringify(leads));
+    // Limits local storage copy to prevent browser 5MB crash
+    safeStorageSet(STORAGE_KEYS.LEADS, leads.slice(0, 3000));
   }, [leads]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.MISSIONS, JSON.stringify(missions));
+    safeStorageSet(STORAGE_KEYS.MISSIONS, missions);
   }, [missions]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.DORK_QUEUE, JSON.stringify(dorkQueue));
+    safeStorageSet(STORAGE_KEYS.DORK_QUEUE, dorkQueue);
   }, [dorkQueue]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.JOBS, JSON.stringify(prospectingJobs));
+    safeStorageSet(STORAGE_KEYS.JOBS, prospectingJobs.slice(0, 100));
   }, [prospectingJobs]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.RESULTS, JSON.stringify(prospectingResults));
+    safeStorageSet(STORAGE_KEYS.RESULTS, prospectingResults.slice(0, 2000));
   }, [prospectingResults]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.TEMPLATES, JSON.stringify(templates));
+    safeStorageSet(STORAGE_KEYS.TEMPLATES, templates);
   }, [templates]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.CAMPAIGNS, JSON.stringify(campaigns));
+    safeStorageSet(STORAGE_KEYS.CAMPAIGNS, campaigns);
   }, [campaigns]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.QUEUE, JSON.stringify(campaignQueue));
+    safeStorageSet(STORAGE_KEYS.QUEUE, campaignQueue);
   }, [campaignQueue]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.AUDIENCES, JSON.stringify(audiences));
+    safeStorageSet(STORAGE_KEYS.AUDIENCES, audiences);
   }, [audiences]);
 
   const updateTenant = (updates: Partial<Tenant>) => {
@@ -495,7 +546,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteMultipleLeads = async (ids: string[]) => {
-    setLeads((prev) => prev.filter((lead) => !ids.includes(lead.id)));
+    const idSet = new Set(ids);
+    setLeads((prev) => prev.filter((lead) => !idSet.has(lead.id)));
 
     const supabase = getSupabaseClient();
     if (supabase) {
@@ -565,7 +617,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
-  // Run B2C Mission
+  // Bulk audit all unverified leads in CRM
+  const verifyAllPendingMx = async (): Promise<number> => {
+    const unverified = leads.filter((l) => l.mx_valid === undefined || l.mx_record === 'Nenhum');
+    let audited = 0;
+    for (const lead of unverified) {
+      const dnsResult = await verifyEmailDns(lead.email);
+      await updateLead(lead.id, {
+        mx_valid: dnsResult.hasMx,
+        mx_record: dnsResult.mxRecords[0] || 'Nenhum',
+      });
+      audited++;
+    }
+    return audited;
+  };
+
+  // Run B2C Mission with Auto-Direct Lead Stream into CRM
   const runMission = async (
     missionId: string,
     location: string,
@@ -604,6 +671,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const existingEmails = new Set(leads.map((l) => l.email.toLowerCase().trim()));
     const unique = deduplicateProspects(results, existingEmails);
+
+    // AUTO-CONVERSÃO DIRETA EM LEADS NO CRM
+    if (unique.length > 0) {
+      const leadsToCreate: Array<Omit<Lead, 'id' | 'tenant_id' | 'created_at' | 'updated_at'>> = unique.map((p) => ({
+        name: p.contact_name || p.company_name,
+        company_name: p.company_name,
+        email: p.email,
+        phone: p.phone,
+        website: p.website,
+        source_url: p.source_url,
+        sector: p.sector || 'Streaming & Esportes',
+        role: p.role || 'Consumidor B2C',
+        company_size: p.company_size || 'B2C (Consumidor)',
+        city: p.city || location.split(',')[0].trim() || 'Madrid',
+        province: p.province || 'Espanha',
+        country: p.country || 'Espanha',
+        tags: ['B2C Espanha', mission.niche ? mission.niche.toUpperCase() : 'Streaming'].filter(Boolean),
+        status: 'new' as LeadStatus,
+        opted_out: false,
+        mx_valid: p.mx_status === 'valid',
+        mx_record: p.mx_host,
+        target_niche: mission.niche,
+      }));
+      await batchImportLeads(leadsToCreate);
+    }
 
     const completedJob: LeadProspectingJob = {
       ...newJob,
@@ -665,7 +757,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  // Run Dork Target Job
+  // Run Dork Target Job with Auto-Direct Stream into CRM
   const runDorkTarget = async (
     targetId: string,
     onProgress?: (c: number, t: number) => void
@@ -680,6 +772,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const results = await executeDorkTargetJob(target, tenant.id, tenant.gemini_api_key, onProgress);
     const existingEmails = new Set(leads.map((l) => l.email.toLowerCase().trim()));
     const unique = deduplicateProspects(results, existingEmails);
+
+    // AUTO-CONVERSÃO DIRETA EM LEADS NO CRM
+    if (unique.length > 0) {
+      const leadsToCreate: Array<Omit<Lead, 'id' | 'tenant_id' | 'created_at' | 'updated_at'>> = unique.map((p) => ({
+        name: p.contact_name || p.company_name,
+        company_name: p.company_name,
+        email: p.email,
+        phone: p.phone,
+        website: p.website,
+        source_url: p.source_url,
+        sector: p.sector || 'Streaming & Esportes',
+        role: p.role || 'Consumidor B2C',
+        company_size: p.company_size || 'B2C (Consumidor)',
+        city: p.city || target.city || 'Madrid',
+        province: p.province || 'Espanha',
+        country: p.country || 'Espanha',
+        tags: ['Social Dork', target.platform.toUpperCase(), target.niche].filter(Boolean),
+        status: 'new' as LeadStatus,
+        opted_out: false,
+        mx_valid: p.mx_status === 'valid',
+        mx_record: p.mx_host,
+        target_niche: 'custom_b2c',
+      }));
+      await batchImportLeads(leadsToCreate);
+    }
 
     const jobId = `job_dork_${targetId}_${Date.now()}`;
     const completedJob: LeadProspectingJob = {
@@ -751,16 +868,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const stopAutoDorking = () => {
     setIsAutoDorkingActive(false);
-    if (autoMissionsIntervalRef.current) {
+    if (autoDorkingIntervalRef.current) {
       clearInterval(autoMissionsIntervalRef.current);
-      autoMissionsIntervalRef.current = null;
+      autoDorkingIntervalRef.current = null;
     }
   };
 
   // Prospecting Operations
   const addProspectingJob = async (job: LeadProspectingJob, results: LeadProspectingResult[]) => {
-    setProspectingJobs((prev) => [job, ...prev]);
-    setProspectingResults((prev) => [...results, ...prev]);
+    setProspectingJobs((prev) => [job, ...prev.slice(0, 100)]);
+    setProspectingResults((prev) => [...results, ...prev.slice(0, 2000)]);
 
     const supabase = getSupabaseClient();
     if (supabase) {
@@ -785,7 +902,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const importProspectsToLeads = async (resultIds: string[]): Promise<number> => {
-    const selected = prospectingResults.filter((r) => resultIds.includes(r.id) && r.status !== 'imported');
+    const idSet = new Set(resultIds);
+    const selected = prospectingResults.filter((r) => idSet.has(r.id) && r.status !== 'imported');
     if (selected.length === 0) return 0;
 
     const leadsToCreate: Array<Omit<Lead, 'id' | 'tenant_id' | 'created_at' | 'updated_at'>> = selected.map((p) => ({
@@ -802,7 +920,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       province: p.province || 'Espanha',
       country: p.country || 'Espanha',
       tags: ['B2C Espanha', p.target_niche ? p.target_niche.toUpperCase() : 'Streaming'].filter(Boolean),
-      status: 'new',
+      status: 'new' as LeadStatus,
       opted_out: false,
       mx_valid: p.mx_status === 'valid',
       mx_record: p.mx_host,
@@ -812,7 +930,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const count = await batchImportLeads(leadsToCreate);
     
     setProspectingResults((prev) =>
-      prev.map((r) => (resultIds.includes(r.id) ? { ...r, status: 'imported' } : r))
+      prev.map((r) => (idSet.has(r.id) ? { ...r, status: 'imported' } : r))
     );
 
     return count;
@@ -993,6 +1111,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         batchImportLeads,
         toggleOptOut,
         verifyLeadMx,
+        verifyAllPendingMx,
         missions,
         runMission,
         isAutoMissionsActive,
