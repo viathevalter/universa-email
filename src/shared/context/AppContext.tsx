@@ -45,6 +45,8 @@ interface AppContextType {
   missions: LeadProspectingMission[];
   runMission: (missionId: string, location: string, count: number, onProgress?: (c: number, t: number) => void) => Promise<number>;
   isAutoMissionsActive: boolean;
+  activeAutoRegion: string;
+  autoBatchesCount: number;
   startAutoMissions: () => void;
   stopAutoMissions: () => void;
   
@@ -53,6 +55,8 @@ interface AppContextType {
   addProspectingJob: (job: LeadProspectingJob, results: LeadProspectingResult[]) => Promise<void>;
   updateProspectingResultStatus: (resultId: string, status: 'imported' | 'discarded') => Promise<void>;
   importProspectsToLeads: (resultIds: string[]) => Promise<number>;
+  importAllValidProspects: () => Promise<number>;
+  clearStaging: () => void;
   
   // Automated Dork Harvester
   dorkQueue: DorkTargetJob[];
@@ -145,7 +149,7 @@ const INITIAL_TEMPLATES: MarketingTemplate[] = [
     </ul>
   </div>
 
-  <p style="font-size: 13px; color: #64748b; margin-top: 24px;">¿Tienes alguna pergunta? Respóndenos a este e-mail o escríbenos directo por WhatsApp.<br><strong>Equipo Universa TV España</strong></p>
+  <p style="font-size: 13px; color: #64748b; margin-top: 24px;">¿Tienes alguma pergunta? Respóndenos a este e-mail o escríbenos directo por WhatsApp.<br><strong>Equipo Universa TV España</strong></p>
 </div>`,
     variables: ['{{nome}}', '{{cidade}}', '{{link_descadastro}}'],
     created_at: new Date().toISOString(),
@@ -223,6 +227,20 @@ const INITIAL_AUDIENCES: SavedAudience[] = [
   },
 ];
 
+const SPANISH_CITIES_ROTATION = [
+  'Madrid',
+  'Barcelona',
+  'Valencia',
+  'Sevilla',
+  'Málaga',
+  'Bilbao',
+  'Alicante',
+  'Zaragoza',
+  'Palma de Mallorca',
+  'Murcia',
+  'Toda Espanha',
+];
+
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -274,6 +292,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Continuous Auto-Missions Loop
   const [isAutoMissionsActive, setIsAutoMissionsActive] = useState(false);
+  const [activeAutoRegion, setActiveAutoRegion] = useState('Madrid');
+  const [autoBatchesCount, setAutoBatchesCount] = useState(0);
   const autoMissionsIntervalRef = useRef<any>(null);
 
   // Dork Queue State
@@ -418,31 +438,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     setLeads((prev) => [newLead, ...prev]);
-
-    const supabase = getSupabaseClient();
-    if (supabase) {
-      supabase.from('leads').insert({
-        tenant_id: tenant.id,
-        name: newLead.name,
-        company_name: newLead.company_name,
-        email: newLead.email,
-        phone: newLead.phone,
-        website: newLead.website,
-        source_url: newLead.source_url,
-        sector: newLead.sector,
-        role: newLead.role,
-        company_size: newLead.company_size,
-        city: newLead.city,
-        province: newLead.province,
-        country: newLead.country,
-        tags: newLead.tags,
-        status: newLead.status,
-        opted_out: newLead.opted_out,
-        mx_valid: newLead.mx_valid,
-        mx_record: newLead.mx_record,
-      }).then();
-    }
-
     return newLead;
   };
 
@@ -568,30 +563,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return unique.length;
   };
 
-  // Auto-Missions Continuous Loop
+  // Auto-Missions Continuous Loop with Automatic Region Rotation
   const startAutoMissions = () => {
     if (isAutoMissionsActive) return;
     setIsAutoMissionsActive(true);
 
-    const cities = ['Madrid', 'Barcelona', 'Valencia', 'Sevilla', 'Málaga', 'Bilbao', 'Alicante'];
     let currentMissionIdx = 0;
     let currentCityIdx = 0;
 
     const processNextMission = async () => {
       const mission = missions[currentMissionIdx % missions.length];
-      const city = cities[currentCityIdx % cities.length];
+      const city = SPANISH_CITIES_ROTATION[currentCityIdx % SPANISH_CITIES_ROTATION.length];
+      setActiveAutoRegion(city);
+      setAutoBatchesCount((prev) => prev + 1);
+
       currentMissionIdx++;
       currentCityIdx++;
 
       try {
-        await runMission(mission.id, `${city}, Espanha`, 15);
+        await runMission(mission.id, `${city}, Espanha`, 20);
       } catch (e) {
         console.warn('[Auto-Missions Loop Error]', e);
       }
     };
 
     processNextMission();
-    autoMissionsIntervalRef.current = setInterval(processNextMission, 10000);
+    autoMissionsIntervalRef.current = setInterval(processNextMission, 8000);
   };
 
   const stopAutoMissions = () => {
@@ -683,7 +680,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     processNext();
-    autoDorkingIntervalRef.current = setInterval(processNext, 12000);
+    autoDorkingIntervalRef.current = setInterval(processNext, 10000);
   };
 
   const stopAutoDorking = () => {
@@ -753,6 +750,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
 
     return count;
+  };
+
+  const importAllValidProspects = async (): Promise<number> => {
+    const validIds = prospectingResults
+      .filter((r) => r.mx_status === 'valid' && r.status !== 'imported')
+      .map((r) => r.id);
+    return await importProspectsToLeads(validIds);
+  };
+
+  const clearStaging = () => {
+    setProspectingResults([]);
   };
 
   // Template Operations
@@ -920,6 +928,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         missions,
         runMission,
         isAutoMissionsActive,
+        activeAutoRegion,
+        autoBatchesCount,
         startAutoMissions,
         stopAutoMissions,
         prospectingJobs,
@@ -927,6 +937,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addProspectingJob,
         updateProspectingResultStatus,
         importProspectsToLeads,
+        importAllValidProspects,
+        clearStaging,
         dorkQueue,
         runDorkTarget,
         addDorkTarget,

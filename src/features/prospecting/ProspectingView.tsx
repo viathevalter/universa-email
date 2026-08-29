@@ -25,6 +25,8 @@ import {
   Share2,
   Zap,
   Radio,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { useApp } from '../../shared/context/AppContext';
 import { searchB2BLeadsWithAI, deduplicateProspects } from '../../shared/services/geminiService';
@@ -39,6 +41,8 @@ export const ProspectingView: React.FC = () => {
     missions,
     runMission,
     isAutoMissionsActive,
+    activeAutoRegion,
+    autoBatchesCount,
     startAutoMissions,
     stopAutoMissions,
     dorkQueue,
@@ -50,6 +54,8 @@ export const ProspectingView: React.FC = () => {
     addProspectingJob,
     updateProspectingResultStatus,
     importProspectsToLeads,
+    importAllValidProspects,
+    clearStaging,
     theme,
   } = useApp();
 
@@ -60,6 +66,10 @@ export const ProspectingView: React.FC = () => {
   const [selectedMission, setSelectedMission] = useState<LeadProspectingMission>(missions[0]);
   const [selectedCity, setSelectedCity] = useState('Madrid');
   const [batchCount, setBatchCount] = useState(25);
+
+  // Pagination for Staging Table
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 50;
 
   // Modals state
   const [isDorkModalOpen, setIsDorkModalOpen] = useState(false);
@@ -96,6 +106,7 @@ export const ProspectingView: React.FC = () => {
 
   // Global Goal calculation (Goal: 200,000 leads)
   const totalVerifiedGoal = 200000;
+  const validMxProspectsCount = prospectingResults.filter((r) => r.mx_status === 'valid' && r.status !== 'imported').length;
   const currentTotalCaptured = leads.length + prospectingResults.filter((r) => r.mx_status === 'valid').length;
   const globalProgressPercent = Math.min(100, Math.max(1, ((currentTotalCaptured / totalVerifiedGoal) * 100)));
 
@@ -265,7 +276,7 @@ export const ProspectingView: React.FC = () => {
     }
   };
 
-  // Executar Todas as 5 Missões Simultâneas
+  // Executar Todas as 5 Missões Simultâneas (1 Lote)
   const handleExecuteAllMissions = async () => {
     setIsSearching(true);
     setSearchProgress({ current: 0, total: missions.length * 15 });
@@ -417,11 +428,28 @@ export const ProspectingView: React.FC = () => {
     setSelectedIds([]);
   };
 
+  const handleImportAllValid = async () => {
+    const count = await importAllValidProspects();
+    try {
+      confetti({
+        particleCount: 100,
+        spread: 90,
+        origin: { y: 0.6 },
+      });
+    } catch {}
+
+    setNotification({
+      type: 'success',
+      message: `Sucesso! Todos os ${count} leads auditados foram transferidos para a Base Central (CRM)!`,
+    });
+    setSelectedIds([]);
+  };
+
   const toggleSelectAll = () => {
-    if (selectedIds.length === filteredResults.length) {
+    if (selectedIds.length === paginatedResults.length) {
       setSelectedIds([]);
     } else {
-      setSelectedIds(filteredResults.map((r) => r.id));
+      setSelectedIds(paginatedResults.map((r) => r.id));
     }
   };
 
@@ -446,6 +474,10 @@ export const ProspectingView: React.FC = () => {
     }
     return true;
   });
+
+  // Pagination calculation
+  const totalPages = Math.max(1, Math.ceil(filteredResults.length / itemsPerPage));
+  const paginatedResults = filteredResults.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
     <div className="space-y-8">
@@ -476,7 +508,7 @@ export const ProspectingView: React.FC = () => {
               Centro de Missões & Extrator de Leads Reais
             </h1>
             <p className={`text-xs sm:text-sm max-w-2xl ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>
-              Dois motores simultâneos: <strong>Missões Grounded com Google Search</strong> e <strong>Motor Automático de Dorks Sociais</strong> com auditoria DoH em tempo real.
+              Dois motores simultâneos: <strong>Missões Grounded com Google Search</strong> e <strong>Motor Automático de Dorks Sociais</strong> com rotação automática por províncias da Espanha.
             </p>
           </div>
 
@@ -536,6 +568,34 @@ export const ProspectingView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* LIVE AUTO-PILOT RUNNING STATUS STRIP */}
+      {isAutoMissionsActive && (
+        <div
+          className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl p-4 border animate-pulse ${
+            isLight
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-900 shadow-xs'
+              : 'border-emerald-500/40 bg-emerald-950/30 text-emerald-300'
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <div className="h-3 w-3 rounded-full bg-emerald-500 animate-ping" />
+            <div className="text-xs">
+              <span className="font-bold">🟢 Piloto Automático Ativo: </span>
+              <span>
+                Varrendo província de <strong className="underline">{activeAutoRegion}</strong> • Lote #{autoBatchesCount} • Total no Staging: {prospectingResults.length} leads
+              </span>
+            </div>
+          </div>
+
+          <button
+            onClick={stopAutoMissions}
+            className="self-start sm:self-auto rounded-lg bg-emerald-600 px-3 py-1 text-xs font-bold text-white hover:bg-emerald-700 cursor-pointer"
+          >
+            ⏸️ Pausar Piloto
+          </button>
+        </div>
+      )}
 
       {/* Notification Toast */}
       {notification && (
@@ -613,14 +673,14 @@ export const ProspectingView: React.FC = () => {
           </button>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           {activeMode === 'missions' && (
             <div className="flex items-center gap-2">
               <button
                 onClick={isAutoMissionsActive ? stopAutoMissions : startAutoMissions}
                 className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold text-white shadow-lg transition-all cursor-pointer ${
                   isAutoMissionsActive
-                    ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-500/20 animate-pulse'
+                    ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-500/20'
                     : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:opacity-95 shadow-emerald-500/20'
                 }`}
               >
@@ -640,7 +700,7 @@ export const ProspectingView: React.FC = () => {
               <button
                 onClick={handleExecuteAllMissions}
                 disabled={isSearching || isAutoMissionsActive}
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-pink-600 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-orange-500/20 hover:opacity-95 disabled:opacity-50 transition-all cursor-pointer"
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-pink-600 px-3.5 py-2 text-xs font-bold text-white shadow-lg shadow-orange-500/20 hover:opacity-95 disabled:opacity-50 transition-all cursor-pointer"
               >
                 <Zap className="h-4 w-4 fill-current" />
                 <span>Executar 1 Lote das 5</span>
@@ -674,10 +734,20 @@ export const ProspectingView: React.FC = () => {
           {selectedIds.length > 0 && (
             <button
               onClick={handleImportSelected}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-emerald-500/20 hover:opacity-95 transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-bold text-white shadow-lg hover:bg-indigo-500 transition-all cursor-pointer"
             >
               <Download className="h-4 w-4" />
-              <span>Importar {selectedIds.length} para CRM</span>
+              <span>Importar ({selectedIds.length}) Selecionados</span>
+            </button>
+          )}
+
+          {validMxProspectsCount > 0 && (
+            <button
+              onClick={handleImportAllValid}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-3.5 py-2 text-xs font-bold text-white shadow-lg shadow-emerald-500/20 hover:opacity-95 transition-all cursor-pointer"
+            >
+              <Download className="h-4 w-4" />
+              <span>Importar Todos ({validMxProspectsCount}) para o CRM</span>
             </button>
           )}
         </div>
@@ -695,7 +765,7 @@ export const ProspectingView: React.FC = () => {
             <div className="flex flex-wrap items-center gap-4 text-xs">
               <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-indigo-500" />
-                <span className={`font-semibold ${isLight ? 'text-slate-700' : 'text-zinc-300'}`}>Cidade Alvo:</span>
+                <span className={`font-semibold ${isLight ? 'text-slate-700' : 'text-zinc-300'}`}>Cidade / Região Alvo:</span>
                 <select
                   value={selectedCity}
                   onChange={(e) => setSelectedCity(e.target.value)}
@@ -703,7 +773,7 @@ export const ProspectingView: React.FC = () => {
                     isLight ? 'border-slate-300 bg-slate-50 text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
                   }`}
                 >
-                  <option value="Toda Espanha">Toda Espanha (Nacional)</option>
+                  <option value="Toda Espanha">🔁 Rotação Automática de Toda Espanha</option>
                   <option value="Madrid">Madrid (Capital & Peñas)</option>
                   <option value="Barcelona">Barcelona (Cataluña)</option>
                   <option value="Valencia">Valencia (Comunidad Valenciana)</option>
@@ -791,12 +861,12 @@ export const ProspectingView: React.FC = () => {
 
                   <div className="mt-4 pt-3 border-t border-zinc-800/40 flex items-center justify-between gap-2">
                     <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-zinc-500'}`}>
-                      Capturados: <strong className={isLight ? 'text-slate-800' : 'text-zinc-200'}>{mission.captured_count}</strong>
+                      Capturados: <strong className={isLight ? 'text-slate-800' : 'text-zinc-200'}>{mission.captured_count.toLocaleString()}</strong>
                     </div>
 
                     <button
                       type="button"
-                      disabled={isSearching}
+                      disabled={isSearching || isAutoMissionsActive}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleExecuteMission(mission);
@@ -811,7 +881,7 @@ export const ProspectingView: React.FC = () => {
                       ) : (
                         <>
                           <Play className="h-3 w-3 fill-current" />
-                          <span>Executar Missão</span>
+                          <span>Executar Lote</span>
                         </>
                       )}
                     </button>
@@ -840,7 +910,7 @@ export const ProspectingView: React.FC = () => {
               </div>
               <p className={`text-xs ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>
                 {isAutoDorkingActive
-                  ? '⚡ O Piloto Automático está executando as buscas no Google a cada 12 segundos e auditando MX em segundo plano.'
+                  ? '⚡ O Piloto Automático está executando as buscas no Google a cada 10 segundos e auditando MX em segundo plano.'
                   : 'Clique em "Iniciar Piloto Automático" para rodar a fila inteira ou execute alvos individuais abaixo.'}
               </p>
             </div>
@@ -1004,20 +1074,36 @@ export const ProspectingView: React.FC = () => {
         </div>
       )}
 
-      {/* SECTION 4: STAGING AREA (RESULTADOS COM FONTE REAL) */}
+      {/* SECTION 4: STAGING AREA (RESULTADOS COM PAGINAÇÃO & FONTE REAL) */}
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <h2 className={`text-lg font-bold flex items-center gap-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
               <Layers className="h-5 w-5 text-indigo-500" />
-              Área de Staging & Auditoria ({prospectingResults.length} Leads na Fila)
+              Área de Staging & Auditoria ({prospectingResults.length.toLocaleString()} Leads na Fila)
             </h2>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {prospectingResults.length > 0 && (
+              <button
+                onClick={clearStaging}
+                className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer ${
+                  isLight
+                    ? 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200'
+                    : 'bg-rose-950/40 text-rose-400 hover:bg-rose-900/60 border border-rose-800/40'
+                }`}
+              >
+                Limpar Staging
+              </button>
+            )}
+
             <div className={`flex rounded-lg p-1 border text-xs ${isLight ? 'bg-slate-100 border-slate-200' : 'bg-zinc-900 border-zinc-800'}`}>
               <button
-                onClick={() => setFilterStatus('raw')}
+                onClick={() => {
+                  setFilterStatus('raw');
+                  setCurrentPage(1);
+                }}
                 className={`rounded-md px-3 py-1 font-medium transition-all cursor-pointer ${
                   filterStatus === 'raw'
                     ? isLight
@@ -1031,7 +1117,10 @@ export const ProspectingView: React.FC = () => {
                 Novos (Pendentes)
               </button>
               <button
-                onClick={() => setFilterStatus('valid_mx')}
+                onClick={() => {
+                  setFilterStatus('valid_mx');
+                  setCurrentPage(1);
+                }}
                 className={`rounded-md px-3 py-1 font-medium transition-all cursor-pointer ${
                   filterStatus === 'valid_mx'
                     ? isLight
@@ -1045,7 +1134,10 @@ export const ProspectingView: React.FC = () => {
                 Apenas MX Válidos
               </button>
               <button
-                onClick={() => setFilterStatus('all')}
+                onClick={() => {
+                  setFilterStatus('all');
+                  setCurrentPage(1);
+                }}
                 className={`rounded-md px-3 py-1 font-medium transition-all cursor-pointer ${
                   filterStatus === 'all'
                     ? isLight
@@ -1065,7 +1157,10 @@ export const ProspectingView: React.FC = () => {
               <input
                 type="text"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
                 placeholder="Filtrar por nome, email, cidade..."
                 className={`rounded-lg border pl-8 pr-3 py-1 text-xs focus:outline-none ${
                   isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-zinc-800 bg-zinc-900 text-white'
@@ -1075,7 +1170,7 @@ export const ProspectingView: React.FC = () => {
           </div>
         </div>
 
-        {/* Results Table */}
+        {/* Results Table with Smooth Pagination */}
         <div
           className={`overflow-hidden rounded-2xl border backdrop-blur-sm ${
             isLight ? 'border-slate-200 bg-white shadow-xs' : 'border-zinc-800 bg-zinc-900/60'
@@ -1085,178 +1180,215 @@ export const ProspectingView: React.FC = () => {
             <div className="py-16 text-center">
               <Sparkles className="mx-auto h-8 w-8 text-slate-400 mb-3" />
               <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-800' : 'text-zinc-300'}`}>
-                Nenhum lead na área de staging
+                Nenhum lead nesta visualização
               </h3>
               <p className={`text-xs mt-1 max-w-sm mx-auto ${isLight ? 'text-slate-500' : 'text-zinc-500'}`}>
-                Inicie uma missão ou o motor de Dorks para capturar contatos reais na Espanha com auditoria DoH.
+                Ligue o <strong>"Piloto Automático"</strong> ou clique em <strong>"Executar Lote"</strong> para capturar leads auditados na Espanha.
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className={`w-full text-left text-xs ${isLight ? 'text-slate-700' : 'text-zinc-300'}`}>
-                <thead
-                  className={`border-b text-[11px] font-semibold uppercase tracking-wider ${
-                    isLight ? 'border-slate-200 bg-slate-50 text-slate-600' : 'border-zinc-800 bg-zinc-950/60 text-zinc-400'
-                  }`}
-                >
-                  <tr>
-                    <th className="p-4 w-10">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.length > 0 && selectedIds.length === filteredResults.length}
-                        onChange={toggleSelectAll}
-                        className="rounded border-slate-300 bg-white text-indigo-600 focus:ring-0 cursor-pointer"
-                      />
-                    </th>
-                    <th className="p-4">Consumidor / Perfil</th>
-                    <th className="p-4">E-mail & Auditoria DoH MX</th>
-                    <th className="p-4">Fonte / Link Real</th>
-                    <th className="p-4">WhatsApp / Telefone</th>
-                    <th className="p-4">Cidade / Espanha</th>
-                    <th className="p-4 text-center">Score IA</th>
-                    <th className="p-4 text-right">Ações</th>
-                  </tr>
-                </thead>
-                <tbody className={`divide-y ${isLight ? 'divide-slate-100' : 'divide-zinc-800/60'}`}>
-                  {filteredResults.map((item) => {
-                    const isSelected = selectedIds.includes(item.id);
-                    return (
-                      <tr
-                        key={item.id}
-                        className={`transition-colors ${
-                          isSelected
-                            ? isLight
-                              ? 'bg-indigo-50/60'
-                              : 'bg-indigo-950/20'
-                            : isLight
-                            ? 'hover:bg-slate-50'
-                            : 'hover:bg-zinc-800/40'
-                        }`}
-                      >
-                        <td className="p-4">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => toggleSelectOne(item.id)}
-                            className="rounded border-slate-300 bg-white text-indigo-600 focus:ring-0 cursor-pointer"
-                          />
-                        </td>
+            <div>
+              <div className="overflow-x-auto">
+                <table className={`w-full text-left text-xs ${isLight ? 'text-slate-700' : 'text-zinc-300'}`}>
+                  <thead
+                    className={`border-b text-[11px] font-semibold uppercase tracking-wider ${
+                      isLight ? 'border-slate-200 bg-slate-50 text-slate-600' : 'border-zinc-800 bg-zinc-950/60 text-zinc-400'
+                    }`}
+                  >
+                    <tr>
+                      <th className="p-4 w-10">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.length > 0 && selectedIds.length === paginatedResults.length}
+                          onChange={toggleSelectAll}
+                          className="rounded border-slate-300 bg-white text-indigo-600 focus:ring-0 cursor-pointer"
+                        />
+                      </th>
+                      <th className="p-4">Consumidor / Perfil</th>
+                      <th className="p-4">E-mail & Auditoria DoH MX</th>
+                      <th className="p-4">Fonte / Link Real</th>
+                      <th className="p-4">WhatsApp / Telefone</th>
+                      <th className="p-4">Cidade / Espanha</th>
+                      <th className="p-4 text-center">Score IA</th>
+                      <th className="p-4 text-right">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className={`divide-y ${isLight ? 'divide-slate-100' : 'divide-zinc-800/60'}`}>
+                    {paginatedResults.map((item) => {
+                      const isSelected = selectedIds.includes(item.id);
+                      return (
+                        <tr
+                          key={item.id}
+                          className={`transition-colors ${
+                            isSelected
+                              ? isLight
+                                ? 'bg-indigo-50/60'
+                                : 'bg-indigo-950/20'
+                              : isLight
+                              ? 'hover:bg-slate-50'
+                              : 'hover:bg-zinc-800/40'
+                          }`}
+                        >
+                          <td className="p-4">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleSelectOne(item.id)}
+                              className="rounded border-slate-300 bg-white text-indigo-600 focus:ring-0 cursor-pointer"
+                            />
+                          </td>
 
-                        {/* Consumidor */}
-                        <td className="p-4">
-                          <div className={`font-semibold text-sm flex items-center gap-1.5 ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                            <UserCheck className="h-4 w-4 text-indigo-500" />
-                            {item.contact_name}
-                          </div>
-                          <div className={`text-[11px] mt-0.5 ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>{item.company_name}</div>
-                        </td>
-
-                        {/* E-mail & MX */}
-                        <td className="p-4">
-                          <div className={`font-mono flex items-center gap-1.5 ${isLight ? 'text-slate-800' : 'text-zinc-200'}`}>
-                            <Mail className="h-3 w-3 text-slate-400" />
-                            <span>{item.email}</span>
-                          </div>
-                          <div className="mt-1 flex items-center gap-1.5">
-                            {item.mx_status === 'valid' ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-500 border border-emerald-500/20">
-                                <CheckCircle className="h-3 w-3" />
-                                MX Ativo ({item.mx_host?.slice(0, 16)}...)
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/10 px-2 py-0.5 text-[10px] font-medium text-rose-500 border border-rose-500/20">
-                                <XCircle className="h-3 w-3" />
-                                Sem MX
-                              </span>
-                            )}
-                          </div>
-                        </td>
-
-                        {/* Link da Fonte Real */}
-                        <td className="p-4">
-                          {item.source_url ? (
-                            <a
-                              href={item.source_url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-1 text-[11px] text-indigo-500 hover:text-indigo-400 hover:underline max-w-[150px] truncate"
-                              title={item.source_url}
-                            >
-                              <ExternalLink className="h-3 w-3 shrink-0" />
-                              <span className="truncate">{item.source_url.replace('https://', '')}</span>
-                            </a>
-                          ) : (
-                            <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-zinc-500'}`}>Google Grounding</span>
-                          )}
-                        </td>
-
-                        {/* WhatsApp / Telefone */}
-                        <td className="p-4">
-                          {item.phone ? (
-                            <div className="flex items-center gap-1.5">
-                              <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-500/10 px-2 py-1 text-[11px] font-semibold text-emerald-600 border border-emerald-500/20">
-                                <MessageCircle className="h-3 w-3" />
-                                {item.phone}
-                              </span>
+                          {/* Consumidor */}
+                          <td className="p-4">
+                            <div className={`font-semibold text-sm flex items-center gap-1.5 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                              <UserCheck className="h-4 w-4 text-indigo-500" />
+                              {item.contact_name}
                             </div>
-                          ) : (
-                            <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-zinc-500'}`}>Apenas E-mail</span>
-                          )}
-                        </td>
+                            <div className={`text-[11px] mt-0.5 ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>{item.company_name}</div>
+                          </td>
 
-                        {/* Localização */}
-                        <td className="p-4">
-                          <div className={`font-medium ${isLight ? 'text-slate-800' : 'text-zinc-200'}`}>{item.city}</div>
-                          <div className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-zinc-500'}`}>{item.province}</div>
-                        </td>
+                          {/* E-mail & MX */}
+                          <td className="p-4">
+                            <div className={`font-mono flex items-center gap-1.5 ${isLight ? 'text-slate-800' : 'text-zinc-200'}`}>
+                              <Mail className="h-3 w-3 text-slate-400" />
+                              <span>{item.email}</span>
+                            </div>
+                            <div className="mt-1 flex items-center gap-1.5">
+                              {item.mx_status === 'valid' ? (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-500 border border-emerald-500/20">
+                                  <CheckCircle className="h-3 w-3" />
+                                  MX Ativo ({item.mx_host?.slice(0, 16)}...)
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/10 px-2 py-0.5 text-[10px] font-medium text-rose-500 border border-rose-500/20">
+                                  <XCircle className="h-3 w-3" />
+                                  Sem MX
+                                </span>
+                              )}
+                            </div>
+                          </td>
 
-                        {/* Score */}
-                        <td className="p-4 text-center">
-                          <span
-                            className={`inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                              item.confidence_score >= 85
+                          {/* Link da Fonte Real */}
+                          <td className="p-4">
+                            {item.source_url ? (
+                              <a
+                                href={item.source_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1 text-[11px] text-indigo-500 hover:text-indigo-400 hover:underline max-w-[150px] truncate"
+                                title={item.source_url}
+                              >
+                                <ExternalLink className="h-3 w-3 shrink-0" />
+                                <span className="truncate">{item.source_url.replace('https://', '')}</span>
+                              </a>
+                            ) : (
+                              <span className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-zinc-500'}`}>Google Grounding</span>
+                            )}
+                          </td>
+
+                          {/* WhatsApp / Telefone */}
+                          <td className="p-4">
+                            {item.phone ? (
+                              <div className="flex items-center gap-1.5">
+                                <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-500/10 px-2 py-1 text-[11px] font-semibold text-emerald-600 border border-emerald-500/20">
+                                  <MessageCircle className="h-3 w-3" />
+                                  {item.phone}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-zinc-500'}`}>Apenas E-mail</span>
+                            )}
+                          </td>
+
+                          {/* Localização */}
+                          <td className="p-4">
+                            <div className={`font-medium ${isLight ? 'text-slate-800' : 'text-zinc-200'}`}>{item.city}</div>
+                            <div className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-zinc-500'}`}>{item.province}</div>
+                          </td>
+
+                          {/* Score */}
+                          <td className="p-4 text-center">
+                            <span
+                              className={`inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                                item.confidence_score >= 85
                                 ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
                                 : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
-                            }`}
-                          >
-                            {item.confidence_score}%
-                          </span>
-                        </td>
-
-                        {/* Ações */}
-                        <td className="p-4 text-right">
-                          {item.status === 'imported' ? (
-                            <span className={`rounded px-2 py-1 text-[10px] font-medium ${isLight ? 'bg-slate-100 text-slate-500' : 'bg-zinc-800 text-zinc-400'}`}>
-                              No CRM
+                              }`}
+                            >
+                              {item.confidence_score}%
                             </span>
-                          ) : (
-                            <div className="flex items-center justify-end gap-1.5">
-                              <button
-                                onClick={() => importProspectsToLeads([item.id])}
-                                title="Importar para CRM"
-                                className="rounded-lg bg-indigo-600/15 p-1.5 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all cursor-pointer"
-                              >
-                                <Download className="h-3.5 w-3.5" />
-                              </button>
-                              <button
-                                onClick={() => updateProspectingResultStatus(item.id, 'discarded')}
-                                title="Descartar"
-                                className={`rounded-lg p-1.5 transition-all cursor-pointer ${
-                                  isLight
-                                    ? 'bg-slate-100 text-slate-500 hover:bg-rose-50 hover:text-rose-600'
-                                    : 'bg-zinc-800 text-zinc-400 hover:bg-rose-950/40 hover:text-rose-400'
-                                }`}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                          </td>
+
+                          {/* Ações */}
+                          <td className="p-4 text-right">
+                            {item.status === 'imported' ? (
+                              <span className={`rounded px-2 py-1 text-[10px] font-medium ${isLight ? 'bg-slate-100 text-slate-500' : 'bg-zinc-800 text-zinc-400'}`}>
+                                No CRM
+                              </span>
+                            ) : (
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  onClick={() => importProspectsToLeads([item.id])}
+                                  title="Importar para CRM"
+                                  className="rounded-lg bg-indigo-600/15 p-1.5 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all cursor-pointer"
+                                >
+                                  <Download className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => updateProspectingResultStatus(item.id, 'discarded')}
+                                  title="Descartar"
+                                  className={`rounded-lg p-1.5 transition-all cursor-pointer ${
+                                    isLight
+                                      ? 'bg-slate-100 text-slate-500 hover:bg-rose-50 hover:text-rose-600'
+                                      : 'bg-zinc-800 text-zinc-400 hover:bg-rose-950/40 hover:text-rose-400'
+                                  }`}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination Controls */}
+              <div className={`p-4 border-t flex flex-col sm:flex-row items-center justify-between gap-3 text-xs ${isLight ? 'border-slate-100 text-slate-600' : 'border-zinc-800 text-zinc-400'}`}>
+                <div>
+                  Mostrando <strong>{(currentPage - 1) * itemsPerPage + 1}</strong> a <strong>{Math.min(currentPage * itemsPerPage, filteredResults.length)}</strong> de <strong>{filteredResults.length.toLocaleString()}</strong> leads
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    className={`flex items-center gap-1 rounded-lg border px-3 py-1.5 font-semibold disabled:opacity-40 cursor-pointer ${
+                      isLight ? 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700' : 'border-zinc-700 bg-zinc-800 hover:bg-zinc-700 text-zinc-200'
+                    }`}
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                    <span>Anterior</span>
+                  </button>
+
+                  <span className="px-2 font-bold">
+                    {currentPage} / {totalPages}
+                  </span>
+
+                  <button
+                    disabled={currentPage >= totalPages}
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    className={`flex items-center gap-1 rounded-lg border px-3 py-1.5 font-semibold disabled:opacity-40 cursor-pointer ${
+                      isLight ? 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700' : 'border-zinc-700 bg-zinc-800 hover:bg-zinc-700 text-zinc-200'
+                    }`}
+                  >
+                    <span>Próxima</span>
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>
