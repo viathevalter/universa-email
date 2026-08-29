@@ -213,9 +213,7 @@ const sanitizeLeads = (leadsArray: Lead[]): Lead[] => {
     (l) =>
       l &&
       l.email &&
-      !MOCK_EMAILS_TO_PURGE.has(l.email.toLowerCase().trim()) &&
-      !l.id?.startsWith('lead_b2b_') &&
-      !l.id?.startsWith('lead_mock_')
+      !MOCK_EMAILS_TO_PURGE.has(l.email.toLowerCase().trim())
   );
 };
 
@@ -380,7 +378,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
-  // Sincronização em Lote com Supabase (SEM LIMITE DE 1.000)
+  // Sincronização em Lote com Supabase (COM PROTEÇÃO DE MERGE - NUNCA APAGA LEADS LOCAIS)
   const syncWithSupabase = useCallback(async () => {
     const supabase = getSupabaseClient();
     if (!supabase) {
@@ -395,8 +393,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         .order('created_at', { ascending: false })
         .range(0, 49999);
 
-      if (!leadsErr && dbLeads) {
-        setLeads(sanitizeLeads(dbLeads));
+      if (!leadsErr && dbLeads && dbLeads.length > 0) {
+        const sanitizedDbLeads = sanitizeLeads(dbLeads);
+        setLeads((currentLeads) => {
+          const emailMap = new Map<string, Lead>();
+          for (const l of currentLeads) {
+            if (l && l.email) emailMap.set(l.email.toLowerCase().trim(), l);
+          }
+          for (const l of sanitizedDbLeads) {
+            if (l && l.email) emailMap.set(l.email.toLowerCase().trim(), l);
+          }
+          return Array.from(emailMap.values());
+        });
       }
 
       const { data: dbTemplates, error: tmplErr } = await supabase.from('marketing_templates').select('*');

@@ -36,7 +36,6 @@ export const LeadsView: React.FC = () => {
     updateLead,
     deleteLead,
     deleteMultipleLeads,
-    clearAllLeads,
     batchImportLeads,
     verifyLeadMx,
     verifyAllPendingMx,
@@ -456,26 +455,6 @@ export const LeadsView: React.FC = () => {
             <Plus className="h-4 w-4" />
             <span>+ Novo Lead</span>
           </button>
-
-          {leads.length > 0 && (
-            <button
-              onClick={() => {
-                if (confirm('Deseja limpar todos os leads desta base local?')) {
-                  clearAllLeads();
-                  setNotification({ type: 'success', message: 'Base de leads limpa com sucesso!' });
-                }
-              }}
-              className={`flex items-center gap-1.5 rounded-xl border p-2.5 text-xs font-semibold transition-all cursor-pointer ${
-                isLight
-                  ? 'border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100'
-                  : 'border-rose-900/40 bg-rose-950/30 text-rose-400 hover:bg-rose-900/50'
-              }`}
-              title="Limpar todos os leads"
-            >
-              <Trash2 className="h-4 w-4" />
-              <span>Limpar Base</span>
-            </button>
-          )}
         </div>
       </div>
 
