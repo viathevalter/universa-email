@@ -12,7 +12,7 @@ import {
   Layers,
 } from 'lucide-react';
 import { useApp } from '../../shared/context/AppContext';
-import type { ActiveTab } from '../../shared/components/Header';
+import type { ActiveTab } from '../../shared/components/Sidebar';
 
 interface DashboardViewProps {
   onNavigate: (tab: ActiveTab) => void;
