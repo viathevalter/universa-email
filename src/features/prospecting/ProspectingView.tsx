@@ -1085,16 +1085,36 @@ export const ProspectingView: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {validMxProspectsCount > 0 && (
+              <button
+                onClick={handleImportAllValid}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-emerald-500/20 hover:opacity-95 transition-all cursor-pointer"
+              >
+                <Download className="h-4 w-4" />
+                <span>📥 Importar Todos ({validMxProspectsCount.toLocaleString()}) para o CRM</span>
+              </button>
+            )}
+
+            {selectedIds.length > 0 && (
+              <button
+                onClick={handleImportSelected}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-bold text-white shadow-lg hover:bg-indigo-500 transition-all cursor-pointer"
+              >
+                <Download className="h-4 w-4" />
+                <span>Importar ({selectedIds.length}) Selecionados</span>
+              </button>
+            )}
+
             {prospectingResults.length > 0 && (
               <button
                 onClick={clearStaging}
-                className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer ${
+                className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
                   isLight
                     ? 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200'
                     : 'bg-rose-950/40 text-rose-400 hover:bg-rose-900/60 border border-rose-800/40'
                 }`}
               >
-                Limpar Staging
+                Limpar Fila
               </button>
             )}
 
