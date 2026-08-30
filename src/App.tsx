@@ -45,7 +45,7 @@ const MainApp: React.FC = () => {
         <main className="flex-1 mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
           {activeTab === 'dashboard' && <DashboardView onNavigate={(tab) => setActiveTab(tab)} />}
           {activeTab === 'prospecting' && <ProspectingView />}
-          {activeTab === 'leads' && <LeadsView />}
+          {activeTab === 'leads' && <LeadsView onNavigateToCampaigns={() => setActiveTab('campaigns')} />}
           {activeTab === 'templates' && <TemplatesView />}
           {activeTab === 'campaigns' && <CampaignsView />}
           {activeTab === 'settings' && <SettingsView />}

@@ -51,7 +51,7 @@ export const CampaignsView: React.FC = () => {
   const handleAudienceChange = (audienceId: string) => {
     setFormData((prev) => ({ ...prev, target_audience_id: audienceId }));
     if (!audienceId || audienceId === 'all') {
-      setSelectedLeadIds(leads.filter((l) => !l.opted_out).map((l) => l.id));
+      setSelectedLeadIds(leads.filter((l) => !l.opted_out && l.mx_valid).map((l) => l.id));
       return;
     }
 
@@ -60,9 +60,16 @@ export const CampaignsView: React.FC = () => {
 
     const filtered = leads.filter((lead) => {
       if (lead.opted_out) return false;
-      if (aud.filters.company_size && !aud.filters.company_size.includes(lead.company_size as any)) return false;
-      if (aud.filters.province && !aud.filters.province.includes(lead.province as any)) return false;
+      if (aud.filters.status && aud.filters.status.length > 0 && !aud.filters.status.includes(lead.status)) return false;
+      if (aud.filters.city && aud.filters.city.length > 0 && !aud.filters.city.includes(lead.city as any)) return false;
+      if (aud.filters.province && aud.filters.province.length > 0 && !aud.filters.province.includes(lead.province as any)) return false;
       if (aud.filters.mx_valid_only && !lead.mx_valid) return false;
+      if (aud.filters.niche && aud.filters.niche.length > 0) {
+        const nicheMatch = aud.filters.niche.some(
+          (n) => lead.target_niche === n || (lead.role || '').toLowerCase().includes(n) || (lead.company_name || '').toLowerCase().includes(n)
+        );
+        if (!nicheMatch) return false;
+      }
       return true;
     });
 

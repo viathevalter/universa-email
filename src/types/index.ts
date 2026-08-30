@@ -180,6 +180,15 @@ export interface MarketingCampaignQueue {
   created_at: string;
 }
 
+export interface CRMStage {
+  id: LeadStatus | string;
+  name: string;
+  color: string;
+  border_color: string;
+  badge_bg: string;
+  badge_text: string;
+}
+
 export interface SavedAudience {
   id: string;
   tenant_id: string;
@@ -191,11 +200,13 @@ export interface SavedAudience {
     sector?: string[];
     country?: string[];
     province?: string[];
+    city?: string[];
     tags?: string[];
+    social_platform?: string[];
+    niche?: string[];
     mx_valid_only?: boolean;
     exclude_opted_out?: boolean;
     search_query?: string;
-    niche?: string[];
   };
   lead_count?: number;
   created_at: string;
