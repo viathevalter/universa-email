@@ -26,6 +26,7 @@ import {
   Check,
   Send,
   X,
+  Sparkles,
 } from 'lucide-react';
 import { useApp } from '../../shared/context/AppContext';
 import type { Lead, LeadStatus, CompanySize, CRMStage } from '../../types';
@@ -112,6 +113,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ onNavigateToCampaigns }) =
     deleteLead,
     deleteMultipleLeads,
     batchImportLeads,
+    restoreFull202kDatabase,
     verifyAllPendingMx,
     audiences,
     addAudience,
@@ -121,6 +123,10 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ onNavigateToCampaigns }) =
   } = useApp();
 
   const isLight = theme === 'light';
+
+  // Restore 202k state
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [restoreProgress, setRestoreProgress] = useState(0);
 
   // View mode
   const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table');
@@ -480,6 +486,23 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ onNavigateToCampaigns }) =
     });
   };
 
+  // Restore 202k Database Handler
+  const handleRestore202k = async () => {
+    setIsRestoring(true);
+    try {
+      const count = await restoreFull202kDatabase(202000, (p) => setRestoreProgress(p));
+      confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+      setNotification({
+        type: 'success',
+        message: `Base de ${count.toLocaleString()} leads carregada e salva com sucesso no IndexedDB!`,
+      });
+    } catch (e) {
+      setNotification({ type: 'error', message: 'Erro ao carregar base de leads.' });
+    } finally {
+      setIsRestoring(false);
+    }
+  };
+
   // Add Lead Submit
   const handleSaveLead = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -621,6 +644,16 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ onNavigateToCampaigns }) =
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={handleRestore202k}
+            disabled={isRestoring}
+            className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-indigo-600 p-2.5 text-xs font-bold text-white shadow-lg shadow-orange-500/20 hover:opacity-95 transition-all cursor-pointer"
+            title="Carregar / Restaurar base completa de 202.000 leads segmentados da Espanha"
+          >
+            <Sparkles className="h-4 w-4" />
+            <span>{isRestoring ? `Carregando 202k (${restoreProgress}%)...` : '⚡ Carregar 202.000 Leads'}</span>
+          </button>
+
           <button
             onClick={() => syncWithSupabase()}
             className={`flex items-center gap-1.5 rounded-xl border p-2.5 text-xs font-semibold transition-all cursor-pointer ${

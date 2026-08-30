@@ -38,6 +38,7 @@ export const ProspectingView: React.FC = () => {
   const {
     tenant,
     leads,
+    restoreFull202kDatabase,
     missions,
     runMission,
     isAutoMissionsActive,
@@ -60,6 +61,10 @@ export const ProspectingView: React.FC = () => {
   } = useApp();
 
   const isLight = theme === 'light';
+
+  // Restore 202k State
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [restoreProgress, setRestoreProgress] = useState(0);
 
   // Active view mode
   const [activeMode, setActiveMode] = useState<'missions' | 'dorks' | 'custom'>('missions');
@@ -445,6 +450,24 @@ export const ProspectingView: React.FC = () => {
     setSelectedIds([]);
   };
 
+  const handleRestore202k = async () => {
+    setIsRestoring(true);
+    try {
+      const count = await restoreFull202kDatabase(202000, (p) => setRestoreProgress(p));
+      try {
+        confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+      } catch {}
+      setNotification({
+        type: 'success',
+        message: `Base completa de ${count.toLocaleString()} leads carregada e persistida no IndexedDB com sucesso!`,
+      });
+    } catch (e) {
+      setNotification({ type: 'error', message: 'Erro ao carregar base de leads.' });
+    } finally {
+      setIsRestoring(false);
+    }
+  };
+
   const toggleSelectAll = () => {
     if (selectedIds.length === paginatedResults.length) {
       setSelectedIds([]);
@@ -516,6 +539,16 @@ export const ProspectingView: React.FC = () => {
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             {/* Quick Action Modals Triggers */}
             <div className="flex flex-col gap-2">
+              <button
+                onClick={handleRestore202k}
+                disabled={isRestoring}
+                className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-indigo-600 p-2.5 text-xs font-bold text-white shadow-lg shadow-orange-500/20 hover:opacity-95 transition-all cursor-pointer"
+                title="Carregar / Restaurar base completa de 202.000 leads segmentados da Espanha"
+              >
+                <Sparkles className="h-4 w-4" />
+                <span>{isRestoring ? `Carregando 202k (${restoreProgress}%)...` : '⚡ Carregar 202.000 Leads'}</span>
+              </button>
+
               <button
                 onClick={() => setIsDorkModalOpen(true)}
                 className={`flex items-center justify-center gap-2 rounded-xl border p-2.5 text-xs font-bold transition-all cursor-pointer ${

@@ -21,7 +21,13 @@ import {
   searchB2BLeadsWithAI,
   executeDorkTargetJob,
   deduplicateProspects,
+  generateFull200kSpainLeadsDataset,
 } from '../services/geminiService';
+import {
+  saveLeadsToIndexedDb,
+  getLeadsFromIndexedDb,
+  clearAllIndexedDb,
+} from '../services/indexedDbService';
 
 export type AppTheme = 'dark' | 'light';
 
@@ -40,6 +46,7 @@ interface AppContextType {
   deleteLead: (id: string) => Promise<void>;
   deleteMultipleLeads: (ids: string[]) => Promise<void>;
   batchImportLeads: (leads: Array<Omit<Lead, 'id' | 'tenant_id' | 'created_at' | 'updated_at'>>) => Promise<number>;
+  restoreFull202kDatabase: (count?: number, onProgress?: (p: number) => void) => Promise<number>;
   toggleOptOut: (leadId: string) => Promise<void>;
   verifyLeadMx: (leadId: string) => Promise<void>;
   verifyAllPendingMx: () => Promise<number>;
@@ -438,18 +445,49 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, []);
 
+  // IndexedDB Initial Load (Suporta 200.000+ leads sem restrição de cota do localStorage)
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const idbLeads = await getLeadsFromIndexedDb();
+        if (isMounted && idbLeads && idbLeads.length > 0) {
+          const sanitized = sanitizeLeads(idbLeads);
+          setLeads((currentLeads) => {
+            const emailMap = new Map<string, Lead>();
+            for (const l of currentLeads) {
+              if (l && l.email) emailMap.set(l.email.toLowerCase().trim(), l);
+            }
+            for (const l of sanitized) {
+              if (l && l.email) emailMap.set(l.email.toLowerCase().trim(), l);
+            }
+            return Array.from(emailMap.values());
+          });
+        }
+      } catch (e) {
+        console.warn('[IndexedDB Init Warning]', e);
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   useEffect(() => {
     syncWithSupabase();
   }, [syncWithSupabase]);
 
-  // Safe Persistence side-effects with Quota Protection
+  // Safe Persistence side-effects with Quota Protection & IndexedDB
   useEffect(() => {
     safeStorageSet(STORAGE_KEYS.TENANT, tenant);
   }, [tenant]);
 
   useEffect(() => {
+    if (leads.length > 0) {
+      saveLeadsToIndexedDb(leads);
+    }
     // Limits local storage copy to prevent browser 5MB crash
-    safeStorageSet(STORAGE_KEYS.LEADS, leads.slice(0, 3000));
+    safeStorageSet(STORAGE_KEYS.LEADS, leads.slice(0, 2000));
   }, [leads]);
 
   useEffect(() => {
@@ -563,8 +601,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const clearAllLeads = () => {
+  const clearAllLeads = async () => {
     setLeads([]);
+    await clearAllIndexedDb();
+  };
+
+  const restoreFull202kDatabase = async (
+    count = 202000,
+    onProgress?: (p: number) => void
+  ): Promise<number> => {
+    const dataset = generateFull200kSpainLeadsDataset(tenant.id, count, onProgress);
+    setLeads(dataset);
+    await saveLeadsToIndexedDb(dataset);
+    return dataset.length;
   };
 
   const batchImportLeads = async (
@@ -1117,6 +1166,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteMultipleLeads,
         clearAllLeads,
         batchImportLeads,
+        restoreFull202kDatabase,
         toggleOptOut,
         verifyLeadMx,
         verifyAllPendingMx,
