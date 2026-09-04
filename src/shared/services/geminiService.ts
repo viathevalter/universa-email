@@ -725,7 +725,7 @@ export function generateFull200kSpainLeadsDataset(
       province: cityObj.province,
       country: 'Espanha',
       tags,
-      status: i % 12 === 0 ? 'qualified' : 'new',
+      status: 'new',
       opted_out: false,
       mx_valid: true,
       mx_record: `${provider} (Google DNS Audited)`,

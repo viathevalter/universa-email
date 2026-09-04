@@ -187,12 +187,20 @@ const MOCK_EMAILS_TO_PURGE = new Set([
 ]);
 
 const sanitizeLeads = (leadsArray: Lead[]): Lead[] => {
-  return (leadsArray || []).filter(
-    (l) =>
-      l &&
-      l.email &&
-      !MOCK_EMAILS_TO_PURGE.has(l.email.toLowerCase().trim())
-  );
+  return (leadsArray || [])
+    .filter(
+      (l) =>
+        l &&
+        l.email &&
+        !MOCK_EMAILS_TO_PURGE.has(l.email.toLowerCase().trim())
+    )
+    .map((l) => {
+      // Se for lead gerado da base de 202k que veio marcado com 'qualified' artificialmente, reseta para 'new' (Novo / Sem Contato)
+      if (l.status === 'qualified' && l.id && l.id.startsWith('lead_es_202k_')) {
+        return { ...l, status: 'new' as LeadStatus };
+      }
+      return l;
+    });
 };
 
 const INITIAL_AUDIENCES: SavedAudience[] = [
