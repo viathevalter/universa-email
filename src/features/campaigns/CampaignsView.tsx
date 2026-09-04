@@ -168,7 +168,11 @@ const MultiSelectCombobox: React.FC<MultiSelectComboboxProps> = ({
               <button
                 type="button"
                 onClick={handleSelectAll}
-                className="h-8 px-2.5 text-[11px] rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold cursor-pointer shrink-0"
+                className={`h-8 px-2.5 text-[11px] rounded-lg border font-semibold cursor-pointer shrink-0 transition-all ${
+                  isLight
+                    ? 'border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-700'
+                    : 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300'
+                }`}
               >
                 Todos
               </button>
@@ -1358,23 +1362,31 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-2 sm:p-4">
           <div
             className={`w-[96vw] max-w-[1440px] h-[92vh] max-h-[92vh] flex flex-col justify-between p-5 sm:p-6 rounded-2xl shadow-2xl border ${
-              isLight ? 'border-slate-200 bg-white' : 'border-zinc-800 bg-slate-950 text-white'
+              isLight ? 'border-slate-200 bg-white text-slate-900' : 'border-zinc-800 bg-slate-950 text-white'
             }`}
           >
             {/* Modal Header */}
-            <div className="border-b border-slate-200 dark:border-slate-800 pb-3 flex items-center justify-between shrink-0">
+            <div
+              className={`border-b pb-3 flex items-center justify-between shrink-0 ${
+                isLight ? 'border-slate-200' : 'border-slate-800'
+              }`}
+            >
               <div>
                 <div className="flex items-center gap-2">
                   <SlidersHorizontal className="h-5 w-5 text-yellow-500" />
-                  <h2 className="text-lg font-bold">Criar Novo Público Salvo</h2>
+                  <h2 className={`text-lg font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                    Criar Novo Público Salvo
+                  </h2>
                 </div>
-                <p className="text-xs text-slate-400">
+                <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
                   Filtre e selecione os leads que farão parte deste segmento reutilizável.
                 </p>
               </div>
               <button
                 onClick={() => setIsNewAudienceDialogOpen(false)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg cursor-pointer"
+                className={`p-1 rounded-lg cursor-pointer transition-colors ${
+                  isLight ? 'text-slate-400 hover:text-slate-700' : 'text-slate-400 hover:text-white'
+                }`}
               >
                 <X className="h-5 w-5" />
               </button>
@@ -1383,28 +1395,50 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
             {/* Modal Body: 2 Columns */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 overflow-hidden flex-1 py-3 text-sm min-h-0">
               {/* Left Column: FILTROS GERAIS (5 cols) */}
-              <div className="lg:col-span-5 space-y-4 overflow-y-auto pr-3 lg:border-r border-slate-200 dark:border-slate-800 h-full scrollbar-thin">
+              <div
+                className={`lg:col-span-5 space-y-4 overflow-y-auto pr-3 lg:border-r h-full scrollbar-thin ${
+                  isLight ? 'border-slate-200' : 'border-slate-800'
+                }`}
+              >
                 <div>
-                  <h3 className="font-semibold text-xs uppercase tracking-wider text-slate-400 mb-2">
+                  <h3
+                    className={`font-semibold text-xs uppercase tracking-wider mb-2 ${
+                      isLight ? 'text-slate-500' : 'text-slate-400'
+                    }`}
+                  >
                     Filtros Gerais
                   </h3>
                 </div>
 
                 {/* Live Stats Summary Banner */}
-                <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 p-3 rounded-xl flex items-center justify-between text-xs mb-3 shadow-xs">
+                <div
+                  className={`border p-3 rounded-xl flex items-center justify-between text-xs mb-3 shadow-xs ${
+                    isLight
+                      ? 'bg-amber-50/80 border-amber-200/90 text-slate-800'
+                      : 'bg-gradient-to-r from-amber-500/10 to-orange-500/10 border-amber-500/20 text-slate-100'
+                  }`}
+                >
                   <div>
-                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Total da Base</span>
-                    <span className="font-bold text-slate-100 text-sm">{leads.length.toLocaleString()} leads</span>
+                    <span className={`block text-[10px] uppercase font-bold ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                      Total da Base
+                    </span>
+                    <span className={`font-bold text-sm ${isLight ? 'text-slate-900' : 'text-slate-100'}`}>
+                      {leads.length.toLocaleString()} leads
+                    </span>
                   </div>
                   <div className="text-center">
-                    <span className="text-slate-400 block text-[10px] uppercase font-bold">No Filtro Atual</span>
-                    <span className="font-bold text-amber-500 text-sm">
+                    <span className={`block text-[10px] uppercase font-bold ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                      No Filtro Atual
+                    </span>
+                    <span className={`font-bold text-sm ${isLight ? 'text-amber-700' : 'text-amber-400'}`}>
                       {eligibleLeadsForAudience.length.toLocaleString()} elegíveis
                     </span>
                   </div>
                   <div className="text-right">
-                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Selecionados</span>
-                    <span className="font-bold text-emerald-400 text-sm">
+                    <span className={`block text-[10px] uppercase font-bold ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                      Selecionados
+                    </span>
+                    <span className={`font-bold text-sm ${isLight ? 'text-emerald-700' : 'text-emerald-400'}`}>
                       {selectedAudienceLeadIds.size.toLocaleString()} membros
                     </span>
                   </div>
@@ -1412,14 +1446,16 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
 
                 {/* Nome do Público Salvo */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold block text-slate-300">
+                  <label className={`text-xs font-semibold block ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
                     Nome do Público Salvo *
                   </label>
                   <input
                     type="text"
                     placeholder="Ex: Peñas LaLiga da Espanha - Lote 1"
-                    className={`w-full h-9 rounded-xl border px-3 text-xs focus:outline-none ${
-                      isLight ? 'border-slate-300 bg-slate-50 text-slate-900' : 'border-slate-800 bg-slate-900 text-white'
+                    className={`w-full h-9 rounded-xl border px-3 text-xs focus:outline-none transition-colors ${
+                      isLight
+                        ? 'border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 shadow-2xs'
+                        : 'border-slate-800 bg-slate-900 text-white placeholder:text-slate-500'
                     }`}
                     value={audienceSaveName}
                     onChange={(e) => setAudienceSaveName(e.target.value)}
@@ -1429,12 +1465,14 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                 {/* Estágio (Kanban) e Origem */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <label className="text-xs text-slate-300">Estágio (Kanban)</label>
+                    <label className={`text-xs font-semibold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
+                      Estágio (Kanban)
+                    </label>
                     <select
                       value={audienceFilters.stageId}
                       onChange={(e) => setAudienceFilters({ ...audienceFilters, stageId: e.target.value })}
-                      className={`w-full h-9 rounded-xl border px-3 text-xs focus:outline-none ${
-                        isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-slate-800 bg-slate-900 text-white'
+                      className={`w-full h-9 rounded-xl border px-3 text-xs focus:outline-none transition-colors ${
+                        isLight ? 'border-slate-300 bg-white text-slate-900 shadow-2xs' : 'border-slate-800 bg-slate-900 text-white'
                       }`}
                     >
                       <option value="">Todos os Estágios</option>
@@ -1447,12 +1485,14 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs text-slate-300">Origem</label>
+                    <label className={`text-xs font-semibold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
+                      Origem
+                    </label>
                     <select
                       value={audienceFilters.origin}
                       onChange={(e) => setAudienceFilters({ ...audienceFilters, origin: e.target.value })}
-                      className={`w-full h-9 rounded-xl border px-3 text-xs focus:outline-none ${
-                        isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-slate-800 bg-slate-900 text-white'
+                      className={`w-full h-9 rounded-xl border px-3 text-xs focus:outline-none transition-colors ${
+                        isLight ? 'border-slate-300 bg-white text-slate-900 shadow-2xs' : 'border-slate-800 bg-slate-900 text-white'
                       }`}
                     >
                       <option value="">Todas as Origens</option>
@@ -1466,7 +1506,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                 </div>
 
                 {/* País e Porte */}
-                <div className="space-y-3 border-t border-slate-800/80 pt-3">
+                <div className={`space-y-3 border-t pt-3 ${isLight ? 'border-slate-200' : 'border-slate-800/80'}`}>
                   <MultiSelectCombobox
                     label="País (Multiseleção)"
                     options={dynamicCountryOptions}
@@ -1505,7 +1545,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                 </div>
 
                 {/* Setores, Nicho e Provedores */}
-                <div className="space-y-3 border-t border-slate-800/80 pt-3">
+                <div className={`space-y-3 border-t pt-3 ${isLight ? 'border-slate-200' : 'border-slate-800/80'}`}>
                   <MultiSelectCombobox
                     label="Setores da Empresa / Nicho / Clube (Multiseleção)"
                     options={dynamicSectorOptions}
@@ -1525,14 +1565,16 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                   />
 
                   <div className="space-y-1.5">
-                    <label className="text-xs text-slate-300">
+                    <label className={`text-xs font-semibold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
                       Palavra-Chave (Busca Livre em Textos/Notas)
                     </label>
                     <input
                       type="text"
                       placeholder="Ex: peña, torcida, bar, iptv..."
-                      className={`w-full h-9 rounded-xl border px-3 text-xs focus:outline-none ${
-                        isLight ? 'border-slate-300 bg-slate-50 text-slate-900' : 'border-slate-800 bg-slate-900 text-white'
+                      className={`w-full h-9 rounded-xl border px-3 text-xs focus:outline-none transition-colors ${
+                        isLight
+                          ? 'border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 shadow-2xs'
+                          : 'border-slate-800 bg-slate-900 text-white placeholder:text-slate-500'
                       }`}
                       value={audienceFilters.sectorKeyword}
                       onChange={(e) => setAudienceFilters({ ...audienceFilters, sectorKeyword: e.target.value })}
@@ -1541,16 +1583,16 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                 </div>
 
                 {/* Lote: Limite e Offset */}
-                <div className="grid grid-cols-2 gap-3 border-t border-slate-800/80 pt-3">
+                <div className={`grid grid-cols-2 gap-3 border-t pt-3 ${isLight ? 'border-slate-200' : 'border-slate-800/80'}`}>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-amber-500">
+                    <label className={`text-xs font-semibold ${isLight ? 'text-amber-700' : 'text-amber-400'}`}>
                       Lote: Limite Máximo
                     </label>
                     <input
                       type="number"
                       placeholder="Ex: 500"
-                      className={`w-full h-9 rounded-xl border px-3 text-xs focus:outline-none ${
-                        isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-slate-800 bg-slate-900 text-white'
+                      className={`w-full h-9 rounded-xl border px-3 text-xs focus:outline-none transition-colors ${
+                        isLight ? 'border-slate-300 bg-white text-slate-900 shadow-2xs' : 'border-slate-800 bg-slate-900 text-white'
                       }`}
                       value={audienceFilters.limit}
                       onChange={(e) => setAudienceFilters({ ...audienceFilters, limit: e.target.value })}
@@ -1558,14 +1600,14 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-amber-500">
+                    <label className={`text-xs font-semibold ${isLight ? 'text-amber-700' : 'text-amber-400'}`}>
                       Lote: Pular (Offset)
                     </label>
                     <input
                       type="number"
                       placeholder="Ex: 0"
-                      className={`w-full h-9 rounded-xl border px-3 text-xs focus:outline-none ${
-                        isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-slate-800 bg-slate-900 text-white'
+                      className={`w-full h-9 rounded-xl border px-3 text-xs focus:outline-none transition-colors ${
+                        isLight ? 'border-slate-300 bg-white text-slate-900 shadow-2xs' : 'border-slate-800 bg-slate-900 text-white'
                       }`}
                       value={audienceFilters.offset}
                       onChange={(e) => setAudienceFilters({ ...audienceFilters, offset: e.target.value })}
@@ -1577,7 +1619,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
               {/* Right Column: MEMBROS DO SEGMENTO (7 cols) */}
               <div className="lg:col-span-7 flex flex-col justify-between overflow-hidden h-full pl-2">
                 <div className="mb-2">
-                  <h3 className="font-semibold text-xs uppercase tracking-wider text-slate-400 mb-2">
+                  <h3 className={`font-semibold text-xs uppercase tracking-wider mb-2 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
                     Membros do Segmento
                   </h3>
                   <div className="relative">
@@ -1585,8 +1627,10 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                     <input
                       type="text"
                       placeholder="Pesquisar por nome, empresa ou e-mail na lista..."
-                      className={`w-full h-9 pl-9 pr-3 rounded-xl border text-xs focus:outline-none ${
-                        isLight ? 'border-slate-300 bg-slate-50 text-slate-900' : 'border-slate-800 bg-slate-900 text-white'
+                      className={`w-full h-9 pl-9 pr-3 rounded-xl border text-xs focus:outline-none transition-colors ${
+                        isLight
+                          ? 'border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 shadow-2xs'
+                          : 'border-slate-800 bg-slate-900 text-white placeholder:text-slate-500'
                       }`}
                       value={leadGridSearch}
                       onChange={(e) => {
@@ -1598,9 +1642,15 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                 </div>
 
                 {/* Selection Action Toolbar matching screenshot */}
-                <div className="flex flex-wrap justify-between items-center gap-2 bg-slate-900/80 border border-slate-800 rounded-xl p-2.5 mb-2 text-xs">
+                <div
+                  className={`flex flex-wrap justify-between items-center gap-2 border rounded-xl p-2.5 mb-2 text-xs transition-colors ${
+                    isLight
+                      ? 'bg-slate-50 border-slate-200 text-slate-700 shadow-2xs'
+                      : 'bg-slate-900/80 border-slate-800 text-slate-200'
+                  }`}
+                >
                   <div className="flex items-center gap-3">
-                    <label className="flex items-center gap-2 cursor-pointer font-semibold select-none text-slate-200">
+                    <label className={`flex items-center gap-2 cursor-pointer font-semibold select-none ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
                       <input
                         type="checkbox"
                         checked={
@@ -1608,23 +1658,29 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                           visibleLeadsForGrid.every((l) => selectedAudienceLeadIds.has(l.id))
                         }
                         onChange={(e) => handleToggleSelectAll(e.target.checked)}
-                        className="rounded border-slate-700 text-yellow-500 focus:ring-yellow-500/20 h-4 w-4 cursor-pointer"
+                        className={`rounded text-yellow-500 focus:ring-yellow-500/20 h-4 w-4 cursor-pointer ${
+                          isLight ? 'border-slate-300' : 'border-slate-700'
+                        }`}
                       />
                       <span>Selecionar Todos do Filtro</span>
                     </label>
 
-                    <div className="flex items-center gap-1.5 border-l pl-3 border-slate-800">
+                    <div className={`flex items-center gap-1.5 border-l pl-3 ${isLight ? 'border-slate-200' : 'border-slate-800'}`}>
                       <button
                         type="button"
                         onClick={handleClearSelection}
-                        className="text-[11px] px-2 py-0.5 text-rose-400 hover:bg-rose-500/10 rounded font-semibold cursor-pointer"
+                        className={`text-[11px] px-2 py-0.5 rounded font-semibold cursor-pointer transition-colors ${
+                          isLight ? 'text-rose-600 hover:bg-rose-50' : 'text-rose-400 hover:bg-rose-500/10'
+                        }`}
                       >
                         Desmarcar Todos (0)
                       </button>
                       <button
                         type="button"
                         onClick={handleSelectAllFiltered}
-                        className="text-[11px] px-2 py-0.5 text-amber-400 hover:bg-amber-500/10 rounded font-semibold cursor-pointer"
+                        className={`text-[11px] px-2 py-0.5 rounded font-semibold cursor-pointer transition-colors ${
+                          isLight ? 'text-amber-700 hover:bg-amber-50' : 'text-amber-400 hover:bg-amber-500/10'
+                        }`}
                       >
                         Marcar Todos ({visibleLeadsForGrid.length.toLocaleString()})
                       </button>
@@ -1634,7 +1690,11 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                   <span
                     className={`font-bold px-3 py-1 rounded-full text-xs transition-all border ${
                       selectedAudienceLeadIds.size > 0
-                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                        ? isLight
+                          ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
+                          : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                        : isLight
+                        ? 'bg-slate-100 border-slate-200 text-slate-600'
                         : 'bg-slate-800 border-slate-700 text-slate-400'
                     }`}
                   >
@@ -1644,9 +1704,13 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                 </div>
 
                 {/* Scrollable List of Leads matching Screenshot 2 */}
-                <div className="flex-1 overflow-y-auto space-y-2 border border-slate-800 rounded-xl p-3 bg-slate-900/30 scrollbar-thin">
+                <div
+                  className={`flex-1 overflow-y-auto space-y-2 border rounded-xl p-3 scrollbar-thin transition-colors ${
+                    isLight ? 'border-slate-200 bg-slate-50/50' : 'border-slate-800 bg-slate-900/30'
+                  }`}
+                >
                   {paginatedLeads.length === 0 ? (
-                    <div className="text-center py-20 text-slate-500 text-xs">
+                    <div className={`text-center py-20 text-xs ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>
                       Nenhum lead encontrado com estes filtros.
                     </div>
                   ) : (
@@ -1667,7 +1731,11 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                           key={l.id}
                           className={`flex justify-between items-center p-2.5 rounded-lg border text-xs transition-all gap-2 ${
                             isChecked
-                              ? 'bg-slate-900 border-amber-500/40'
+                              ? isLight
+                                ? 'bg-amber-50/50 border-amber-300/80 shadow-2xs'
+                                : 'bg-slate-900 border-amber-500/40'
+                              : isLight
+                              ? 'bg-white border-slate-200 hover:border-slate-300 shadow-2xs'
                               : 'bg-slate-900/60 border-slate-800 hover:border-slate-700'
                           }`}
                         >
@@ -1676,34 +1744,62 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                               type="checkbox"
                               checked={isChecked}
                               onChange={(e) => handleToggleSelectLead(l.id, e.target.checked)}
-                              className="rounded border-slate-700 text-yellow-500 focus:ring-yellow-500/20 h-4 w-4 cursor-pointer shrink-0"
+                              className={`rounded text-yellow-500 focus:ring-yellow-500/20 h-4 w-4 cursor-pointer shrink-0 ${
+                                isLight ? 'border-slate-300' : 'border-slate-700'
+                              }`}
                             />
                             <div className="truncate space-y-0.5">
                               <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="font-bold truncate text-slate-100">{cleanName}</span>
-                                <span className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-800 text-slate-300 border border-slate-700">
+                                <span className={`font-bold truncate ${isLight ? 'text-slate-900' : 'text-slate-100'}`}>
+                                  {cleanName}
+                                </span>
+                                <span
+                                  className={`inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.2 rounded border ${
+                                    isLight
+                                      ? 'bg-slate-100 text-slate-700 border-slate-200'
+                                      : 'bg-slate-800 text-slate-300 border-slate-700'
+                                  }`}
+                                >
                                   <span>{countryInfo.flag}</span>
                                   <span>{countryInfo.code}</span>
                                 </span>
                                 {l.tags && l.tags.length > 0 && (
-                                  <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
+                                  <span
+                                    className={`text-[9px] font-bold px-1.5 py-0.2 rounded border ${
+                                      isLight
+                                        ? 'bg-yellow-50 text-yellow-800 border-yellow-200'
+                                        : 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'
+                                    }`}
+                                  >
                                     {l.tags[0]}
                                   </span>
                                 )}
                               </div>
-                              <p className="text-[10px] text-slate-400 truncate flex items-center gap-1">
-                                <Mail className="h-3 w-3 text-slate-500 shrink-0" />
-                                <span className="text-blue-400 font-medium truncate">{l.email}</span>
+                              <p className={`text-[10px] truncate flex items-center gap-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                                <Mail className="h-3 w-3 text-slate-400 shrink-0" />
+                                <span className={`font-medium truncate ${isLight ? 'text-blue-600' : 'text-blue-400'}`}>
+                                  {l.email}
+                                </span>
                               </p>
                             </div>
                           </div>
 
                           <div className="text-right shrink-0 space-y-0.5">
-                            <span className="bg-slate-800 px-2 py-0.5 rounded text-[9px] text-slate-300 border border-slate-700 font-medium">
+                            <span
+                              className={`px-2 py-0.5 rounded text-[9px] border font-medium ${
+                                isLight
+                                  ? 'bg-slate-100 text-slate-600 border-slate-200'
+                                  : 'bg-slate-800 text-slate-300 border-slate-700'
+                              }`}
+                            >
                               {stageBadge}
                             </span>
                             {(l.city || l.province) && (
-                              <p className="text-[9px] text-emerald-400 font-medium flex items-center justify-end gap-1">
+                              <p
+                                className={`text-[9px] font-medium flex items-center justify-end gap-1 ${
+                                  isLight ? 'text-emerald-700' : 'text-emerald-400'
+                                }`}
+                              >
                                 <MapPin className="h-2.5 w-2.5 shrink-0" />
                                 <span>{[l.city, l.province].filter(Boolean).join(' • ')}</span>
                               </p>
@@ -1717,24 +1813,36 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
 
                 {/* Paginação */}
                 {totalPages > 1 && (
-                  <div className="flex justify-between items-center mt-3 border-t border-slate-800 pt-2.5">
+                  <div
+                    className={`flex justify-between items-center mt-3 border-t pt-2.5 ${
+                      isLight ? 'border-slate-200 text-slate-600' : 'border-slate-800 text-slate-400'
+                    }`}
+                  >
                     <button
                       type="button"
                       disabled={gridPage === 1}
                       onClick={() => setGridPage((p) => Math.max(1, p - 1))}
-                      className="h-8 px-3 text-xs rounded-xl border border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1 font-semibold"
+                      className={`h-8 px-3 text-xs rounded-xl border font-semibold flex items-center gap-1 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                        isLight
+                          ? 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50 shadow-2xs'
+                          : 'border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800'
+                      }`}
                     >
                       <ChevronLeft className="h-3.5 w-3.5" />
                       <span>Anterior</span>
                     </button>
-                    <span className="text-[11px] text-slate-400 font-medium">
+                    <span className={`text-[11px] font-medium ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
                       Página {gridPage} de {totalPages}
                     </span>
                     <button
                       type="button"
                       disabled={gridPage === totalPages}
                       onClick={() => setGridPage((p) => Math.min(totalPages, p + 1))}
-                      className="h-8 px-3 text-xs rounded-xl border border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1 font-semibold"
+                      className={`h-8 px-3 text-xs rounded-xl border font-semibold flex items-center gap-1 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                        isLight
+                          ? 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50 shadow-2xs'
+                          : 'border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800'
+                      }`}
                     >
                       <span>Próxima</span>
                       <ChevronRight className="h-3.5 w-3.5" />
@@ -1745,11 +1853,17 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
             </div>
 
             {/* Modal Footer */}
-            <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-3 shrink-0">
+            <div
+              className={`pt-3 border-t flex items-center justify-end gap-3 shrink-0 ${
+                isLight ? 'border-slate-200' : 'border-slate-800'
+              }`}
+            >
               <button
                 type="button"
                 onClick={() => setIsNewAudienceDialogOpen(false)}
-                className="px-4 py-2 rounded-xl text-slate-400 hover:text-white text-xs font-semibold cursor-pointer"
+                className={`px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-colors ${
+                  isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white'
+                }`}
               >
                 Cancelar
               </button>
@@ -1773,22 +1887,30 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
           <div
             className={`w-full max-w-2xl max-h-[85vh] flex flex-col justify-between p-6 rounded-2xl shadow-2xl border ${
-              isLight ? 'border-slate-200 bg-white' : 'border-zinc-800 bg-slate-950 text-white'
+              isLight ? 'border-slate-200 bg-white text-slate-900' : 'border-zinc-800 bg-slate-950 text-white'
             }`}
           >
-            <div className="border-b border-slate-200 dark:border-slate-800 pb-3 flex items-center justify-between shrink-0">
+            <div
+              className={`border-b pb-3 flex items-center justify-between shrink-0 ${
+                isLight ? 'border-slate-200' : 'border-slate-800'
+              }`}
+            >
               <div>
                 <div className="flex items-center gap-2">
                   <Users className="h-5 w-5 text-yellow-500" />
-                  <h3 className="font-bold text-base">Membros do Público: {viewLeadsAudience.name}</h3>
+                  <h3 className={`font-bold text-base ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                    Membros do Público: {viewLeadsAudience.name}
+                  </h3>
                 </div>
-                <p className="text-xs text-slate-400">
+                <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
                   Total de {viewAudienceLeadsList.length.toLocaleString()} leads neste público
                 </p>
               </div>
               <button
                 onClick={() => setViewLeadsAudience(null)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg cursor-pointer"
+                className={`p-1 rounded-lg cursor-pointer transition-colors ${
+                  isLight ? 'text-slate-400 hover:text-slate-700' : 'text-slate-400 hover:text-white'
+                }`}
               >
                 <X className="h-5 w-5" />
               </button>
@@ -1805,29 +1927,49 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                     setViewLeadsSearch(e.target.value);
                     setViewLeadsPage(1);
                   }}
-                  className={`w-full h-9 pl-9 pr-3 rounded-xl border text-xs focus:outline-none ${
-                    isLight ? 'border-slate-300 bg-slate-50 text-slate-900' : 'border-slate-800 bg-slate-900 text-white'
+                  className={`w-full h-9 pl-9 pr-3 rounded-xl border text-xs focus:outline-none transition-colors ${
+                    isLight
+                      ? 'border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 shadow-2xs'
+                      : 'border-slate-800 bg-slate-900 text-white placeholder:text-slate-500'
                   }`}
                 />
               </div>
             </div>
 
             {/* Scrollable list */}
-            <div className="flex-1 overflow-y-auto space-y-2 border border-slate-800 rounded-xl p-3 bg-slate-900/40 scrollbar-thin max-h-96">
+            <div
+              className={`flex-1 overflow-y-auto space-y-2 border rounded-xl p-3 scrollbar-thin max-h-96 transition-colors ${
+                isLight ? 'border-slate-200 bg-slate-50/50' : 'border-slate-800 bg-slate-900/40'
+              }`}
+            >
               {viewAudienceLeadsList.length === 0 ? (
-                <div className="text-center py-12 text-slate-500 text-xs">Nenhum lead encontrado.</div>
+                <div className={`text-center py-12 text-xs ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>
+                  Nenhum lead encontrado.
+                </div>
               ) : (
                 viewAudienceLeadsList.slice((viewLeadsPage - 1) * 30, viewLeadsPage * 30).map((l) => (
                   <div
                     key={l.id}
-                    className="flex justify-between items-center p-2.5 rounded-lg border border-slate-800 bg-slate-900 text-xs"
+                    className={`flex justify-between items-center p-2.5 rounded-lg border text-xs transition-colors ${
+                      isLight ? 'border-slate-200 bg-white text-slate-800 shadow-2xs' : 'border-slate-800 bg-slate-900 text-white'
+                    }`}
                   >
                     <div>
-                      <div className="font-bold text-slate-200">{l.name || l.company_name}</div>
-                      <div className="text-[10px] text-blue-400">{l.email}</div>
+                      <div className={`font-bold ${isLight ? 'text-slate-900' : 'text-slate-200'}`}>
+                        {l.name || l.company_name}
+                      </div>
+                      <div className={`text-[10px] ${isLight ? 'text-blue-600 font-medium' : 'text-blue-400'}`}>
+                        {l.email}
+                      </div>
                     </div>
                     <div className="text-right">
-                      <span className="bg-slate-800 px-2 py-0.5 rounded text-[9px] text-slate-400 border border-slate-700">
+                      <span
+                        className={`px-2 py-0.5 rounded text-[9px] border ${
+                          isLight
+                            ? 'bg-slate-100 text-slate-600 border-slate-200'
+                            : 'bg-slate-800 text-slate-400 border-slate-700'
+                        }`}
+                      >
                         {l.city || l.country || 'Espanha'}
                       </span>
                     </div>
@@ -1837,12 +1979,18 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
             </div>
 
             {/* Footer */}
-            <div className="pt-3 border-t border-slate-800 flex items-center justify-between shrink-0">
+            <div
+              className={`pt-3 border-t flex items-center justify-between shrink-0 ${
+                isLight ? 'border-slate-200' : 'border-slate-800'
+              }`}
+            >
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setViewLeadsAudience(null)}
-                  className="px-4 py-2 rounded-xl text-slate-400 hover:text-white text-xs font-semibold cursor-pointer"
+                  className={`px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-colors ${
+                    isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white'
+                  }`}
                 >
                   Fechar
                 </button>
@@ -1853,7 +2001,11 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                       setViewLeadsAudience(null);
                       onNavigateToLeads();
                     }}
-                    className="px-4 py-2 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 text-xs font-semibold cursor-pointer"
+                    className={`px-4 py-2 rounded-xl border text-xs font-semibold cursor-pointer transition-colors ${
+                      isLight
+                        ? 'border-slate-300 bg-white hover:bg-slate-50 text-slate-700 shadow-2xs'
+                        : 'border-slate-700 hover:bg-slate-800 text-slate-300'
+                    }`}
                   >
                     Ver na Base de Leads CRM
                   </button>
@@ -1866,7 +2018,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                   setViewLeadsAudience(null);
                   handleOpenWizard(targetAudId);
                 }}
-                className="px-5 py-2 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-slate-950 text-xs font-bold shadow-md cursor-pointer"
+                className="px-5 py-2 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-slate-950 text-xs font-bold shadow-md cursor-pointer transition-all"
               >
                 Disparar Campanha para Este Público
               </button>
