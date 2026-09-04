@@ -93,6 +93,7 @@ interface AppContextType {
   createCampaign: (campaign: Omit<MarketingCampaign, 'id' | 'tenant_id' | 'created_at' | 'updated_at' | 'sent_count' | 'delivered_count' | 'opened_count' | 'clicked_count' | 'bounced_count' | 'failed_count'>, targetLeadIds: string[]) => Promise<MarketingCampaign>;
   launchCampaign: (campaignId: string) => Promise<void>;
   pauseCampaign: (campaignId: string) => void;
+  deleteCampaign: (campaignId: string) => Promise<void>;
   
   // Audiences
   audiences: SavedAudience[];
@@ -1239,6 +1240,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   };
 
+  const deleteCampaign = async (campaignId: string) => {
+    setCampaigns((prev) => prev.filter((c) => c.id !== campaignId));
+    setCampaignQueue((prev) => {
+      const next = { ...prev };
+      delete next[campaignId];
+      return next;
+    });
+  };
+
   // Audiences
   const addAudience = async (audienceData: Omit<SavedAudience, 'id' | 'tenant_id' | 'created_at'>): Promise<SavedAudience> => {
     const newAudience: SavedAudience = {
@@ -1308,6 +1318,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         createCampaign,
         launchCampaign,
         pauseCampaign,
+        deleteCampaign,
         audiences,
         addAudience,
         deleteAudience,

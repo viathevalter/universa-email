@@ -21,11 +21,12 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({ activeTab, onOpenMobileMen
 
   const tabLabels: Record<ActiveTab, { title: string; subtitle: string }> = {
     dashboard: { title: 'Dashboard', subtitle: 'Métricas e Desempenho em Tempo Real' },
-    prospecting: { title: 'IA Lead Machine', subtitle: 'Extração & Enriquecimento B2B com Grounded Search' },
-    leads: { title: 'Base Central de Leads & CRM', subtitle: 'Tabela, Quadro Kanban & Segmentação' },
+    prospecting: { title: 'Máquina de Leads (AI)', subtitle: 'Extração & Enriquecimento com Grounded Search' },
+    leads: { title: 'Leads de Marketing', subtitle: 'Tabela, Segmentação e Filtros Avançados' },
+    kanban: { title: 'Funil de Vendas', subtitle: 'Pipeline Comercial & Estágios de Conversão' },
     templates: { title: 'Editor de Templates', subtitle: 'Modelos Personalizados com Tags Dinâmicas' },
-    campaigns: { title: 'Campanhas & Fila Resend', subtitle: 'Envios com Rate Limiting e Métricas' },
-    settings: { title: 'Configurações do SaaS', subtitle: 'Multi-tenant, Resend & Banco Supabase' },
+    campaigns: { title: 'Campanhas de Marketing', subtitle: 'Campanhas, Templates HTML & Públicos Salvos' },
+    settings: { title: 'Configurações', subtitle: 'Multi-tenant, Resend, Webhooks & Banco' },
   };
 
   const currentTab = tabLabels[activeTab] || { title: 'Painel', subtitle: 'UniversaEmail' };

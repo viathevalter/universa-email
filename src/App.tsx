@@ -6,13 +6,14 @@ import type { ActiveTab } from './shared/components/Sidebar';
 import { DashboardView } from './features/dashboard/DashboardView';
 import { ProspectingView } from './features/prospecting/ProspectingView';
 import { LeadsView } from './features/leads/LeadsView';
+import { KanbanView } from './features/kanban/KanbanView';
 import { TemplatesView } from './features/templates/TemplatesView';
 import { CampaignsView } from './features/campaigns/CampaignsView';
 import { SettingsView } from './features/settings/SettingsView';
 import { ShieldCheck, Mail, Sparkles } from 'lucide-react';
 
 const MainApp: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('kanban');
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const { theme } = useApp();
   const isLight = theme === 'light';
@@ -21,8 +22,8 @@ const MainApp: React.FC = () => {
     <div
       className={`min-h-screen flex w-full transition-colors duration-200 ${
         isLight
-          ? 'bg-slate-50 text-slate-900 selection:bg-indigo-100 selection:text-indigo-900'
-          : 'bg-zinc-950 text-zinc-100 selection:bg-indigo-500/30 selection:text-indigo-200'
+          ? 'bg-slate-50 text-slate-900 selection:bg-yellow-100 selection:text-yellow-900'
+          : 'bg-zinc-950 text-zinc-100 selection:bg-yellow-500/30 selection:text-yellow-200'
       }`}
     >
       {/* Left Collapsible Sidebar */}
@@ -46,6 +47,7 @@ const MainApp: React.FC = () => {
           {activeTab === 'dashboard' && <DashboardView onNavigate={(tab) => setActiveTab(tab)} />}
           {activeTab === 'prospecting' && <ProspectingView />}
           {activeTab === 'leads' && <LeadsView onNavigateToCampaigns={() => setActiveTab('campaigns')} />}
+          {activeTab === 'kanban' && <KanbanView onNavigateToCampaigns={() => setActiveTab('campaigns')} />}
           {activeTab === 'templates' && <TemplatesView />}
           {activeTab === 'campaigns' && <CampaignsView />}
           {activeTab === 'settings' && <SettingsView />}
@@ -62,7 +64,7 @@ const MainApp: React.FC = () => {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
             <div className="flex items-center gap-2">
               <span className={`font-semibold ${isLight ? 'text-slate-700' : 'text-zinc-300'}`}>
-                UniversaEmail • Email & AI Lead Intelligence
+                Universa Comercial • Email & Sales Funnel Intelligence
               </span>
               <span>•</span>
               <span>SaaS v1.0.0</span>
@@ -71,14 +73,14 @@ const MainApp: React.FC = () => {
             <div className="flex items-center gap-6">
               <span className="flex items-center gap-1.5">
                 <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
-                DoH MX DNS Verifier
+                mail.universatv.com (Verified)
               </span>
               <span className="flex items-center gap-1.5">
-                <Sparkles className="h-3.5 w-3.5 text-pink-500" />
+                <Sparkles className="h-3.5 w-3.5 text-yellow-500" />
                 Gemini Grounded Search
               </span>
               <span className="flex items-center gap-1.5">
-                <Mail className="h-3.5 w-3.5 text-indigo-500" />
+                <Mail className="h-3.5 w-3.5 text-blue-500" />
                 Resend Delivery Engine
               </span>
             </div>
