@@ -337,7 +337,7 @@ async function runMigration() {
       tenant_id: '00000000-0000-0000-0000-000000000001',
       name: '⚽ Aficionados LaLiga & Futebol Espanha (Peñas)',
       description: 'Público qualificado de peñas e aficionados por LaLiga, Real Madrid, Barcelona e Champions League.',
-      filters_json: { sector: 'Streaming & Esportes', country: 'Espanha', tag: 'LaLiga', lead_count: 58000 },
+      filters_json: { sector: ['Streaming & Esportes'], country: ['Espanha'], tags: ['LaLiga'], lead_count: 58000 },
       created_at: new Date().toISOString(),
     },
     {
@@ -345,7 +345,7 @@ async function runMigration() {
       tenant_id: '00000000-0000-0000-0000-000000000001',
       name: '👑 Comunidade & Fãs Real Madrid CF',
       description: 'Público exclusivo focado no Real Madrid para transmissões de Champions e LaLiga em 4K.',
-      filters_json: { sector: 'Streaming & Esportes', country: 'Espanha', tag: 'Peña Madridista', lead_count: 34000 },
+      filters_json: { sector: ['Streaming & Esportes'], country: ['Espanha'], tags: ['Peña Madridista'], lead_count: 34000 },
       created_at: new Date().toISOString(),
     },
     {
@@ -353,7 +353,7 @@ async function runMigration() {
       tenant_id: '00000000-0000-0000-0000-000000000001',
       name: '🔵🔴 Torcedores FC Barcelona (Culés)',
       description: 'Aficionados e sócios culés para assistir a todos os jogos do Barça em 4K e 60 FPS.',
-      filters_json: { sector: 'Streaming & Esportes', country: 'Espanha', tag: 'Peña Barcelonista', lead_count: 29000 },
+      filters_json: { sector: ['Streaming & Esportes'], country: ['Espanha'], tags: ['Peña Barcelonista'], lead_count: 29000 },
       created_at: new Date().toISOString(),
     },
     {
@@ -361,7 +361,7 @@ async function runMigration() {
       tenant_id: '00000000-0000-0000-0000-000000000001',
       name: '🏎️ Motores: Fórmula 1 & MotoGP Espanha (DAZN)',
       description: 'Aficionados por F1 (Alonso, Sainz) e MotoGP em alta resolução sem cortes comerciais.',
-      filters_json: { sector: 'Streaming & Esportes', country: 'Espanha', tag: 'Motorsport', lead_count: 22000 },
+      filters_json: { sector: ['Streaming & Esportes'], country: ['Espanha'], tags: ['Motorsport'], lead_count: 22000 },
       created_at: new Date().toISOString(),
     },
     {
@@ -369,7 +369,7 @@ async function runMigration() {
       tenant_id: '00000000-0000-0000-0000-000000000001',
       name: '🎬 Cinéfilos, Séries On Demand & Família',
       description: 'Público interessado em estreias de cinema e catálogo de +10.000 títulos sem múltiplas assinaturas.',
-      filters_json: { sector: 'Streaming & Entretenimento', country: 'Espanha', tag: 'Cinema 4K', lead_count: 31000 },
+      filters_json: { sector: ['Streaming & Entretenimento'], country: ['Espanha'], tags: ['Cinema 4K'], lead_count: 31000 },
       created_at: new Date().toISOString(),
     },
     {
@@ -377,7 +377,7 @@ async function runMigration() {
       tenant_id: '00000000-0000-0000-0000-000000000001',
       name: '🌎 Comunidade Latina na Espanha & Europa',
       description: 'Público latino-americano (Colômbia, México, Argentina, Venezuela, Peru) buscando canais de sua terra natal.',
-      filters_json: { sector: 'Streaming & Entretenimento', country: 'Espanha', tag: 'Latinos Espanha', lead_count: 28000 },
+      filters_json: { sector: ['Streaming & Entretenimento'], country: ['Espanha'], tags: ['Latinos Espanha'], lead_count: 28000 },
       created_at: new Date().toISOString(),
     },
   ];

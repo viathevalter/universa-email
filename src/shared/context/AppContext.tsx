@@ -505,17 +505,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       const { data: dbAudiences, error: audErr } = await supabase.from('saved_audiences').select('*');
       if (!audErr && dbAudiences && dbAudiences.length > 0) {
-        const mappedAudiences: SavedAudience[] = dbAudiences.map((a: any) => ({
-          id: a.id,
-          tenant_id: a.tenant_id,
-          name: a.name,
-          description: a.description || '',
-          niche: a.filters_json?.niche || a.niche || '',
-          filters: a.filters_json || {},
-          lead_count: a.filters_json?.lead_count || a.lead_count || 0,
-          lead_ids: a.lead_ids || [],
-          created_at: a.created_at,
-        }));
+        const mappedAudiences: SavedAudience[] = dbAudiences.map((a: any) => {
+          const rawFilters = a.filters_json || a.filters || {};
+          const toArray = (val: any) => {
+            if (!val) return undefined;
+            if (Array.isArray(val)) return val;
+            if (typeof val === 'string') return [val];
+            return undefined;
+          };
+
+          return {
+            id: a.id,
+            tenant_id: a.tenant_id,
+            name: a.name,
+            description: a.description || '',
+            niche: Array.isArray(rawFilters.niche) ? rawFilters.niche[0] : (rawFilters.niche || a.niche || ''),
+            filters: {
+              ...rawFilters,
+              country: toArray(rawFilters.country),
+              region: toArray(rawFilters.region),
+              province: toArray(rawFilters.province),
+              city: toArray(rawFilters.city),
+              tags: toArray(rawFilters.tags || rawFilters.tag),
+              providers: toArray(rawFilters.providers || rawFilters.provider),
+              sector: toArray(rawFilters.sector),
+              status: toArray(rawFilters.status),
+            },
+            lead_count: rawFilters.lead_count || a.lead_count || (Array.isArray(a.lead_ids) ? a.lead_ids.length : 0),
+            lead_ids: a.lead_ids || [],
+            created_at: a.created_at || new Date().toISOString(),
+          };
+        });
         setAudiences(mappedAudiences);
       }
 
@@ -1279,18 +1299,57 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Audiences
   const addAudience = async (audienceData: Omit<SavedAudience, 'id' | 'tenant_id' | 'created_at'>): Promise<SavedAudience> => {
+    const generateUUID = () => {
+      if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID();
+      }
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0;
+        const v = c === 'x' ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+      });
+    };
+
     const newAudience: SavedAudience = {
       ...audienceData,
-      id: `aud_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+      id: generateUUID(),
       tenant_id: tenant.id,
       created_at: new Date().toISOString(),
     };
+
     setAudiences((prev) => [newAudience, ...prev]);
+
+    // Persistir no Supabase se conectado
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        await supabase.from('saved_audiences').insert({
+          id: newAudience.id,
+          tenant_id: newAudience.tenant_id,
+          name: newAudience.name,
+          description: newAudience.description,
+          filters_json: newAudience.filters,
+          created_at: newAudience.created_at,
+        });
+      } catch (err) {
+        console.warn('[Supabase Audiences Insert Warning]', err);
+      }
+    }
+
     return newAudience;
   };
 
   const deleteAudience = async (id: string) => {
     setAudiences((prev) => prev.filter((a) => a.id !== id));
+
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        await supabase.from('saved_audiences').delete().eq('id', id);
+      } catch (err) {
+        console.warn('[Supabase Audiences Delete Warning]', err);
+      }
+    }
   };
 
   const isSupabaseConnected = Boolean(

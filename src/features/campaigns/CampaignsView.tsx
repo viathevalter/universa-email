@@ -48,6 +48,18 @@ interface MultiSelectComboboxProps {
   isLight?: boolean;
 }
 
+const formatFilterDisplay = (val: any): string | null => {
+  if (!val) return null;
+  if (Array.isArray(val)) {
+    const clean = val.filter(Boolean).map((v) => String(v).trim()).filter((v) => v.length > 0);
+    return clean.length > 0 ? clean.join(', ') : null;
+  }
+  if (typeof val === 'string' && val.trim().length > 0) {
+    return val.trim();
+  }
+  return null;
+};
+
 const MultiSelectCombobox: React.FC<MultiSelectComboboxProps> = ({
   label,
   options,
@@ -741,13 +753,31 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
     // Fallback to dynamic filters
     const filtered = leads.filter((lead) => {
       if (lead.opted_out) return false;
-      if (aud.filters.status && aud.filters.status.length > 0 && !aud.filters.status.includes(lead.status)) return false;
-      if (aud.filters.city && aud.filters.city.length > 0 && !aud.filters.city.includes(lead.city as any)) return false;
-      if (aud.filters.country && aud.filters.country.length > 0 && !aud.filters.country.some((c) => (lead.country || '').toLowerCase() === c.toLowerCase())) return false;
-      if (aud.filters.province && aud.filters.province.length > 0 && !aud.filters.province.includes(lead.province as any)) return false;
-      if (aud.filters.tags && aud.filters.tags.length > 0) {
-        const hasTag = (lead.tags || []).some((t) => aud.filters.tags!.includes(t));
-        if (!hasTag) return false;
+      const f = (aud.filters || {}) as any;
+
+      if (f.status) {
+        const statuses = Array.isArray(f.status) ? f.status : [f.status];
+        if (statuses.length > 0 && !statuses.includes(lead.status)) return false;
+      }
+      if (f.city) {
+        const cities = Array.isArray(f.city) ? f.city : [f.city];
+        if (cities.length > 0 && !cities.includes(lead.city as any)) return false;
+      }
+      if (f.country) {
+        const countries = Array.isArray(f.country) ? f.country : [f.country];
+        if (countries.length > 0 && !countries.some((c: any) => (lead.country || '').toLowerCase() === String(c).toLowerCase())) return false;
+      }
+      if (f.province) {
+        const provinces = Array.isArray(f.province) ? f.province : [f.province];
+        if (provinces.length > 0 && !provinces.includes(lead.province as any)) return false;
+      }
+      if (f.tags || f.tag) {
+        const rawTags = f.tags || f.tag;
+        const tags = Array.isArray(rawTags) ? rawTags : [rawTags];
+        if (tags.length > 0) {
+          const hasTag = (lead.tags || []).some((t) => tags.includes(t));
+          if (!hasTag) return false;
+        }
       }
       return true;
     });
@@ -868,8 +898,15 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
       list = ids.map((id) => map.get(id)).filter(Boolean) as Lead[];
     } else {
       list = leads.filter((l) => {
-        if (viewLeadsAudience.filters.country && !viewLeadsAudience.filters.country.includes(l.country || '')) return false;
-        if (viewLeadsAudience.filters.city && !viewLeadsAudience.filters.city.includes(l.city || '')) return false;
+        const f = (viewLeadsAudience.filters || {}) as any;
+        if (f.country) {
+          const countries = Array.isArray(f.country) ? f.country : [f.country];
+          if (countries.length > 0 && !countries.some((c: any) => (l.country || '').toLowerCase() === String(c).toLowerCase())) return false;
+        }
+        if (f.city) {
+          const cities = Array.isArray(f.city) ? f.city : [f.city];
+          if (cities.length > 0 && !cities.some((c: any) => (l.city || '').toLowerCase() === String(c).toLowerCase())) return false;
+        }
         return true;
       });
     }
@@ -1349,30 +1386,56 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
 
                   {/* Filter details */}
                   <div className="space-y-1 text-[11px] text-slate-400">
-                    {aud.filters.country && aud.filters.country.length > 0 && (
-                      <div className="flex items-center gap-1.5 truncate">
-                        <span className="font-semibold text-slate-500">País:</span>
-                        <span className="text-slate-300 font-medium truncate">{aud.filters.country.join(', ')}</span>
-                      </div>
-                    )}
-                    {aud.filters.region && aud.filters.region.length > 0 && (
-                      <div className="flex items-center gap-1.5 truncate">
-                        <span className="font-semibold text-slate-500">Regiões:</span>
-                        <span className="truncate">{aud.filters.region.join(', ')}</span>
-                      </div>
-                    )}
-                    {aud.filters.tags && aud.filters.tags.length > 0 && (
-                      <div className="flex items-center gap-1.5 truncate">
-                        <span className="font-semibold text-slate-500">Tags/Nichos:</span>
-                        <span className="truncate">{aud.filters.tags.join(', ')}</span>
-                      </div>
-                    )}
-                    {aud.filters.providers && aud.filters.providers.length > 0 && (
-                      <div className="flex items-center gap-1.5 truncate">
-                        <span className="font-semibold text-slate-500">Provedores:</span>
-                        <span className="truncate">{aud.filters.providers.join(', ')}</span>
-                      </div>
-                    )}
+                    {(() => {
+                      const f = (aud.filters || {}) as any;
+                      const country = formatFilterDisplay(f.country);
+                      const region = formatFilterDisplay(f.region);
+                      const province = formatFilterDisplay(f.province);
+                      const tags = formatFilterDisplay(f.tags || f.tag || f.niche);
+                      const sector = formatFilterDisplay(f.sector);
+                      const providers = formatFilterDisplay(f.providers || f.provider);
+
+                      return (
+                        <>
+                          {country && (
+                            <div className="flex items-center gap-1.5 truncate">
+                              <span className="font-semibold text-slate-500">País:</span>
+                              <span className={`font-medium truncate ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>{country}</span>
+                            </div>
+                          )}
+                          {region && (
+                            <div className="flex items-center gap-1.5 truncate">
+                              <span className="font-semibold text-slate-500">Regiões:</span>
+                              <span className="truncate">{region}</span>
+                            </div>
+                          )}
+                          {province && (
+                            <div className="flex items-center gap-1.5 truncate">
+                              <span className="font-semibold text-slate-500">Províncias:</span>
+                              <span className="truncate">{province}</span>
+                            </div>
+                          )}
+                          {sector && (
+                            <div className="flex items-center gap-1.5 truncate">
+                              <span className="font-semibold text-slate-500">Setor:</span>
+                              <span className="truncate">{sector}</span>
+                            </div>
+                          )}
+                          {tags && (
+                            <div className="flex items-center gap-1.5 truncate">
+                              <span className="font-semibold text-slate-500">Tags/Nichos:</span>
+                              <span className="truncate">{tags}</span>
+                            </div>
+                          )}
+                          {providers && (
+                            <div className="flex items-center gap-1.5 truncate">
+                              <span className="font-semibold text-slate-500">Provedores:</span>
+                              <span className="truncate">{providers}</span>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
 
