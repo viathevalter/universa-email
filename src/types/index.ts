@@ -203,14 +203,20 @@ export interface SavedAudience {
     sector?: string[];
     country?: string[];
     province?: string[];
+    region?: string[];
     city?: string[];
     tags?: string[];
     social_platform?: string[];
     niche?: string[];
+    providers?: string[];
+    origin?: string;
     mx_valid_only?: boolean;
     exclude_opted_out?: boolean;
     search_query?: string;
+    limit?: number;
+    offset?: number;
   };
+  lead_ids?: string[];
   lead_count?: number;
   created_at: string;
 }

@@ -1,25 +1,228 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Send,
   Plus,
   Play,
   Pause,
   CheckCircle,
-  Clock,
   Trash2,
   Eye,
   FileCode,
-  Building2,
   Edit3,
   ChevronRight,
+  ChevronLeft,
+  ChevronDown,
+  Search,
+  X,
+  Check,
+  Users,
+  MapPin,
+  Sparkles,
+  Mail,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { useApp, VERIFIED_SENDERS } from '../../shared/context/AppContext';
-import type { MarketingTemplate } from '../../types';
+import type { MarketingTemplate, SavedAudience, Lead, LeadStatus } from '../../types';
 import confetti from 'canvas-confetti';
 
 interface CampaignsViewProps {
   onNavigateToLeads?: () => void;
 }
+
+interface MultiSelectOption {
+  label: string;
+  value: string;
+  flag?: string;
+  count?: number;
+}
+
+interface MultiSelectComboboxProps {
+  label: string;
+  options: MultiSelectOption[];
+  selectedValues: string[];
+  onChange: (values: string[]) => void;
+  placeholder?: string;
+  isLight?: boolean;
+}
+
+const MultiSelectCombobox: React.FC<MultiSelectComboboxProps> = ({
+  label,
+  options,
+  selectedValues = [],
+  onChange,
+  placeholder = 'Selecione opções...',
+  isLight = false,
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+
+  const filteredOptions = options.filter(
+    (opt) =>
+      opt.label.toLowerCase().includes(search.toLowerCase()) ||
+      opt.value.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const toggleOption = (val: string) => {
+    if (selectedValues.includes(val)) {
+      onChange(selectedValues.filter((v) => v !== val));
+    } else {
+      onChange([...selectedValues, val]);
+    }
+  };
+
+  const removeValue = (val: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    onChange(selectedValues.filter((v) => v !== val));
+  };
+
+  const handleSelectAll = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const allFilteredVals = filteredOptions.map((o) => o.value);
+    const combined = Array.from(new Set([...selectedValues, ...allFilteredVals]));
+    onChange(combined);
+  };
+
+  const handleClearAll = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onChange([]);
+  };
+
+  return (
+    <div className="space-y-1.5 relative">
+      <div className="flex justify-between items-center">
+        <label className={`text-xs font-semibold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
+          {label}
+        </label>
+        {selectedValues.length > 0 && (
+          <button
+            type="button"
+            onClick={handleClearAll}
+            className="text-[10px] text-amber-500 hover:text-amber-600 font-semibold cursor-pointer"
+          >
+            Limpar ({selectedValues.length})
+          </button>
+        )}
+      </div>
+
+      {/* Trigger Box */}
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full min-h-[38px] max-h-[90px] overflow-y-auto border rounded-xl px-2.5 py-1.5 text-xs cursor-pointer flex flex-wrap items-center gap-1.5 transition-all scrollbar-thin ${
+          isLight
+            ? 'border-slate-300 bg-white hover:border-amber-500/50'
+            : 'border-slate-800 bg-slate-900/90 hover:border-amber-500/50'
+        }`}
+      >
+        {selectedValues.length === 0 ? (
+          <span className="text-slate-400 text-xs py-0.5">{placeholder}</span>
+        ) : (
+          selectedValues.map((val) => {
+            const match = options.find((o) => o.value === val);
+            const labelText = match ? match.label : val;
+            const flag = match?.flag;
+
+            return (
+              <span
+                key={val}
+                className="bg-yellow-500/10 text-yellow-500 dark:text-yellow-400 border border-yellow-500/30 rounded-lg text-[11px] px-2 py-0.5 flex items-center gap-1 font-semibold shrink-0"
+              >
+                {flag && <span>{flag}</span>}
+                <span className="truncate max-w-[180px]">{labelText}</span>
+                <X
+                  className="h-3 w-3 hover:text-red-500 cursor-pointer shrink-0"
+                  onClick={(e) => removeValue(val, e)}
+                />
+              </span>
+            );
+          })
+        )}
+        <ChevronDown className="h-3.5 w-3.5 text-slate-400 ml-auto shrink-0" />
+      </div>
+
+      {/* Popover Dropdown */}
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+          <div
+            className={`absolute left-0 right-0 top-full mt-1.5 rounded-xl border shadow-2xl z-50 p-2.5 space-y-2 max-h-72 overflow-y-auto w-full min-w-[300px] ${
+              isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900 border-slate-800 text-white'
+            }`}
+          >
+            <div className="flex gap-1.5">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Pesquisar..."
+                  className={`w-full h-8 pl-8 pr-2.5 text-xs rounded-lg border focus:outline-none ${
+                    isLight
+                      ? 'border-slate-300 bg-slate-50 text-slate-900'
+                      : 'border-slate-800 bg-slate-950 text-white'
+                  }`}
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  autoFocus
+                />
+              </div>
+              <button
+                type="button"
+                onClick={handleSelectAll}
+                className="h-8 px-2.5 text-[11px] rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold cursor-pointer shrink-0"
+              >
+                Todos
+              </button>
+            </div>
+
+            <div className="space-y-0.5 max-h-48 overflow-y-auto scrollbar-thin">
+              {filteredOptions.length === 0 ? (
+                <div className="text-[11px] text-slate-400 p-3 text-center">Nenhuma opção encontrada</div>
+              ) : (
+                filteredOptions.map((opt) => {
+                  const isChecked = selectedValues.includes(opt.value);
+                  return (
+                    <div
+                      key={opt.value}
+                      onClick={() => toggleOption(opt.value)}
+                      className={`flex items-center justify-between p-2 rounded-lg cursor-pointer text-xs transition-colors ${
+                        isChecked
+                          ? 'bg-yellow-500/10 text-yellow-500 font-bold'
+                          : isLight
+                          ? 'hover:bg-slate-100 text-slate-700'
+                          : 'hover:bg-slate-800/70 text-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        <div
+                          className={`h-4 w-4 rounded border flex items-center justify-center shrink-0 ${
+                            isChecked
+                              ? 'bg-yellow-500 border-yellow-500 text-slate-950'
+                              : isLight
+                              ? 'border-slate-300 bg-white'
+                              : 'border-slate-700 bg-slate-950'
+                          }`}
+                        >
+                          {isChecked && <Check className="h-3 w-3 stroke-[3]" />}
+                        </div>
+                        {opt.flag && <span>{opt.flag}</span>}
+                        <span className="truncate">{opt.label}</span>
+                      </div>
+                      {opt.count !== undefined && (
+                        <span className="text-[10px] text-slate-400 shrink-0 font-medium">
+                          {opt.count > 999 ? `${(opt.count / 1000).toFixed(0)}k` : opt.count}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
 
 export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads }) => {
   const {
@@ -61,15 +264,37 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
   // Template Preview Modal
   const [previewingTemplate, setPreviewingTemplate] = useState<MarketingTemplate | null>(null);
 
-  // Audience Modal State
-  const [isAudienceModalOpen, setIsAudienceModalOpen] = useState(false);
-  const [audienceFormData, setAudienceFormData] = useState({
-    name: '',
-    description: '',
-    country: 'Espanha',
-    niche: '',
-    city: '',
+  // =========================================================================
+  // ADVANCED SAVED AUDIENCE MODAL STATE (Matching Screenshot 2 & mcs-personal)
+  // =========================================================================
+  const [isNewAudienceDialogOpen, setIsNewAudienceDialogOpen] = useState(false);
+  const [audienceSaveName, setAudienceSaveName] = useState('');
+
+  const [audienceFilters, setAudienceFilters] = useState({
+    stageId: '',
+    origin: '',
+    selectedCountries: [] as string[],
+    selectedCompanySizes: [] as string[],
+    selectedRegions: [] as string[],
+    selectedProvinces: [] as string[],
+    selectedSectors: [] as string[],
+    selectedServices: [] as string[],
+    selectedProviders: [] as string[],
+    sectorKeyword: '',
+    cargoKeyword: '',
+    provinceKeyword: '',
+    limit: '',
+    offset: '',
   });
+
+  const [leadGridSearch, setLeadGridSearch] = useState('');
+  const [gridPage, setGridPage] = useState(1);
+  const [selectedAudienceLeadIds, setSelectedAudienceLeadIds] = useState<Set<string>>(new Set());
+
+  // View Audience Members Modal State
+  const [viewLeadsAudience, setViewLeadsAudience] = useState<SavedAudience | null>(null);
+  const [viewLeadsSearch, setViewLeadsSearch] = useState('');
+  const [viewLeadsPage, setViewLeadsPage] = useState(1);
 
   // Campaign Form State
   const [formData, setFormData] = useState({
@@ -88,7 +313,406 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
   const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([]);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  // Filter leads based on selected audience
+  // Helper to detect country from lead
+  const getLeadCountry = (lead: Lead): { code: string; name: string; flag: string } => {
+    const c = (lead.country || '').toLowerCase();
+    if (c.includes('espanha') || c.includes('spain') || c === 'es') return { code: 'ES', name: 'Espanha', flag: '🇪🇸' };
+    if (c.includes('brasil') || c.includes('brazil') || c === 'br') return { code: 'BR', name: 'Brasil', flag: '🇧🇷' };
+    if (c.includes('portugal') || c === 'pt') return { code: 'PT', name: 'Portugal', flag: '🇵🇹' };
+    if (c.includes('frança') || c.includes('france') || c === 'fr') return { code: 'FR', name: 'França', flag: '🇫🇷' };
+    if (c.includes('italia') || c.includes('itália') || c === 'it') return { code: 'IT', name: 'Itália', flag: '🇮🇹' };
+    if (c.includes('alemanha') || c === 'de') return { code: 'DE', name: 'Alemanha', flag: '🇩🇪' };
+
+    if (lead.phone) {
+      const p = lead.phone.trim();
+      if (p.startsWith('+34') || p.startsWith('34')) return { code: 'ES', name: 'Espanha', flag: '🇪🇸' };
+      if (p.startsWith('+55') || p.startsWith('55')) return { code: 'BR', name: 'Brasil', flag: '🇧🇷' };
+      if (p.startsWith('+351') || p.startsWith('351')) return { code: 'PT', name: 'Portugal', flag: '🇵🇹' };
+    }
+    if (lead.email) {
+      const em = lead.email.toLowerCase();
+      if (em.endsWith('.es')) return { code: 'ES', name: 'Espanha', flag: '🇪🇸' };
+      if (em.endsWith('.br')) return { code: 'BR', name: 'Brasil', flag: '🇧🇷' };
+      if (em.endsWith('.pt')) return { code: 'PT', name: 'Portugal', flag: '🇵🇹' };
+    }
+    return { code: 'ES', name: 'Espanha', flag: '🇪🇸' };
+  };
+
+  // Helper to detect provider from email
+  const getLeadProvider = (email: string): string => {
+    const em = (email || '').toLowerCase();
+    if (em.includes('@gmail.')) return 'gmail';
+    if (em.includes('@yahoo.')) return 'yahoo';
+    if (em.includes('@outlook.') || em.includes('@hotmail.') || em.includes('@live.')) return 'outlook';
+    return 'custom_domain';
+  };
+
+  // Dynamic Options for Comboboxes
+  const dynamicCountryOptions = useMemo(() => {
+    const counts: Record<string, number> = {};
+    leads.forEach((l) => {
+      const c = getLeadCountry(l).name;
+      counts[c] = (counts[c] || 0) + 1;
+    });
+
+    const entries = Object.keys(counts).map((name) => {
+      let flag = '🌍';
+      if (name === 'Espanha') flag = '🇪🇸';
+      else if (name === 'Brasil') flag = '🇧🇷';
+      else if (name === 'Portugal') flag = '🇵🇹';
+      else if (name === 'França') flag = '🇫🇷';
+      return {
+        label: `${name} (${counts[name].toLocaleString()})`,
+        value: name,
+        flag,
+        count: counts[name],
+      };
+    });
+
+    // Ensure default Spain and Brazil exist even if empty
+    if (!entries.some((e) => e.value === 'Espanha')) {
+      entries.push({ label: 'Espanha', value: 'Espanha', flag: '🇪🇸', count: 0 });
+    }
+    if (!entries.some((e) => e.value === 'Brasil')) {
+      entries.push({ label: 'Brasil', value: 'Brasil', flag: '🇧🇷', count: 0 });
+    }
+
+    return entries.sort((a, b) => (b.count || 0) - (a.count || 0));
+  }, [leads]);
+
+  const dynamicCompanySizeOptions = useMemo(() => {
+    return [
+      { label: 'B2C Consumidor / Individual', value: 'B2C Consumidor' },
+      { label: 'Peñas / Torcidas Organizadas', value: 'Peñas & Torcidas' },
+      { label: 'Comunidade Brasileira no Exterior', value: 'Comunidade Brasileira' },
+      { label: 'Bares & Restaurantes (Comercial)', value: 'Bares & Restaurantes' },
+      { label: 'Tier 1 (Empresas de Grande Porte)', value: 'Tier 1' },
+      { label: 'Tier 2 (Médio Porte)', value: 'Tier 2' },
+      { label: 'Tier 3 (Pequeno Porte / Residencial)', value: 'Tier 3' },
+    ];
+  }, []);
+
+  const dynamicRegionOptions = useMemo(() => {
+    const counts: Record<string, number> = {};
+    leads.forEach((l) => {
+      const reg = l.province || l.city;
+      if (reg) {
+        counts[reg] = (counts[reg] || 0) + 1;
+      }
+    });
+
+    const defaults = ['Comunidad de Madrid', 'Cataluña', 'Andalucía', 'Comunidad Valenciana', 'Galicia', 'País Vasco', 'São Paulo', 'Rio de Janeiro'];
+    defaults.forEach((d) => {
+      if (!counts[d]) counts[d] = 0;
+    });
+
+    return Object.keys(counts)
+      .map((k) => ({
+        label: `${k} (${counts[k].toLocaleString()})`,
+        value: k,
+        count: counts[k],
+      }))
+      .sort((a, b) => b.count - a.count);
+  }, [leads]);
+
+  const dynamicProvinceOptions = useMemo(() => {
+    const counts: Record<string, number> = {};
+    leads.forEach((l) => {
+      const city = l.city;
+      if (city) {
+        counts[city] = (counts[city] || 0) + 1;
+      }
+    });
+
+    const defaults = ['Madrid', 'Barcelona', 'Valencia', 'Sevilla', 'Málaga', 'Bilbao', 'Zaragoza', 'Alicante', 'São Paulo', 'Rio de Janeiro'];
+    defaults.forEach((d) => {
+      if (!counts[d]) counts[d] = 0;
+    });
+
+    return Object.keys(counts)
+      .map((k) => ({
+        label: `${k} (${counts[k].toLocaleString()})`,
+        value: k,
+        count: counts[k],
+      }))
+      .sort((a, b) => b.count - a.count);
+  }, [leads]);
+
+  const dynamicSectorOptions = useMemo(() => {
+    const counts: Record<string, number> = {};
+    leads.forEach((l) => {
+      (l.tags || []).forEach((tag) => {
+        counts[tag] = (counts[tag] || 0) + 1;
+      });
+      if (l.target_niche) {
+        counts[l.target_niche] = (counts[l.target_niche] || 0) + 1;
+      }
+    });
+
+    const defaults = [
+      'Peñas LaLiga',
+      'Real Madrid',
+      'FC Barcelona',
+      'Atlético de Madrid',
+      'Sevilla FC',
+      'Real Betis',
+      'Athletic Bilbao',
+      'Valencia CF',
+      'Brasileiros na Espanha',
+      'Futebol Europeu',
+      'IPTV 4K',
+    ];
+    defaults.forEach((d) => {
+      if (!counts[d]) counts[d] = 0;
+    });
+
+    return Object.keys(counts)
+      .map((k) => ({
+        label: `${k} (${counts[k].toLocaleString()})`,
+        value: k,
+        count: counts[k],
+      }))
+      .sort((a, b) => b.count - a.count);
+  }, [leads]);
+
+  const dynamicProviderOptions = useMemo(() => {
+    const counts: Record<string, number> = {
+      gmail: 0,
+      yahoo: 0,
+      outlook: 0,
+      custom_domain: 0,
+    };
+
+    leads.forEach((l) => {
+      const prov = getLeadProvider(l.email);
+      counts[prov] = (counts[prov] || 0) + 1;
+    });
+
+    return [
+      { label: `Gmail (@gmail.com) (${counts.gmail.toLocaleString()})`, value: 'gmail', count: counts.gmail },
+      { label: `Yahoo (@yahoo.es/.com) (${counts.yahoo.toLocaleString()})`, value: 'yahoo', count: counts.yahoo },
+      { label: `Outlook / Hotmail (@hotmail, @outlook) (${counts.outlook.toLocaleString()})`, value: 'outlook', count: counts.outlook },
+      { label: `Domínios Próprios / Empresas (${counts.custom_domain.toLocaleString()})`, value: 'custom_domain', count: counts.custom_domain },
+    ];
+  }, [leads]);
+
+  // Unique origins
+  const originOptions = useMemo(() => {
+    const set = new Set<string>();
+    leads.forEach((l) => {
+      if (l.tags && l.tags.length > 0) {
+        set.add(l.tags[0]);
+      }
+    });
+    set.add('Peñas LaLiga');
+    set.add('Extração Web Gemini');
+    set.add('Mailing Espanha');
+    set.add('Mailing Brasil');
+    set.add('Manual CRM');
+    return Array.from(set);
+  }, [leads]);
+
+  // Filtered Leads for the Audience Builder Modal
+  const eligibleLeadsForAudience = useMemo(() => {
+    let list = leads.filter((l) => !l.opted_out);
+
+    // Filter by Stage
+    if (audienceFilters.stageId) {
+      list = list.filter((l) => l.status === audienceFilters.stageId);
+    }
+
+    // Filter by Origin
+    if (audienceFilters.origin) {
+      list = list.filter((l) => (l.tags || []).some((t) => t.toLowerCase() === audienceFilters.origin.toLowerCase()));
+    }
+
+    // Filter by Country
+    if (audienceFilters.selectedCountries.length > 0) {
+      list = list.filter((l) => {
+        const countryName = getLeadCountry(l).name;
+        return audienceFilters.selectedCountries.includes(countryName);
+      });
+    }
+
+    // Filter by Region
+    if (audienceFilters.selectedRegions.length > 0) {
+      list = list.filter((l) => {
+        const reg = (l.province || l.city || '').toLowerCase();
+        return audienceFilters.selectedRegions.some((r) => reg.includes(r.toLowerCase()));
+      });
+    }
+
+    // Filter by Province / City
+    if (audienceFilters.selectedProvinces.length > 0) {
+      list = list.filter((l) => {
+        const c = (l.city || l.province || '').toLowerCase();
+        return audienceFilters.selectedProvinces.some((p) => c.includes(p.toLowerCase()));
+      });
+    }
+
+    // Filter by Sectors / Tags / Clubs
+    if (audienceFilters.selectedSectors.length > 0) {
+      list = list.filter((l) => {
+        const leadTags = (l.tags || []).map((t) => t.toLowerCase());
+        const niche = (l.target_niche || '').toLowerCase();
+        return audienceFilters.selectedSectors.some(
+          (s) => leadTags.includes(s.toLowerCase()) || niche.includes(s.toLowerCase())
+        );
+      });
+    }
+
+    // Filter by Provider
+    if (audienceFilters.selectedProviders.length > 0) {
+      list = list.filter((l) => {
+        const prov = getLeadProvider(l.email);
+        return audienceFilters.selectedProviders.includes(prov);
+      });
+    }
+
+    // Keyword Free Search
+    if (audienceFilters.sectorKeyword.trim()) {
+      const kw = audienceFilters.sectorKeyword.toLowerCase().trim();
+      list = list.filter(
+        (l) =>
+          (l.name && l.name.toLowerCase().includes(kw)) ||
+          (l.company_name && l.company_name.toLowerCase().includes(kw)) ||
+          (l.city && l.city.toLowerCase().includes(kw)) ||
+          (l.notes && l.notes.toLowerCase().includes(kw))
+      );
+    }
+
+    // Apply Offset and Limit if specified
+    const offset = parseInt(audienceFilters.offset) || 0;
+    const limit = parseInt(audienceFilters.limit) || 0;
+
+    if (offset > 0) {
+      list = list.slice(offset);
+    }
+    if (limit > 0) {
+      list = list.slice(0, limit);
+    }
+
+    return list;
+  }, [leads, audienceFilters]);
+
+  // Filtered Leads further by the in-grid search box
+  const visibleLeadsForGrid = useMemo(() => {
+    if (!leadGridSearch.trim()) return eligibleLeadsForAudience;
+    const s = leadGridSearch.toLowerCase().trim();
+    return eligibleLeadsForAudience.filter(
+      (l) =>
+        (l.name && l.name.toLowerCase().includes(s)) ||
+        (l.company_name && l.company_name.toLowerCase().includes(s)) ||
+        (l.email && l.email.toLowerCase().includes(s)) ||
+        (l.city && l.city.toLowerCase().includes(s))
+    );
+  }, [eligibleLeadsForAudience, leadGridSearch]);
+
+  // Paginated leads for the right column (50 per page)
+  const pageSize = 50;
+  const totalPages = Math.max(1, Math.ceil(visibleLeadsForGrid.length / pageSize));
+  const paginatedLeads = useMemo(() => {
+    const start = (gridPage - 1) * pageSize;
+    return visibleLeadsForGrid.slice(start, start + pageSize);
+  }, [visibleLeadsForGrid, gridPage]);
+
+  // Open the Advanced Audience Dialog and pre-select leads
+  const handleOpenNewAudienceDialog = () => {
+    setIsNewAudienceDialogOpen(true);
+    setAudienceSaveName('');
+    setAudienceFilters({
+      stageId: '',
+      origin: '',
+      selectedCountries: ['Espanha'],
+      selectedCompanySizes: [],
+      selectedRegions: [],
+      selectedProvinces: [],
+      selectedSectors: [],
+      selectedServices: [],
+      selectedProviders: [],
+      sectorKeyword: '',
+      cargoKeyword: '',
+      provinceKeyword: '',
+      limit: '',
+      offset: '',
+    });
+    setLeadGridSearch('');
+    setGridPage(1);
+
+    // Default select first batch of eligible leads
+    const initialEligible = leads.filter((l) => !l.opted_out);
+    setSelectedAudienceLeadIds(new Set(initialEligible.slice(0, 5000).map((l) => l.id)));
+  };
+
+  // Toggle single lead selection
+  const handleToggleSelectLead = (leadId: string, checked: boolean) => {
+    setSelectedAudienceLeadIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(leadId);
+      else next.delete(leadId);
+      return next;
+    });
+  };
+
+  // Toggle select all in current filtered view
+  const handleToggleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allIds = visibleLeadsForGrid.map((l) => l.id);
+      setSelectedAudienceLeadIds(new Set(allIds));
+    } else {
+      setSelectedAudienceLeadIds(new Set());
+    }
+  };
+
+  // Select all filtered leads
+  const handleSelectAllFiltered = () => {
+    const allIds = visibleLeadsForGrid.map((l) => l.id);
+    setSelectedAudienceLeadIds(new Set(allIds));
+  };
+
+  // Clear all selections
+  const handleClearSelection = () => {
+    setSelectedAudienceLeadIds(new Set());
+  };
+
+  // Save new audience preset
+  const handleCreateNewAudiencePreset = async () => {
+    if (!audienceSaveName.trim() || selectedAudienceLeadIds.size === 0) return;
+
+    await addAudience({
+      name: audienceSaveName.trim(),
+      description: `Segmento personalizado com ${selectedAudienceLeadIds.size.toLocaleString()} leads selecionados`,
+      filters: {
+        status: audienceFilters.stageId ? [audienceFilters.stageId as LeadStatus] : undefined,
+        origin: audienceFilters.origin || undefined,
+        country: audienceFilters.selectedCountries.length > 0 ? audienceFilters.selectedCountries : undefined,
+        region: audienceFilters.selectedRegions.length > 0 ? audienceFilters.selectedRegions : undefined,
+        province: audienceFilters.selectedProvinces.length > 0 ? audienceFilters.selectedProvinces : undefined,
+        tags: audienceFilters.selectedSectors.length > 0 ? audienceFilters.selectedSectors : undefined,
+        company_size: audienceFilters.selectedCompanySizes.length > 0 ? audienceFilters.selectedCompanySizes : undefined,
+        providers: audienceFilters.selectedProviders.length > 0 ? audienceFilters.selectedProviders : undefined,
+        search_query: audienceFilters.sectorKeyword || undefined,
+        limit: audienceFilters.limit ? parseInt(audienceFilters.limit) : undefined,
+        offset: audienceFilters.offset ? parseInt(audienceFilters.offset) : undefined,
+      },
+      lead_ids: Array.from(selectedAudienceLeadIds),
+      lead_count: selectedAudienceLeadIds.size,
+    });
+
+    try {
+      confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
+    } catch {}
+
+    setIsNewAudienceDialogOpen(false);
+    setAudienceSaveName('');
+    setSelectedAudienceLeadIds(new Set());
+    setNotification({
+      type: 'success',
+      message: `Público "${audienceSaveName}" criado com sucesso com ${selectedAudienceLeadIds.size.toLocaleString()} membros!`,
+    });
+  };
+
+  // Filter leads based on selected audience for Campaign Wizard
   const handleAudienceChange = (audienceId: string) => {
     setFormData((prev) => ({ ...prev, target_audience_id: audienceId }));
     if (!audienceId || audienceId === 'all') {
@@ -99,17 +723,22 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
     const aud = audiences.find((a) => a.id === audienceId);
     if (!aud) return;
 
+    // Direct lead_ids array if present
+    if (aud.lead_ids && aud.lead_ids.length > 0) {
+      setSelectedLeadIds(aud.lead_ids);
+      return;
+    }
+
+    // Fallback to dynamic filters
     const filtered = leads.filter((lead) => {
       if (lead.opted_out) return false;
       if (aud.filters.status && aud.filters.status.length > 0 && !aud.filters.status.includes(lead.status)) return false;
       if (aud.filters.city && aud.filters.city.length > 0 && !aud.filters.city.includes(lead.city as any)) return false;
+      if (aud.filters.country && aud.filters.country.length > 0 && !aud.filters.country.some((c) => (lead.country || '').toLowerCase() === c.toLowerCase())) return false;
       if (aud.filters.province && aud.filters.province.length > 0 && !aud.filters.province.includes(lead.province as any)) return false;
-      if (aud.filters.mx_valid_only && !lead.mx_valid) return false;
-      if (aud.filters.niche && aud.filters.niche.length > 0) {
-        const nicheMatch = aud.filters.niche.some(
-          (n) => lead.target_niche === n || (lead.role || '').toLowerCase().includes(n) || (lead.company_name || '').toLowerCase().includes(n)
-        );
-        if (!nicheMatch) return false;
+      if (aud.filters.tags && aud.filters.tags.length > 0) {
+        const hasTag = (lead.tags || []).some((t) => aud.filters.tags!.includes(t));
+        if (!hasTag) return false;
       }
       return true;
     });
@@ -149,7 +778,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
     }
 
     try {
-      const created = await createCampaign(
+      const camp = await createCampaign(
         {
           title: formData.title,
           subject: formData.subject,
@@ -158,44 +787,29 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
           reply_to: formData.reply_to,
           template_id: formData.template_id,
           target_audience_id: formData.target_audience_id || undefined,
-          status: formData.launch_now ? 'sending' : 'draft',
-          total_recipients: selectedLeadIds.length,
           rate_limit_per_second: formData.rate_limit_per_second,
+          status: 'draft',
+          total_recipients: selectedLeadIds.length,
         },
         selectedLeadIds
       );
 
-      setIsCreateModalOpen(false);
-
       if (formData.launch_now) {
-        try {
-          confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
-        } catch {}
-        setNotification({ type: 'success', message: 'Campanha criada e motor de disparo Resend iniciado!' });
-        await launchCampaign(created.id);
-      } else {
-        setNotification({ type: 'success', message: 'Campanha criada e salva como rascunho.' });
+        await launchCampaign(camp.id);
       }
-    } catch (err: any) {
-      setNotification({ type: 'error', message: err.message || 'Erro ao criar campanha.' });
-    }
-  };
 
-  // Template Handlers
-  const handleOpenCreateTemplate = () => {
-    setEditingTemplate(null);
-    setTemplateFormData({
-      title: '',
-      subject: '',
-      html_content: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
-  <h2 style="color: #4f46e5;">Olá {{nome}},</h2>
-  <p>Temos uma oferta especial para você na Universa TV.</p>
-  <p style="text-align: center; margin: 24px 0;">
-    <a href="https://api.whatsapp.com/send?phone=34600000000" style="background-color: #22c55e; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Ativar Teste 24h</a>
-  </p>
-</div>`,
-    });
-    setIsTemplateModalOpen(true);
+      setIsCreateModalOpen(false);
+      setNotification({
+        type: 'success',
+        message: `Campanha "${formData.title}" agendada com ${selectedLeadIds.length.toLocaleString()} destinatários!`,
+      });
+
+      try {
+        confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+      } catch {}
+    } catch {
+      setNotification({ type: 'error', message: 'Falha ao criar campanha. Verifique sua chave Resend.' });
+    }
   };
 
   const handleEditTemplate = (tmpl: MarketingTemplate) => {
@@ -224,41 +838,62 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
         title: templateFormData.title,
         subject: templateFormData.subject,
         html_content: templateFormData.html_content,
-        variables: ['{{nome}}', '{{cidade}}', '{{link_descadastro}}'],
+        variables: ['{{name}}', '{{city}}', '{{club}}', '{{whatsapp_link}}', '{{test_link}}'],
+        category: 'b2c_es',
       });
-      setNotification({ type: 'success', message: 'Novo template criado com sucesso!' });
+      setNotification({ type: 'success', message: 'Template criado com sucesso!' });
     }
+
     setIsTemplateModalOpen(false);
+    setEditingTemplate(null);
   };
 
-  // Audience Handlers
-  const handleSaveNewAudience = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!audienceFormData.name.trim()) return;
+  // Leads for View Audience Members Modal
+  const viewAudienceLeadsList = useMemo(() => {
+    if (!viewLeadsAudience) return [];
+    const ids = viewLeadsAudience.lead_ids || [];
+    const map = new Map(leads.map((l) => [l.id, l]));
+    let list: Lead[] = [];
 
-    await addAudience({
-      name: audienceFormData.name.trim(),
-      description: audienceFormData.description.trim() || undefined,
-      filters: {
-        mx_valid_only: true,
-        city: audienceFormData.city ? [audienceFormData.city] : undefined,
-        niche: audienceFormData.niche ? [audienceFormData.niche] : undefined,
-      },
-      lead_count: leads.filter((l) => {
-        if (!l.mx_valid || l.opted_out) return false;
-        if (audienceFormData.city && l.city !== audienceFormData.city) return false;
-        if (audienceFormData.niche && l.target_niche !== audienceFormData.niche) return false;
+    if (ids.length > 0) {
+      list = ids.map((id) => map.get(id)).filter(Boolean) as Lead[];
+    } else {
+      list = leads.filter((l) => {
+        if (viewLeadsAudience.filters.country && !viewLeadsAudience.filters.country.includes(l.country || '')) return false;
+        if (viewLeadsAudience.filters.city && !viewLeadsAudience.filters.city.includes(l.city || '')) return false;
         return true;
-      }).length,
-    });
+      });
+    }
 
-    setIsAudienceModalOpen(false);
-    setNotification({ type: 'success', message: 'Público salvo com sucesso!' });
-  };
+    if (!viewLeadsSearch.trim()) return list;
+    const s = viewLeadsSearch.toLowerCase().trim();
+    return list.filter(
+      (l) =>
+        (l.name && l.name.toLowerCase().includes(s)) ||
+        (l.company_name && l.company_name.toLowerCase().includes(s)) ||
+        (l.email && l.email.toLowerCase().includes(s))
+    );
+  }, [viewLeadsAudience, leads, viewLeadsSearch]);
 
   return (
     <div className="space-y-6">
-      {/* Top Header matching mcs-personal */}
+      {/* Toast Notification Banner */}
+      {notification && (
+        <div
+          className={`p-4 rounded-xl flex items-center justify-between text-xs font-semibold shadow-md transition-all ${
+            notification.type === 'success'
+              ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
+              : 'bg-rose-500/10 text-rose-600 border border-rose-500/20'
+          }`}
+        >
+          <span>{notification.message}</span>
+          <button onClick={() => setNotification(null)} className="cursor-pointer font-bold">
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* Top Header matching mcs-personal layout */}
       <div
         className={`rounded-2xl border p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 transition-all ${
           isLight ? 'border-slate-200 bg-white shadow-xs' : 'border-zinc-800 bg-zinc-950/70 shadow-lg'
@@ -272,29 +907,21 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
             <h1 className={`text-2xl font-bold tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
               Campanhas de Marketing
             </h1>
+            <span className="rounded-full bg-yellow-500/10 px-3 py-0.5 text-xs font-bold text-yellow-600 border border-yellow-500/20">
+              {campaigns.length} Campanhas
+            </span>
           </div>
           <p className={`text-xs sm:text-sm ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
-            Dispare e-mails HTML customizados e acompanhe o funil de e-mails em lote
+            Disparos em massa com Resend, templates HTML profissionais e públicos segmentados
           </p>
         </div>
 
-        {/* Right Header Actions */}
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Tenant Selector */}
-          <div
-            className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold ${
-              isLight ? 'border-slate-200 bg-slate-50 text-slate-700' : 'border-zinc-800 bg-zinc-900 text-zinc-300'
-            }`}
-          >
-            <Building2 className="h-4 w-4 text-yellow-500" />
-            <span>{tenant.name}</span>
-          </div>
-
-          {/* Dynamic Action Button based on active subtab */}
+        {/* Action Button depending on active subtab */}
+        <div className="flex items-center gap-3">
           {activeSubTab === 'campaigns' && (
             <button
               onClick={() => handleOpenWizard()}
-              className="flex items-center gap-1.5 rounded-xl bg-yellow-500 hover:bg-yellow-400 px-4 py-2 text-xs font-bold text-slate-950 shadow-md shadow-yellow-500/20 transition-all cursor-pointer"
+              className="flex items-center gap-2 rounded-xl bg-yellow-500 hover:bg-yellow-400 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-md shadow-yellow-500/20 transition-all cursor-pointer"
             >
               <Plus className="h-4 w-4 stroke-[3]" />
               <span>+ Nova Campanha</span>
@@ -303,8 +930,16 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
 
           {activeSubTab === 'templates' && (
             <button
-              onClick={handleOpenCreateTemplate}
-              className="flex items-center gap-1.5 rounded-xl bg-yellow-500 hover:bg-yellow-400 px-4 py-2 text-xs font-bold text-slate-950 shadow-md shadow-yellow-500/20 transition-all cursor-pointer"
+              onClick={() => {
+                setEditingTemplate(null);
+                setTemplateFormData({
+                  title: '',
+                  subject: '',
+                  html_content: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; background-color: #ffffff; color: #1e293b; border-radius: 12px; border: 1px solid #e2e8f0;">\n  <h2 style="color: #0f172a;">Olá {{name}},</h2>\n  <p>Temos uma oferta exclusiva para quem mora em <strong>{{city}}</strong>!</p>\n  <p style="margin-top: 25px;"><a href="{{test_link}}" style="background-color: #eab308; color: #000; padding: 12px 24px; border-radius: 8px; font-weight: bold; text-decoration: none;">Pedir Teste 24 Horas Grátis</a></p>\n</div>`,
+                });
+                setIsTemplateModalOpen(true);
+              }}
+              className="flex items-center gap-2 rounded-xl bg-yellow-500 hover:bg-yellow-400 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-md shadow-yellow-500/20 transition-all cursor-pointer"
             >
               <Plus className="h-4 w-4 stroke-[3]" />
               <span>+ Criar Template HTML</span>
@@ -313,8 +948,8 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
 
           {activeSubTab === 'audiences' && (
             <button
-              onClick={() => setIsAudienceModalOpen(true)}
-              className="flex items-center gap-1.5 rounded-xl bg-yellow-500 hover:bg-yellow-400 px-4 py-2 text-xs font-bold text-slate-950 shadow-md shadow-yellow-500/20 transition-all cursor-pointer"
+              onClick={handleOpenNewAudienceDialog}
+              className="flex items-center gap-2 rounded-xl bg-yellow-500 hover:bg-yellow-400 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-md shadow-yellow-500/20 transition-all cursor-pointer"
             >
               <Plus className="h-4 w-4 stroke-[3]" />
               <span>+ Novo Público Salvo</span>
@@ -323,63 +958,53 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
         </div>
       </div>
 
-      {/* Sub-Tabs Bar matching mcs-personal (Campanhas, Templates de E-mail, Públicos / Segmentos) */}
+      {/* Sub-tabs Header matching mcs-personal layout */}
       <div className="flex items-center gap-2 border-b border-slate-200 dark:border-zinc-800 pb-2">
         <button
           onClick={() => setActiveSubTab('campaigns')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
             activeSubTab === 'campaigns'
-              ? 'bg-yellow-500/15 text-yellow-500 border border-yellow-500/30'
-              : isLight
-              ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
+              ? 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20'
+              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
           }`}
         >
-          Campanhas ({campaigns.length})
+          <Send className="h-4 w-4" />
+          <span>Campanhas</span>
+          <span className="rounded-full bg-slate-800 text-slate-300 px-2 py-0.2 text-[10px] ml-1">
+            {campaigns.length}
+          </span>
         </button>
 
         <button
           onClick={() => setActiveSubTab('templates')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
             activeSubTab === 'templates'
-              ? 'bg-yellow-500/15 text-yellow-500 border border-yellow-500/30'
-              : isLight
-              ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
+              ? 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20'
+              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
           }`}
         >
-          Templates de E-mail ({templates.length})
+          <FileCode className="h-4 w-4" />
+          <span>Templates de E-mail</span>
+          <span className="rounded-full bg-slate-800 text-slate-300 px-2 py-0.2 text-[10px] ml-1">
+            {templates.length}
+          </span>
         </button>
 
         <button
           onClick={() => setActiveSubTab('audiences')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
             activeSubTab === 'audiences'
-              ? 'bg-yellow-500/15 text-yellow-500 border border-yellow-500/30'
-              : isLight
-              ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
+              ? 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20'
+              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
           }`}
         >
-          Públicos / Segmentos ({audiences.length})
+          <Users className="h-4 w-4" />
+          <span>Públicos / Segmentos</span>
+          <span className="rounded-full bg-slate-800 text-slate-300 px-2 py-0.2 text-[10px] ml-1">
+            {audiences.length}
+          </span>
         </button>
       </div>
-
-      {/* Notification Toast */}
-      {notification && (
-        <div
-          className={`flex items-center justify-between rounded-xl p-4 text-xs font-semibold border ${
-            notification.type === 'success'
-              ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
-              : 'bg-rose-500/10 text-rose-500 border-rose-500/20'
-          }`}
-        >
-          <span>{notification.message}</span>
-          <button onClick={() => setNotification(null)} className="opacity-70 hover:opacity-100 cursor-pointer">
-            ✕ Fechar
-          </button>
-        </div>
-      )}
 
       {/* ========================================================================= */}
       {/* TAB 1: CAMPANHAS (Cards Grid matching Screenshot 2) */}
@@ -388,57 +1013,70 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
         <div className="space-y-4">
           {campaigns.length === 0 ? (
             <div
-              className={`rounded-2xl border p-12 text-center space-y-3 ${
-                isLight ? 'border-slate-200 bg-white' : 'border-zinc-800 bg-zinc-950/50'
+              className={`rounded-2xl border p-12 text-center space-y-4 ${
+                isLight ? 'border-slate-200 bg-white' : 'border-zinc-800 bg-zinc-950/40'
               }`}
             >
-              <div className="h-12 w-12 rounded-2xl bg-yellow-500/10 text-yellow-500 flex items-center justify-center mx-auto text-xl">
-                ✉️
+              <div className="h-12 w-12 rounded-2xl bg-yellow-500/10 text-yellow-500 mx-auto flex items-center justify-center">
+                <Send className="h-6 w-6" />
               </div>
-              <h3 className={`font-bold text-sm ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                Nenhuma Campanha Criada Ainda
-              </h3>
-              <p className={`text-xs max-w-md mx-auto ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
-                Crie sua primeira campanha para enviar e-mails personalizados através do domínio verificado mail.universatv.com
-              </p>
+              <div className="space-y-1">
+                <h3 className={`font-bold text-base ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
+                  Nenhuma campanha criada ainda
+                </h3>
+                <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                  Crie sua primeira campanha para disparar ofertas e testes IPTV para os seus leads.
+                </p>
+              </div>
               <button
                 onClick={() => handleOpenWizard()}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-yellow-500 hover:bg-yellow-400 px-4 py-2 text-xs font-bold text-slate-950 shadow-md cursor-pointer"
+                className="inline-flex items-center gap-2 rounded-xl bg-yellow-500 hover:bg-yellow-400 px-4 py-2 text-xs font-bold text-slate-950 shadow-md cursor-pointer"
               >
-                <Plus className="h-4 w-4 stroke-[3]" />
+                <Plus className="h-4 w-4" />
                 <span>+ Criar Primeira Campanha</span>
               </button>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {campaigns.map((camp) => {
-                const tmpl = templates.find((t) => t.id === camp.template_id);
-                const progressPercent = camp.total_recipients > 0 ? Math.round((camp.sent_count / camp.total_recipients) * 100) : 0;
-                const queuePending = Math.max(0, camp.total_recipients - camp.sent_count);
+                const total = camp.total_recipients || 1;
+                const sent = camp.sent_count || 0;
+                const pct = Math.min(100, Math.round((sent / total) * 100));
+
+                let statusBadge = {
+                  label: 'Rascunho',
+                  bg: 'bg-slate-500/10 text-slate-400 border-slate-500/20',
+                };
+                if (camp.status === 'sending') {
+                  statusBadge = {
+                    label: 'Em Disparo',
+                    bg: 'bg-amber-500/10 text-amber-500 border-amber-500/20 animate-pulse',
+                  };
+                } else if (camp.status === 'completed') {
+                  statusBadge = {
+                    label: 'Concluída',
+                    bg: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
+                  };
+                } else if (camp.status === 'paused') {
+                  statusBadge = {
+                    label: 'Pausada',
+                    bg: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
+                  };
+                }
 
                 return (
                   <div
                     key={camp.id}
                     className={`rounded-2xl border p-5 flex flex-col justify-between space-y-4 transition-all hover:shadow-lg ${
-                      isLight ? 'border-slate-200 bg-white hover:border-slate-300' : 'border-zinc-800 bg-zinc-950/70 hover:border-zinc-700'
+                      isLight
+                        ? 'border-slate-200 bg-white hover:border-slate-300'
+                        : 'border-zinc-800 bg-zinc-950/70 hover:border-zinc-700'
                     }`}
                   >
-                    {/* Top Row: Status Badge & Trash Icon */}
+                    {/* Header: Status Badge & Trash */}
                     <div className="flex items-center justify-between">
-                      <span
-                        className={`rounded-md px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider ${
-                          camp.status === 'completed'
-                            ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
-                            : camp.status === 'sending'
-                            ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 animate-pulse'
-                            : 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20'
-                        }`}
-                      >
-                        {camp.status === 'completed'
-                          ? 'Concluído'
-                          : camp.status === 'sending'
-                          ? 'Enviando...'
-                          : 'Rascunho'}
+                      <span className={`rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${statusBadge.bg}`}>
+                        {statusBadge.label}
                       </span>
 
                       <button
@@ -451,93 +1089,88 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                     </div>
 
                     {/* Campaign Info */}
-                    <div className="space-y-1">
+                    <div className="space-y-1.5">
                       <h3 className={`font-bold text-sm line-clamp-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>
                         {camp.title}
                       </h3>
-                      <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                        <FileCode className="h-3.5 w-3.5 text-slate-400" />
-                        <span className="truncate">Template: {tmpl?.title || 'Personalizado'}</span>
+                      <p className="text-xs text-slate-400 line-clamp-2">
+                        <strong>Assunto:</strong> {camp.subject}
+                      </p>
+                      <div className="text-[11px] text-slate-500 flex items-center gap-1.5 pt-1">
+                        <span>Remetente:</span>
+                        <span className="font-semibold text-slate-400 truncate">{camp.sender_email}</span>
                       </div>
-                      <span className="text-[10px] text-slate-500 block">
-                        Criado em: {new Date(camp.created_at).toLocaleDateString()}
-                      </span>
                     </div>
 
-                    {/* Public / Recipients & Progress Bar */}
-                    <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-zinc-800/80">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className={`font-medium ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>
-                          Público / Destinatários:
-                        </span>
-                        <span className={`font-bold ${isLight ? 'text-slate-800' : 'text-white'}`}>
-                          {camp.total_recipients.toLocaleString()} leads
+                    {/* Progress Bar matching screenshot */}
+                    <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-zinc-800/80">
+                      <div className="flex justify-between text-[11px]">
+                        <span className="text-slate-400">Progresso</span>
+                        <span className="font-bold text-slate-300">
+                          {sent.toLocaleString()} / {total.toLocaleString()} ({pct}%)
                         </span>
                       </div>
-
-                      {/* Pill counters */}
-                      <div className="flex items-center gap-2 text-[10px]">
-                        <span className="rounded-md bg-emerald-500/10 text-emerald-500 px-2 py-0.5 font-bold">
-                          ✓ {camp.sent_count.toLocaleString()} enviados
-                        </span>
-                        <span className="rounded-md bg-slate-500/10 text-slate-400 px-2 py-0.5 font-medium">
-                          ⏳ {queuePending.toLocaleString()} na fila
-                        </span>
+                      <div className="h-2 w-full rounded-full bg-slate-100 dark:bg-zinc-800 overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-yellow-500 transition-all duration-300"
+                          style={{ width: `${pct}%` }}
+                        />
                       </div>
 
-                      {/* Progress bar */}
-                      <div className="space-y-1">
-                        <div className={`h-2 w-full rounded-full overflow-hidden ${isLight ? 'bg-slate-100' : 'bg-zinc-800'}`}>
-                          <div
-                            className="h-full bg-emerald-500 transition-all duration-300 rounded-full"
-                            style={{ width: `${progressPercent}%` }}
-                          />
+                      {/* Performance KPIs */}
+                      <div className="grid grid-cols-3 gap-2 pt-2 text-center text-[10px]">
+                        <div className="rounded-lg bg-slate-50 dark:bg-zinc-900 p-1.5 border border-slate-200 dark:border-zinc-800">
+                          <span className="block text-slate-400 font-medium">Entregues</span>
+                          <span className="font-bold text-emerald-500">{camp.delivered_count || 0}</span>
                         </div>
-                        <div className="flex justify-between text-[10px] text-slate-400 font-medium">
-                          <span>Progresso do Envio</span>
-                          <span>{progressPercent}% ({camp.sent_count}/{camp.total_recipients})</span>
+                        <div className="rounded-lg bg-slate-50 dark:bg-zinc-900 p-1.5 border border-slate-200 dark:border-zinc-800">
+                          <span className="block text-slate-400 font-medium">Aberturas</span>
+                          <span className="font-bold text-cyan-500">{camp.opened_count || 0}</span>
+                        </div>
+                        <div className="rounded-lg bg-slate-50 dark:bg-zinc-900 p-1.5 border border-slate-200 dark:border-zinc-800">
+                          <span className="block text-slate-400 font-medium">Cliques</span>
+                          <span className="font-bold text-yellow-500">{camp.clicked_count || 0}</span>
                         </div>
                       </div>
                     </div>
 
-                    {/* Action buttons at bottom */}
-                    <div className="pt-2 border-t border-slate-100 dark:border-zinc-800/80">
-                      {camp.status === 'draft' || camp.status === 'paused' ? (
-                        <div className="grid grid-cols-2 gap-2">
-                          <button
-                            onClick={() => launchCampaign(camp.id)}
-                            className="flex items-center justify-center gap-1.5 rounded-xl bg-yellow-500 hover:bg-yellow-400 py-2 text-xs font-bold text-slate-950 cursor-pointer shadow-xs transition-all"
-                          >
-                            <Play className="h-3.5 w-3.5 fill-current" />
-                            <span>Disparar</span>
-                          </button>
-                          <button
-                            onClick={() => launchCampaign(camp.id)}
-                            className={`flex items-center justify-center gap-1.5 rounded-xl border py-2 text-xs font-semibold cursor-pointer transition-all ${
-                              isLight ? 'border-slate-200 bg-slate-50 text-slate-700' : 'border-zinc-800 bg-zinc-900 text-zinc-300'
-                            }`}
-                          >
-                            <Clock className="h-3.5 w-3.5" />
-                            <span>Agendar</span>
-                          </button>
-                        </div>
-                      ) : camp.status === 'sending' ? (
+                    {/* Bottom Action Controls */}
+                    <div className="pt-2 flex items-center justify-between gap-2">
+                      {camp.status === 'draft' && (
+                        <button
+                          onClick={() => launchCampaign(camp.id)}
+                          className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-slate-950 text-xs font-bold shadow-xs cursor-pointer"
+                        >
+                          <Play className="h-3.5 w-3.5 fill-current" />
+                          <span>Iniciar Disparo</span>
+                        </button>
+                      )}
+
+                      {camp.status === 'sending' && (
                         <button
                           onClick={() => pauseCampaign(camp.id)}
-                          className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 py-2 text-xs font-bold text-white cursor-pointer shadow-xs transition-all"
+                          className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-xl border border-yellow-500/30 text-yellow-500 hover:bg-yellow-500/10 text-xs font-bold cursor-pointer"
                         >
                           <Pause className="h-3.5 w-3.5" />
-                          <span>Pausar Disparo</span>
+                          <span>Pausar</span>
                         </button>
-                      ) : (
+                      )}
+
+                      {camp.status === 'paused' && (
                         <button
-                          className={`w-full flex items-center justify-center gap-1.5 rounded-xl border py-2 text-xs font-semibold cursor-pointer transition-all ${
-                            isLight ? 'border-slate-200 bg-slate-50 text-slate-700' : 'border-zinc-800 bg-zinc-900 text-zinc-300'
-                          }`}
+                          onClick={() => launchCampaign(camp.id)}
+                          className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-slate-950 text-xs font-bold cursor-pointer"
                         >
-                          <Eye className="h-3.5 w-3.5 text-indigo-400" />
-                          <span>Acompanhar Envios & Relatório</span>
+                          <Play className="h-3.5 w-3.5 fill-current" />
+                          <span>Retomar Disparo</span>
                         </button>
+                      )}
+
+                      {camp.status === 'completed' && (
+                        <span className="w-full text-center text-xs font-bold text-emerald-500 py-1.5 flex items-center justify-center gap-1">
+                          <CheckCircle className="h-3.5 w-3.5" />
+                          <span>Finalizada</span>
+                        </span>
                       )}
                     </div>
                   </div>
@@ -623,7 +1256,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
               Segmentos e Públicos Reutilizáveis
             </h2>
             <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
-              Crie e gerencie públicos filtrados para disparos rápidos e organizados em lotes
+              Crie e gerencie públicos filtrados com todos os filtros, tags e seleções em lotes
             </p>
           </div>
 
@@ -642,13 +1275,13 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                       SEGMENTO
                     </span>
                     <span className="rounded-md bg-emerald-500/10 text-emerald-500 px-2 py-0.5 text-[11px] font-bold">
-                      {aud.lead_count ? aud.lead_count.toLocaleString() : '0'} leads
+                      {aud.lead_count ? aud.lead_count.toLocaleString() : (aud.lead_ids?.length || 0).toLocaleString()} leads
                     </span>
                   </div>
 
                   <button
                     onClick={() => deleteAudience(aud.id)}
-                    className="text-slate-400 hover:text-rose-500 transition-colors p-1"
+                    className="text-slate-400 hover:text-rose-500 transition-colors p-1 cursor-pointer"
                     title="Excluir público"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -663,22 +1296,30 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
 
                   {/* Filter details */}
                   <div className="space-y-1 text-[11px] text-slate-400">
-                    {aud.filters.city && aud.filters.city.length > 0 && (
+                    {aud.filters.country && aud.filters.country.length > 0 && (
                       <div className="flex items-center gap-1.5 truncate">
-                        <span className="font-semibold text-slate-500">Cidades:</span>
-                        <span className="truncate">{aud.filters.city.join(', ')}</span>
+                        <span className="font-semibold text-slate-500">País:</span>
+                        <span className="text-slate-300 font-medium truncate">{aud.filters.country.join(', ')}</span>
                       </div>
                     )}
-                    {aud.filters.niche && aud.filters.niche.length > 0 && (
+                    {aud.filters.region && aud.filters.region.length > 0 && (
                       <div className="flex items-center gap-1.5 truncate">
-                        <span className="font-semibold text-slate-500">Nichos:</span>
-                        <span className="truncate">{aud.filters.niche.join(', ')}</span>
+                        <span className="font-semibold text-slate-500">Regiões:</span>
+                        <span className="truncate">{aud.filters.region.join(', ')}</span>
                       </div>
                     )}
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-semibold text-slate-500">Filtro MX:</span>
-                      <span className="text-emerald-500">✓ Apenas e-mails auditados</span>
-                    </div>
+                    {aud.filters.tags && aud.filters.tags.length > 0 && (
+                      <div className="flex items-center gap-1.5 truncate">
+                        <span className="font-semibold text-slate-500">Tags/Nichos:</span>
+                        <span className="truncate">{aud.filters.tags.join(', ')}</span>
+                      </div>
+                    )}
+                    {aud.filters.providers && aud.filters.providers.length > 0 && (
+                      <div className="flex items-center gap-1.5 truncate">
+                        <span className="font-semibold text-slate-500">Provedores:</span>
+                        <span className="truncate">{aud.filters.providers.join(', ')}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -686,7 +1327,9 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                 <div className="pt-3 border-t border-slate-100 dark:border-zinc-800/80 flex items-center justify-between gap-2">
                   <button
                     onClick={() => {
-                      if (onNavigateToLeads) onNavigateToLeads();
+                      setViewLeadsAudience(aud);
+                      setViewLeadsSearch('');
+                      setViewLeadsPage(1);
                     }}
                     className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 font-medium cursor-pointer"
                   >
@@ -698,8 +1341,8 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                     onClick={() => handleOpenWizard(aud.id)}
                     className="flex items-center gap-1.5 text-xs text-yellow-500 hover:text-yellow-400 font-bold cursor-pointer"
                   >
+                    <Send className="h-3.5 w-3.5" />
                     <span>Nova Campanha</span>
-                    <ChevronRight className="h-3.5 w-3.5" />
                   </button>
                 </div>
               </div>
@@ -709,141 +1352,613 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL: CRIADOR DE CAMPANHA (WIZARD EM 4 PASSOS) */}
+      {/* MODAL 1: ADVANCED AUDIENCE SEGMENTATION (Matches Screenshot 2 & mcs-personal) */}
       {/* ========================================================================= */}
-      {isCreateModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      {isNewAudienceDialogOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-2 sm:p-4">
           <div
-            className={`w-full max-w-2xl rounded-2xl border p-6 shadow-2xl space-y-5 ${
-              isLight ? 'border-slate-200 bg-white' : 'border-zinc-800 bg-zinc-900'
+            className={`w-[96vw] max-w-[1440px] h-[92vh] max-h-[92vh] flex flex-col justify-between p-5 sm:p-6 rounded-2xl shadow-2xl border ${
+              isLight ? 'border-slate-200 bg-white' : 'border-zinc-800 bg-slate-950 text-white'
             }`}
           >
-            {/* Steps indicator */}
-            <div className={`flex items-center justify-between border-b pb-3 ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
-              <h2 className={`text-base font-bold flex items-center gap-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                <Send className="h-5 w-5 text-yellow-500" />
-                Criador de Campanhas - Passo {wizardStep} de 4
-              </h2>
-
-              <div className="flex items-center gap-1 text-xs">
-                {[1, 2, 3, 4].map((step) => (
-                  <div
-                    key={step}
-                    className={`h-6 w-6 rounded-full flex items-center justify-center font-bold text-xs ${
-                      wizardStep === step
-                        ? 'bg-yellow-500 text-slate-950'
-                        : wizardStep > step
-                        ? 'bg-emerald-500/20 text-emerald-500'
-                        : isLight
-                        ? 'bg-slate-100 text-slate-400'
-                        : 'bg-zinc-800 text-zinc-500'
-                    }`}
-                  >
-                    {step}
-                  </div>
-                ))}
+            {/* Modal Header */}
+            <div className="border-b border-slate-200 dark:border-slate-800 pb-3 flex items-center justify-between shrink-0">
+              <div>
+                <div className="flex items-center gap-2">
+                  <SlidersHorizontal className="h-5 w-5 text-yellow-500" />
+                  <h2 className="text-lg font-bold">Criar Novo Público Salvo</h2>
+                </div>
+                <p className="text-xs text-slate-400">
+                  Filtre e selecione os leads que farão parte deste segmento reutilizável.
+                </p>
               </div>
+              <button
+                onClick={() => setIsNewAudienceDialogOpen(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
 
-            {/* Step 1: Detalhes & Remetente Oficial */}
-            {wizardStep === 1 && (
-              <div className="space-y-4">
+            {/* Modal Body: 2 Columns */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 overflow-hidden flex-1 py-3 text-sm min-h-0">
+              {/* Left Column: FILTROS GERAIS (5 cols) */}
+              <div className="lg:col-span-5 space-y-4 overflow-y-auto pr-3 lg:border-r border-slate-200 dark:border-slate-800 h-full scrollbar-thin">
                 <div>
-                  <label className={`block text-xs font-medium mb-1 ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>
-                    Nome da Campanha *
+                  <h3 className="font-semibold text-xs uppercase tracking-wider text-slate-400 mb-2">
+                    Filtros Gerais
+                  </h3>
+                </div>
+
+                {/* Live Stats Summary Banner */}
+                <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 p-3 rounded-xl flex items-center justify-between text-xs mb-3 shadow-xs">
+                  <div>
+                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Total da Base</span>
+                    <span className="font-bold text-slate-100 text-sm">{leads.length.toLocaleString()} leads</span>
+                  </div>
+                  <div className="text-center">
+                    <span className="text-slate-400 block text-[10px] uppercase font-bold">No Filtro Atual</span>
+                    <span className="font-bold text-amber-500 text-sm">
+                      {eligibleLeadsForAudience.length.toLocaleString()} elegíveis
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Selecionados</span>
+                    <span className="font-bold text-emerald-400 text-sm">
+                      {selectedAudienceLeadIds.size.toLocaleString()} membros
+                    </span>
+                  </div>
+                </div>
+
+                {/* Nome do Público Salvo */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold block text-slate-300">
+                    Nome do Público Salvo *
                   </label>
                   <input
                     type="text"
-                    required
-                    value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    placeholder="Ex: LaLiga Espanha - Rodada 24h"
-                    className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
-                      isLight ? 'border-slate-300 bg-slate-50 text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
+                    placeholder="Ex: Peñas LaLiga da Espanha - Lote 1"
+                    className={`w-full h-9 rounded-xl border px-3 text-xs focus:outline-none ${
+                      isLight ? 'border-slate-300 bg-slate-50 text-slate-900' : 'border-slate-800 bg-slate-900 text-white'
                     }`}
+                    value={audienceSaveName}
+                    onChange={(e) => setAudienceSaveName(e.target.value)}
                   />
                 </div>
 
-                <div>
-                  <label className={`block text-xs font-medium mb-1 ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>
-                    Assunto do E-mail *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.subject}
-                    onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                    placeholder="Ex: ⚽ ¿Ver todo el fútbol en 4K? (Test 24h Gratis)"
-                    className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
-                      isLight ? 'border-slate-300 bg-slate-50 text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
-                    }`}
+                {/* Estágio (Kanban) e Origem */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-slate-300">Estágio (Kanban)</label>
+                    <select
+                      value={audienceFilters.stageId}
+                      onChange={(e) => setAudienceFilters({ ...audienceFilters, stageId: e.target.value })}
+                      className={`w-full h-9 rounded-xl border px-3 text-xs focus:outline-none ${
+                        isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-slate-800 bg-slate-900 text-white'
+                      }`}
+                    >
+                      <option value="">Todos os Estágios</option>
+                      <option value="new">Novo / Sem Contato</option>
+                      <option value="contacted">E-mail Enviado</option>
+                      <option value="replied">E-mail Lido / Clicado</option>
+                      <option value="qualified">Teste 24h / Orçamento</option>
+                      <option value="converted">Contato Via WhatsApp</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-slate-300">Origem</label>
+                    <select
+                      value={audienceFilters.origin}
+                      onChange={(e) => setAudienceFilters({ ...audienceFilters, origin: e.target.value })}
+                      className={`w-full h-9 rounded-xl border px-3 text-xs focus:outline-none ${
+                        isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-slate-800 bg-slate-900 text-white'
+                      }`}
+                    >
+                      <option value="">Todas as Origens</option>
+                      {originOptions.map((o) => (
+                        <option key={o} value={o}>
+                          {o}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* País e Porte */}
+                <div className="space-y-3 border-t border-slate-800/80 pt-3">
+                  <MultiSelectCombobox
+                    label="País (Multiseleção)"
+                    options={dynamicCountryOptions}
+                    selectedValues={audienceFilters.selectedCountries}
+                    onChange={(vals) => setAudienceFilters({ ...audienceFilters, selectedCountries: vals })}
+                    placeholder="Selecione países (ex: Espanha, Brasil)..."
+                    isLight={isLight}
+                  />
+
+                  <MultiSelectCombobox
+                    label="Porte da Empresa / Perfil (Multiseleção)"
+                    options={dynamicCompanySizeOptions}
+                    selectedValues={audienceFilters.selectedCompanySizes}
+                    onChange={(vals) => setAudienceFilters({ ...audienceFilters, selectedCompanySizes: vals })}
+                    placeholder="Selecione perfis (ex: Tier 1, Peñas)..."
+                    isLight={isLight}
+                  />
+
+                  <MultiSelectCombobox
+                    label="Região / Comunidade Autônoma (Multiseleção)"
+                    options={dynamicRegionOptions}
+                    selectedValues={audienceFilters.selectedRegions}
+                    onChange={(vals) => setAudienceFilters({ ...audienceFilters, selectedRegions: vals })}
+                    placeholder="Selecione regiões (ex: Madrid, Cataluña, Andalucia)..."
+                    isLight={isLight}
+                  />
+
+                  <MultiSelectCombobox
+                    label="Província / Cidade (Multiseleção)"
+                    options={dynamicProvinceOptions}
+                    selectedValues={audienceFilters.selectedProvinces}
+                    onChange={(vals) => setAudienceFilters({ ...audienceFilters, selectedProvinces: vals })}
+                    placeholder="Selecione cidades (ex: Madrid, Barcelona, Sevilha)..."
+                    isLight={isLight}
                   />
                 </div>
 
-                {/* Sender Identity Quick Cards */}
-                <div>
-                  <label className={`block text-xs font-medium mb-2 ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>
-                    Identidade Oficial de Disparo (mail.universatv.com) *
-                  </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    {VERIFIED_SENDERS.map((s) => {
-                      const isSelected = formData.sender_email === s.email;
+                {/* Setores, Nicho e Provedores */}
+                <div className="space-y-3 border-t border-slate-800/80 pt-3">
+                  <MultiSelectCombobox
+                    label="Setores da Empresa / Nicho / Clube (Multiseleção)"
+                    options={dynamicSectorOptions}
+                    selectedValues={audienceFilters.selectedSectors}
+                    onChange={(vals) => setAudienceFilters({ ...audienceFilters, selectedSectors: vals })}
+                    placeholder="Selecione clubes ou nichos (ex: Real Madrid, Peñas)..."
+                    isLight={isLight}
+                  />
+
+                  <MultiSelectCombobox
+                    label="Provedores de E-mail (Multiseleção)"
+                    options={dynamicProviderOptions}
+                    selectedValues={audienceFilters.selectedProviders}
+                    onChange={(vals) => setAudienceFilters({ ...audienceFilters, selectedProviders: vals })}
+                    placeholder="Selecione provedores (Gmail, Yahoo, Corporativos)..."
+                    isLight={isLight}
+                  />
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-slate-300">
+                      Palavra-Chave (Busca Livre em Textos/Notas)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex: peña, torcida, bar, iptv..."
+                      className={`w-full h-9 rounded-xl border px-3 text-xs focus:outline-none ${
+                        isLight ? 'border-slate-300 bg-slate-50 text-slate-900' : 'border-slate-800 bg-slate-900 text-white'
+                      }`}
+                      value={audienceFilters.sectorKeyword}
+                      onChange={(e) => setAudienceFilters({ ...audienceFilters, sectorKeyword: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                {/* Lote: Limite e Offset */}
+                <div className="grid grid-cols-2 gap-3 border-t border-slate-800/80 pt-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-amber-500">
+                      Lote: Limite Máximo
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="Ex: 500"
+                      className={`w-full h-9 rounded-xl border px-3 text-xs focus:outline-none ${
+                        isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-slate-800 bg-slate-900 text-white'
+                      }`}
+                      value={audienceFilters.limit}
+                      onChange={(e) => setAudienceFilters({ ...audienceFilters, limit: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-amber-500">
+                      Lote: Pular (Offset)
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="Ex: 0"
+                      className={`w-full h-9 rounded-xl border px-3 text-xs focus:outline-none ${
+                        isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-slate-800 bg-slate-900 text-white'
+                      }`}
+                      value={audienceFilters.offset}
+                      onChange={(e) => setAudienceFilters({ ...audienceFilters, offset: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: MEMBROS DO SEGMENTO (7 cols) */}
+              <div className="lg:col-span-7 flex flex-col justify-between overflow-hidden h-full pl-2">
+                <div className="mb-2">
+                  <h3 className="font-semibold text-xs uppercase tracking-wider text-slate-400 mb-2">
+                    Membros do Segmento
+                  </h3>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Pesquisar por nome, empresa ou e-mail na lista..."
+                      className={`w-full h-9 pl-9 pr-3 rounded-xl border text-xs focus:outline-none ${
+                        isLight ? 'border-slate-300 bg-slate-50 text-slate-900' : 'border-slate-800 bg-slate-900 text-white'
+                      }`}
+                      value={leadGridSearch}
+                      onChange={(e) => {
+                        setLeadGridSearch(e.target.value);
+                        setGridPage(1);
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Selection Action Toolbar matching screenshot */}
+                <div className="flex flex-wrap justify-between items-center gap-2 bg-slate-900/80 border border-slate-800 rounded-xl p-2.5 mb-2 text-xs">
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2 cursor-pointer font-semibold select-none text-slate-200">
+                      <input
+                        type="checkbox"
+                        checked={
+                          visibleLeadsForGrid.length > 0 &&
+                          visibleLeadsForGrid.every((l) => selectedAudienceLeadIds.has(l.id))
+                        }
+                        onChange={(e) => handleToggleSelectAll(e.target.checked)}
+                        className="rounded border-slate-700 text-yellow-500 focus:ring-yellow-500/20 h-4 w-4 cursor-pointer"
+                      />
+                      <span>Selecionar Todos do Filtro</span>
+                    </label>
+
+                    <div className="flex items-center gap-1.5 border-l pl-3 border-slate-800">
+                      <button
+                        type="button"
+                        onClick={handleClearSelection}
+                        className="text-[11px] px-2 py-0.5 text-rose-400 hover:bg-rose-500/10 rounded font-semibold cursor-pointer"
+                      >
+                        Desmarcar Todos (0)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSelectAllFiltered}
+                        className="text-[11px] px-2 py-0.5 text-amber-400 hover:bg-amber-500/10 rounded font-semibold cursor-pointer"
+                      >
+                        Marcar Todos ({visibleLeadsForGrid.length.toLocaleString()})
+                      </button>
+                    </div>
+                  </div>
+
+                  <span
+                    className={`font-bold px-3 py-1 rounded-full text-xs transition-all border ${
+                      selectedAudienceLeadIds.size > 0
+                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                        : 'bg-slate-800 border-slate-700 text-slate-400'
+                    }`}
+                  >
+                    {selectedAudienceLeadIds.size.toLocaleString()} selecionado
+                    {selectedAudienceLeadIds.size === 1 ? '' : 's'}
+                  </span>
+                </div>
+
+                {/* Scrollable List of Leads matching Screenshot 2 */}
+                <div className="flex-1 overflow-y-auto space-y-2 border border-slate-800 rounded-xl p-3 bg-slate-900/30 scrollbar-thin">
+                  {paginatedLeads.length === 0 ? (
+                    <div className="text-center py-20 text-slate-500 text-xs">
+                      Nenhum lead encontrado com estes filtros.
+                    </div>
+                  ) : (
+                    paginatedLeads.map((l) => {
+                      const countryInfo = getLeadCountry(l);
+                      const cleanName = l.company_name || l.name || 'Contato / Torcedor';
+                      const isChecked = selectedAudienceLeadIds.has(l.id);
+
+                      let stageBadge = 'Sem estágio';
+                      if (l.status === 'new') stageBadge = 'Novo / Sem Contato';
+                      else if (l.status === 'contacted') stageBadge = 'E-mail Enviado';
+                      else if (l.status === 'replied') stageBadge = 'E-mail Lido / Clicado';
+                      else if (l.status === 'qualified') stageBadge = 'Teste 24h / Orçamento';
+                      else if (l.status === 'converted') stageBadge = 'Contato WhatsApp';
+
                       return (
                         <div
-                          key={s.id}
-                          onClick={() =>
-                            setFormData({
-                              ...formData,
-                              sender_name: s.name,
-                              sender_email: s.email,
-                              reply_to: s.reply_to,
-                            })
-                          }
-                          className={`flex items-start gap-3 rounded-xl border p-3 cursor-pointer transition-all ${
-                            isSelected
-                              ? 'border-yellow-500 bg-yellow-500/10 ring-2 ring-yellow-500/40 shadow-sm'
-                              : isLight
-                              ? 'border-slate-200 bg-slate-50 hover:bg-slate-100/80'
-                              : 'border-zinc-800 bg-zinc-950 hover:bg-zinc-800/60'
+                          key={l.id}
+                          className={`flex justify-between items-center p-2.5 rounded-lg border text-xs transition-all gap-2 ${
+                            isChecked
+                              ? 'bg-slate-900 border-amber-500/40'
+                              : 'bg-slate-900/60 border-slate-800 hover:border-slate-700'
                           }`}
                         >
-                          <span className="text-2xl mt-0.5">{s.flag}</span>
-                          <div className="space-y-0.5 flex-1 min-w-0">
-                            <div className="flex items-center justify-between">
-                              <span className={`text-xs font-bold truncate ${isSelected ? 'text-yellow-500' : isLight ? 'text-slate-900' : 'text-white'}`}>
-                                {s.name}
-                              </span>
-                              {isSelected && <CheckCircle className="h-4 w-4 text-yellow-500 shrink-0" />}
+                          <div className="flex items-center gap-3 truncate max-w-[380px]">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={(e) => handleToggleSelectLead(l.id, e.target.checked)}
+                              className="rounded border-slate-700 text-yellow-500 focus:ring-yellow-500/20 h-4 w-4 cursor-pointer shrink-0"
+                            />
+                            <div className="truncate space-y-0.5">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-bold truncate text-slate-100">{cleanName}</span>
+                                <span className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-800 text-slate-300 border border-slate-700">
+                                  <span>{countryInfo.flag}</span>
+                                  <span>{countryInfo.code}</span>
+                                </span>
+                                {l.tags && l.tags.length > 0 && (
+                                  <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
+                                    {l.tags[0]}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[10px] text-slate-400 truncate flex items-center gap-1">
+                                <Mail className="h-3 w-3 text-slate-500 shrink-0" />
+                                <span className="text-blue-400 font-medium truncate">{l.email}</span>
+                              </p>
                             </div>
-                            <span className="text-[11px] text-zinc-400 font-mono block truncate">{s.email}</span>
-                            <span className="text-[10px] text-zinc-500 block line-clamp-1">{s.description}</span>
+                          </div>
+
+                          <div className="text-right shrink-0 space-y-0.5">
+                            <span className="bg-slate-800 px-2 py-0.5 rounded text-[9px] text-slate-300 border border-slate-700 font-medium">
+                              {stageBadge}
+                            </span>
+                            {(l.city || l.province) && (
+                              <p className="text-[9px] text-emerald-400 font-medium flex items-center justify-end gap-1">
+                                <MapPin className="h-2.5 w-2.5 shrink-0" />
+                                <span>{[l.city, l.province].filter(Boolean).join(' • ')}</span>
+                              </p>
+                            )}
                           </div>
                         </div>
                       );
-                    })}
-                  </div>
+                    })
+                  )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                {/* Paginação */}
+                {totalPages > 1 && (
+                  <div className="flex justify-between items-center mt-3 border-t border-slate-800 pt-2.5">
+                    <button
+                      type="button"
+                      disabled={gridPage === 1}
+                      onClick={() => setGridPage((p) => Math.max(1, p - 1))}
+                      className="h-8 px-3 text-xs rounded-xl border border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1 font-semibold"
+                    >
+                      <ChevronLeft className="h-3.5 w-3.5" />
+                      <span>Anterior</span>
+                    </button>
+                    <span className="text-[11px] text-slate-400 font-medium">
+                      Página {gridPage} de {totalPages}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={gridPage === totalPages}
+                      onClick={() => setGridPage((p) => Math.min(totalPages, p + 1))}
+                      className="h-8 px-3 text-xs rounded-xl border border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1 font-semibold"
+                    >
+                      <span>Próxima</span>
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsNewAudienceDialogOpen(false)}
+                className="px-4 py-2 rounded-xl text-slate-400 hover:text-white text-xs font-semibold cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleCreateNewAudiencePreset}
+                disabled={selectedAudienceLeadIds.size === 0 || !audienceSaveName.trim()}
+                className="px-6 py-2.5 rounded-xl bg-yellow-500 hover:bg-yellow-400 disabled:opacity-40 disabled:cursor-not-allowed text-slate-950 text-xs font-bold shadow-md shadow-yellow-500/20 cursor-pointer transition-all"
+              >
+                Criar Público Salvo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 2: VISUALIZAR LEADS DO PÚBLICO (Membros do Segmento) */}
+      {/* ========================================================================= */}
+      {viewLeadsAudience && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+          <div
+            className={`w-full max-w-2xl max-h-[85vh] flex flex-col justify-between p-6 rounded-2xl shadow-2xl border ${
+              isLight ? 'border-slate-200 bg-white' : 'border-zinc-800 bg-slate-950 text-white'
+            }`}
+          >
+            <div className="border-b border-slate-200 dark:border-slate-800 pb-3 flex items-center justify-between shrink-0">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Users className="h-5 w-5 text-yellow-500" />
+                  <h3 className="font-bold text-base">Membros do Público: {viewLeadsAudience.name}</h3>
+                </div>
+                <p className="text-xs text-slate-400">
+                  Total de {viewAudienceLeadsList.length.toLocaleString()} leads neste público
+                </p>
+              </div>
+              <button
+                onClick={() => setViewLeadsAudience(null)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="py-3 shrink-0">
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Pesquisar nos leads deste público..."
+                  value={viewLeadsSearch}
+                  onChange={(e) => {
+                    setViewLeadsSearch(e.target.value);
+                    setViewLeadsPage(1);
+                  }}
+                  className={`w-full h-9 pl-9 pr-3 rounded-xl border text-xs focus:outline-none ${
+                    isLight ? 'border-slate-300 bg-slate-50 text-slate-900' : 'border-slate-800 bg-slate-900 text-white'
+                  }`}
+                />
+              </div>
+            </div>
+
+            {/* Scrollable list */}
+            <div className="flex-1 overflow-y-auto space-y-2 border border-slate-800 rounded-xl p-3 bg-slate-900/40 scrollbar-thin max-h-96">
+              {viewAudienceLeadsList.length === 0 ? (
+                <div className="text-center py-12 text-slate-500 text-xs">Nenhum lead encontrado.</div>
+              ) : (
+                viewAudienceLeadsList.slice((viewLeadsPage - 1) * 30, viewLeadsPage * 30).map((l) => (
+                  <div
+                    key={l.id}
+                    className="flex justify-between items-center p-2.5 rounded-lg border border-slate-800 bg-slate-900 text-xs"
+                  >
+                    <div>
+                      <div className="font-bold text-slate-200">{l.name || l.company_name}</div>
+                      <div className="text-[10px] text-blue-400">{l.email}</div>
+                    </div>
+                    <div className="text-right">
+                      <span className="bg-slate-800 px-2 py-0.5 rounded text-[9px] text-slate-400 border border-slate-700">
+                        {l.city || l.country || 'Espanha'}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="pt-3 border-t border-slate-800 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setViewLeadsAudience(null)}
+                  className="px-4 py-2 rounded-xl text-slate-400 hover:text-white text-xs font-semibold cursor-pointer"
+                >
+                  Fechar
+                </button>
+                {onNavigateToLeads && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setViewLeadsAudience(null);
+                      onNavigateToLeads();
+                    }}
+                    className="px-4 py-2 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 text-xs font-semibold cursor-pointer"
+                  >
+                    Ver na Base de Leads CRM
+                  </button>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const targetAudId = viewLeadsAudience.id;
+                  setViewLeadsAudience(null);
+                  handleOpenWizard(targetAudId);
+                }}
+                className="px-5 py-2 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-slate-950 text-xs font-bold shadow-md cursor-pointer"
+              >
+                Disparar Campanha para Este Público
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 3: WIZARD NOVA CAMPANHA (4 Passos) */}
+      {/* ========================================================================= */}
+      {isCreateModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+          <div
+            className={`w-full max-w-3xl rounded-2xl border p-6 shadow-2xl space-y-6 ${
+              isLight ? 'border-slate-200 bg-white' : 'border-zinc-800 bg-zinc-900 text-white'
+            }`}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between border-b pb-4">
+              <div>
+                <h3 className="font-bold text-base">Criar Nova Campanha de Disparo</h3>
+                <span className="text-xs text-slate-400">Passo {wizardStep} de 4</span>
+              </div>
+              <button onClick={() => setIsCreateModalOpen(false)} className="text-slate-400 hover:text-white">
+                ✕
+              </button>
+            </div>
+
+            {/* Step 1: Remetente & Detalhes */}
+            {wizardStep === 1 && (
+              <div className="space-y-4 text-xs">
+                <div>
+                  <label className="block text-slate-400 mb-1">Título Interno da Campanha</label>
+                  <input
+                    type="text"
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    placeholder="Ex: Disparo Espanha - Peñas LaLiga Madrid"
+                    className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
+                      isLight ? 'border-slate-200 bg-slate-50 text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
+                    }`}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1">Assunto do E-mail</label>
+                  <input
+                    type="text"
+                    value={formData.subject}
+                    onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                    placeholder="Ex: ⚽ Todos os canais em 4K (Teste 24 Horas Grátis)"
+                    className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
+                      isLight ? 'border-slate-200 bg-slate-50 text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
+                    }`}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className={`block text-xs font-medium mb-1 ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>Nome do Remetente</label>
+                    <label className="block text-slate-400 mb-1">Identidade do Remetente (Verificado Resend)</label>
+                    <select
+                      value={formData.sender_email}
+                      onChange={(e) => {
+                        const s = VERIFIED_SENDERS.find((item) => item.email === e.target.value);
+                        setFormData({
+                          ...formData,
+                          sender_email: e.target.value,
+                          sender_name: s ? s.name : formData.sender_name,
+                          reply_to: s ? s.reply_to : formData.reply_to,
+                        });
+                      }}
+                      className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
+                        isLight ? 'border-slate-200 bg-slate-50 text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
+                      }`}
+                    >
+                      {VERIFIED_SENDERS.map((s) => (
+                        <option key={s.id} value={s.email}>
+                          {s.flag} {s.name} &lt;{s.email}&gt;
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-400 mb-1">E-mail de Resposta (Reply-To)</label>
                     <input
                       type="text"
-                      value={formData.sender_name}
-                      onChange={(e) => setFormData({ ...formData, sender_name: e.target.value })}
+                      value={formData.reply_to}
+                      onChange={(e) => setFormData({ ...formData, reply_to: e.target.value })}
                       className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
-                        isLight ? 'border-slate-300 bg-slate-50 text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
-                      }`}
-                    />
-                  </div>
-                  <div>
-                    <label className={`block text-xs font-medium mb-1 ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>E-mail de Disparo (Resend)</label>
-                    <input
-                      type="email"
-                      value={formData.sender_email}
-                      onChange={(e) => setFormData({ ...formData, sender_email: e.target.value })}
-                      className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
-                        isLight ? 'border-slate-300 bg-slate-50 text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
+                        isLight ? 'border-slate-200 bg-slate-50 text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
                       }`}
                     />
                   </div>
@@ -851,131 +1966,109 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
               </div>
             )}
 
-            {/* Step 2: Audiência e Destinatários */}
+            {/* Step 2: Seleção de Template */}
             {wizardStep === 2 && (
-              <div className="space-y-4">
+              <div className="space-y-4 text-xs">
+                <label className="block text-slate-400 mb-1">Selecione o Template HTML</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-72 overflow-y-auto pr-1">
+                  {templates.map((tmpl) => (
+                    <div
+                      key={tmpl.id}
+                      onClick={() => setFormData({ ...formData, template_id: tmpl.id, subject: tmpl.subject })}
+                      className={`p-4 rounded-xl border cursor-pointer transition-all ${
+                        formData.template_id === tmpl.id
+                          ? 'border-yellow-500 bg-yellow-500/10 text-yellow-400 shadow-md'
+                          : 'border-slate-800 hover:border-slate-700 bg-zinc-950/60'
+                      }`}
+                    >
+                      <div className="font-bold text-xs">{tmpl.title}</div>
+                      <div className="text-[11px] text-slate-400 truncate mt-1">{tmpl.subject}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Step 3: Público-Alvo */}
+            {wizardStep === 3 && (
+              <div className="space-y-4 text-xs">
                 <div>
-                  <label className={`block text-xs font-medium mb-1 ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>
-                    Selecionar Segmento / Audiência Pré-definida
-                  </label>
+                  <label className="block text-slate-400 mb-1">Segmento ou Público Salvo</label>
                   <select
                     value={formData.target_audience_id}
                     onChange={(e) => handleAudienceChange(e.target.value)}
                     className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
-                      isLight ? 'border-slate-300 bg-slate-50 text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
+                      isLight ? 'border-slate-200 bg-slate-50 text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
                     }`}
                   >
-                    <option value="all">Todos os Leads MX Verificados ({leads.filter((l) => !l.opted_out).length.toLocaleString()} contatos)</option>
+                    <option value="all">🌍 Toda a Base Ativa (Apenas MX Válidos)</option>
                     {audiences.map((aud) => (
                       <option key={aud.id} value={aud.id}>
-                        {aud.name} ({aud.lead_count ? aud.lead_count.toLocaleString() : '0'} leads)
+                        🎯 {aud.name} ({aud.lead_count ? aud.lead_count.toLocaleString() : (aud.lead_ids?.length || 0).toLocaleString()} leads)
                       </option>
                     ))}
                   </select>
                 </div>
 
-                <div
-                  className={`rounded-xl border p-4 text-xs ${
-                    isLight ? 'border-slate-200 bg-slate-50 text-slate-700' : 'border-zinc-800 bg-zinc-950 text-zinc-300'
-                  }`}
-                >
-                  <span className="font-bold block text-sm mb-1 text-emerald-500">
-                    ✓ {selectedLeadIds.length.toLocaleString()} Leads Selecionados para este Disparo
-                  </span>
-                  <p className="text-[11px] text-slate-400">
-                    O sistema só envia para leads com MX auditado que não solicitaram cancelamento (Opt-out).
-                  </p>
+                <div className="p-4 rounded-xl border border-yellow-500/20 bg-yellow-500/5 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Sparkles className="h-5 w-5 text-yellow-500" />
+                    <div>
+                      <div className="font-bold text-xs text-yellow-400">
+                        {selectedLeadIds.length.toLocaleString()} Leads Selecionados
+                      </div>
+                      <div className="text-[11px] text-slate-400">
+                        Prontos para receber o e-mail via motor Resend
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* Step 3: Template & Mensagem */}
-            {wizardStep === 3 && (
-              <div className="space-y-4">
-                <div>
-                  <label className={`block text-xs font-medium mb-1 ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>
-                    Escolher Template HTML
-                  </label>
-                  <select
-                    value={formData.template_id}
-                    onChange={(e) => {
-                      const tmpl = templates.find((t) => t.id === e.target.value);
-                      setFormData({
-                        ...formData,
-                        template_id: e.target.value,
-                        subject: tmpl?.subject || formData.subject,
-                      });
-                    }}
-                    className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
-                      isLight ? 'border-slate-300 bg-slate-50 text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
-                    }`}
-                  >
-                    {templates.map((tmpl) => (
-                      <option key={tmpl.id} value={tmpl.id}>
-                        {tmpl.title}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Preview snippet */}
-                <div className="space-y-1.5">
-                  <span className="text-[11px] font-semibold text-slate-400">Prévia do Conteúdo:</span>
-                  <div
-                    className={`h-48 overflow-y-auto rounded-xl border p-3 text-xs ${
-                      isLight ? 'border-slate-200 bg-slate-50 text-slate-800' : 'border-zinc-800 bg-zinc-950 text-zinc-300'
-                    }`}
-                    dangerouslySetInnerHTML={{
-                      __html: templates.find((t) => t.id === formData.template_id)?.html_content || '',
-                    }}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Step 4: Revisão & Início */}
+            {/* Step 4: Revisão & Agendamento */}
             {wizardStep === 4 && (
               <div className="space-y-4 text-xs">
-                <div
-                  className={`rounded-xl border p-4 space-y-2 ${
-                    isLight ? 'border-slate-200 bg-slate-50 text-slate-800' : 'border-zinc-800 bg-zinc-950 text-zinc-200'
-                  }`}
-                >
-                  <h4 className="font-bold text-sm text-yellow-500">Resumo da Campanha</h4>
-                  <p>
-                    <strong>Nome:</strong> {formData.title}
-                  </p>
-                  <p>
-                    <strong>Assunto:</strong> {formData.subject}
-                  </p>
-                  <p>
-                    <strong>Remetente Oficial:</strong> {formData.sender_name} &lt;{formData.sender_email}&gt;
-                  </p>
-                  <p>
-                    <strong>Destinatários:</strong> {selectedLeadIds.length.toLocaleString()} e-mails válidos
-                  </p>
-                  <p>
-                    <strong>Taxa de Envio:</strong> {formData.rate_limit_per_second} envios / segundo (Anti-Spam Resend)
-                  </p>
+                <div className="rounded-xl border border-slate-800 bg-zinc-950 p-4 space-y-3">
+                  <div className="flex justify-between border-b border-slate-800 pb-2">
+                    <span className="text-slate-400">Campanha:</span>
+                    <span className="font-bold text-slate-200">{formData.title}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-800 pb-2">
+                    <span className="text-slate-400">Assunto:</span>
+                    <span className="font-semibold text-slate-200">{formData.subject}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-800 pb-2">
+                    <span className="text-slate-400">Remetente:</span>
+                    <span className="text-slate-200">
+                      {formData.sender_name} &lt;{formData.sender_email}&gt;
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Total de Destinatários:</span>
+                    <span className="font-bold text-emerald-400">
+                      {selectedLeadIds.length.toLocaleString()} leads
+                    </span>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 pt-2">
                   <input
                     type="checkbox"
-                    id="launch_now"
+                    id="launch_now_check"
                     checked={formData.launch_now}
                     onChange={(e) => setFormData({ ...formData, launch_now: e.target.checked })}
-                    className="h-4 w-4 rounded accent-yellow-500"
+                    className="rounded border-slate-700 text-yellow-500 focus:ring-yellow-500"
                   />
-                  <label htmlFor="launch_now" className={`font-semibold cursor-pointer ${isLight ? 'text-slate-800' : 'text-zinc-200'}`}>
-                    Iniciar disparos imediatamente após criar a campanha
+                  <label htmlFor="launch_now_check" className="font-semibold text-slate-200 cursor-pointer">
+                    Iniciar envio imediatamente após confirmação
                   </label>
                 </div>
               </div>
             )}
 
-            {/* Navigation buttons */}
-            <div className={`flex items-center justify-between border-t pt-4 ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
+            {/* Wizard Navigation */}
+            <div className="flex items-center justify-between border-t pt-4">
               <button
                 type="button"
                 onClick={() => {
@@ -1009,7 +2102,9 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
         </div>
       )}
 
-      {/* MODAL: CRIAR / EDITAR TEMPLATE */}
+      {/* ========================================================================= */}
+      {/* MODAL 4: CRIAR / EDITAR TEMPLATE */}
+      {/* ========================================================================= */}
       {isTemplateModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div
@@ -1058,7 +2153,9 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="block text-slate-400">Código HTML do E-mail</label>
-                  <span className="text-[10px] text-slate-500">Tags: &#123;&#123;nome&#125;&#125;, &#123;&#123;cidade&#125;&#125;, &#123;&#123;link_descadastro&#125;&#125;</span>
+                  <span className="text-[10px] text-slate-500">
+                    Tags: &#123;&#123;nome&#125;&#125;, &#123;&#123;cidade&#125;&#125;, &#123;&#123;whatsapp_link&#125;&#125;
+                  </span>
                 </div>
                 <textarea
                   rows={8}
@@ -1091,7 +2188,9 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
         </div>
       )}
 
-      {/* MODAL: PREVIEW DE TEMPLATE */}
+      {/* ========================================================================= */}
+      {/* MODAL 5: PREVIEW DE TEMPLATE */}
+      {/* ========================================================================= */}
       {previewingTemplate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div
@@ -1126,85 +2225,6 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                 Fechar Prévia
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: NOVO PÚBLICO SALVO */}
-      {isAudienceModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div
-            className={`w-full max-w-md rounded-2xl border p-6 shadow-2xl space-y-4 ${
-              isLight ? 'border-slate-200 bg-white' : 'border-zinc-800 bg-zinc-900'
-            }`}
-          >
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className={`font-bold text-sm ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                Salvar Novo Segmento de Público
-              </h3>
-              <button onClick={() => setIsAudienceModalOpen(false)} className="text-slate-400 hover:text-slate-200">
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveNewAudience} className="space-y-3 text-xs">
-              <div>
-                <label className="block text-slate-400 mb-1">Nome do Segmento *</label>
-                <input
-                  type="text"
-                  required
-                  value={audienceFormData.name}
-                  onChange={(e) => setAudienceFormData({ ...audienceFormData, name: e.target.value })}
-                  placeholder="Ex: ⚽ Peñas LaLiga Madrid & Torcedores"
-                  className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
-                    isLight ? 'border-slate-200 bg-slate-50 text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
-                  }`}
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-400 mb-1">Mercado / País</label>
-                <select
-                  value={audienceFormData.country}
-                  onChange={(e) => setAudienceFormData({ ...audienceFormData, country: e.target.value })}
-                  className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
-                    isLight ? 'border-slate-200 bg-slate-50 text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
-                  }`}
-                >
-                  <option value="Espanha">🇪🇸 Espanha</option>
-                  <option value="Brasil">🇧🇷 Brasil</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-slate-400 mb-1">Filtrar por Cidade (Opcional)</label>
-                <input
-                  type="text"
-                  value={audienceFormData.city}
-                  onChange={(e) => setAudienceFormData({ ...audienceFormData, city: e.target.value })}
-                  placeholder="Ex: Madrid, Barcelona, São Paulo..."
-                  className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
-                    isLight ? 'border-slate-200 bg-slate-50 text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
-                  }`}
-                />
-              </div>
-
-              <div className="pt-3 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsAudienceModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-slate-400 hover:text-slate-200"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-bold"
-                >
-                  Salvar Segmento
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}
