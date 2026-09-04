@@ -43,7 +43,9 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({ activeTab, onOpenMobileMen
       <div className="flex items-center gap-3">
         <button
           onClick={onOpenMobileMenu}
-          className="lg:hidden flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-xs cursor-pointer"
+          className={`lg:hidden flex h-9 w-9 items-center justify-center rounded-xl border shadow-xs cursor-pointer ${
+            isLight ? 'border-slate-200 bg-white text-slate-700' : 'border-zinc-800 bg-zinc-900 text-zinc-300'
+          }`}
         >
           <Menu className="h-5 w-5" />
         </button>

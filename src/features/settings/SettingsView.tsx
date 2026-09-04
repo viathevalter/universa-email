@@ -299,7 +299,7 @@ CREATE POLICY "Public access audiences" ON public.saved_audiences FOR ALL USING 
               isLight ? 'border-slate-200 bg-white' : 'border-zinc-800 bg-zinc-900/60'
             }`}
           >
-            <div className="flex items-center gap-2 pb-2 border-b border-zinc-800">
+            <div className={`flex items-center gap-2 pb-2 border-b ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
               <Building2 className="h-5 w-5 text-indigo-500" />
               <h2 className={`text-base font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>Perfil da Organização (Tenant)</h2>
             </div>
@@ -409,7 +409,7 @@ CREATE POLICY "Public access audiences" ON public.saved_audiences FOR ALL USING 
               isLight ? 'border-slate-200 bg-white' : 'border-zinc-800 bg-zinc-900/60'
             }`}
           >
-            <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
+            <div className={`flex items-center justify-between pb-2 border-b ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
               <div className="flex items-center gap-2">
                 <ShieldCheck className="h-5 w-5 text-emerald-500" />
                 <h2 className={`text-base font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>Autenticação de Domínios (Resend)</h2>
@@ -432,7 +432,7 @@ CREATE POLICY "Public access audiences" ON public.saved_audiences FOR ALL USING 
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2 pt-2 border-t border-zinc-800/60 text-[10px]">
+                  <div className={`grid grid-cols-3 gap-2 pt-2 border-t text-[10px] ${isLight ? 'border-slate-200' : 'border-zinc-800/60'}`}>
                     <div>
                       <span className={isLight ? 'text-slate-400 block' : 'text-zinc-500 block'}>SPF</span>
                       <span className="text-emerald-500 font-semibold">Ativo</span>
@@ -461,7 +461,7 @@ CREATE POLICY "Public access audiences" ON public.saved_audiences FOR ALL USING 
               isLight ? 'border-slate-200 bg-white' : 'border-zinc-800 bg-zinc-900/60'
             }`}
           >
-            <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
+            <div className={`flex items-center justify-between pb-2 border-b ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
               <div className="flex items-center gap-2">
                 <Database className="h-5 w-5 text-indigo-500" />
                 <h2 className={`text-base font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>Banco de Dados Supabase (PostgreSQL)</h2>

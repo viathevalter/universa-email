@@ -485,24 +485,28 @@ export const KanbanView: React.FC<KanbanViewProps> = ({ onNavigateToCampaigns })
                         </div>
 
                         {/* Move Card Action Buttons */}
-                        <div className="pt-2 border-t border-zinc-800/40 flex items-center justify-between">
+                        <div className={`pt-2 border-t flex items-center justify-between ${isLight ? 'border-slate-100' : 'border-zinc-800/40'}`}>
                           <button
                             onClick={() => moveLead(lead.id, stage.id, 'backward')}
                             disabled={stage.id === 'new'}
-                            className="p-1 rounded text-slate-400 hover:text-slate-200 disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed"
+                            className={`p-1 rounded cursor-pointer disabled:opacity-20 disabled:cursor-not-allowed ${
+                              isLight ? 'text-slate-400 hover:text-slate-700' : 'text-slate-400 hover:text-slate-200'
+                            }`}
                             title="Voltar estágio"
                           >
                             <ChevronLeft className="h-3.5 w-3.5" />
                           </button>
 
-                          <span className="text-[10px] font-bold text-slate-500 uppercase">
+                          <span className={`text-[10px] font-bold uppercase ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>
                             Mover
                           </span>
 
                           <button
                             onClick={() => moveLead(lead.id, stage.id, 'forward')}
                             disabled={stage.id === 'converted'}
-                            className="p-1 rounded text-slate-400 hover:text-slate-200 disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed"
+                            className={`p-1 rounded cursor-pointer disabled:opacity-20 disabled:cursor-not-allowed ${
+                              isLight ? 'text-slate-400 hover:text-slate-700' : 'text-slate-400 hover:text-slate-200'
+                            }`}
                             title="Avançar estágio"
                           >
                             <ChevronRight className="h-3.5 w-3.5" />
@@ -519,11 +523,11 @@ export const KanbanView: React.FC<KanbanViewProps> = ({ onNavigateToCampaigns })
                     onClick={() => loadMoreCards(stage.id)}
                     className={`w-full py-2 rounded-xl border text-[11px] font-semibold transition-all cursor-pointer ${
                       isLight
-                        ? 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
-                        : 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800'
+                        ? 'border-slate-200 bg-white hover:bg-slate-100 text-slate-700'
+                        : 'border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300'
                     }`}
                   >
-                    + Carregar mais 30 ({leadsInStage.length - currentLimit} restantes)
+                    + Carregar Mais 30 Cards
                   </button>
                 )}
               </div>
@@ -537,24 +541,24 @@ export const KanbanView: React.FC<KanbanViewProps> = ({ onNavigateToCampaigns })
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div
             className={`w-full max-w-md rounded-2xl border p-6 shadow-2xl space-y-4 ${
-              isLight ? 'border-slate-200 bg-white' : 'border-zinc-800 bg-zinc-900'
+              isLight ? 'border-slate-200 bg-white text-slate-900' : 'border-zinc-800 bg-zinc-900 text-white'
             }`}
           >
-            <div className="flex items-center justify-between border-b pb-3">
+            <div className={`flex items-center justify-between pb-3 border-b ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
               <h3 className={`font-bold text-sm ${isLight ? 'text-slate-900' : 'text-white'}`}>
                 Cadastrar Novo Lead no Funil
               </h3>
               <button
                 onClick={() => setIsNewLeadModalOpen(false)}
-                className="text-slate-400 hover:text-slate-200"
+                className={`cursor-pointer ${isLight ? 'text-slate-400 hover:text-slate-700' : 'text-slate-400 hover:text-slate-200'}`}
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleCreateLead} className="space-y-3 text-xs">
+            <form onSubmit={handleCreateLead} className="space-y-3 text-xs pt-1">
               <div>
-                <label className="block text-slate-400 mb-1">Nome Completo</label>
+                <label className={`block mb-1 font-semibold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>Nome Completo</label>
                 <input
                   type="text"
                   required
@@ -562,13 +566,13 @@ export const KanbanView: React.FC<KanbanViewProps> = ({ onNavigateToCampaigns })
                   onChange={(e) => setNewLeadData({ ...newLeadData, name: e.target.value })}
                   placeholder="Ex: Alejandro Martínez"
                   className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
-                    isLight ? 'border-slate-200 bg-slate-50 text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
+                    isLight ? 'border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-yellow-500/50' : 'border-zinc-800 bg-zinc-950 text-white'
                   }`}
                 />
               </div>
 
               <div>
-                <label className="block text-slate-400 mb-1">E-mail *</label>
+                <label className={`block mb-1 font-semibold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>E-mail *</label>
                 <input
                   type="email"
                   required
@@ -576,32 +580,32 @@ export const KanbanView: React.FC<KanbanViewProps> = ({ onNavigateToCampaigns })
                   onChange={(e) => setNewLeadData({ ...newLeadData, email: e.target.value })}
                   placeholder="exemplo@gmail.com"
                   className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
-                    isLight ? 'border-slate-200 bg-slate-50 text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
+                    isLight ? 'border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-yellow-500/50' : 'border-zinc-800 bg-zinc-950 text-white'
                   }`}
                 />
               </div>
 
               <div>
-                <label className="block text-slate-400 mb-1">WhatsApp / Telefone</label>
+                <label className={`block mb-1 font-semibold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>WhatsApp / Telefone</label>
                 <input
                   type="text"
                   value={newLeadData.phone}
                   onChange={(e) => setNewLeadData({ ...newLeadData, phone: e.target.value })}
                   placeholder="+34 600 000 000 ou +55 11 99999-9999"
                   className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
-                    isLight ? 'border-slate-200 bg-slate-50 text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
+                    isLight ? 'border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-yellow-500/50' : 'border-zinc-800 bg-zinc-950 text-white'
                   }`}
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-400 mb-1">País</label>
+                  <label className={`block mb-1 font-semibold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>País</label>
                   <select
                     value={newLeadData.country}
                     onChange={(e) => setNewLeadData({ ...newLeadData, country: e.target.value })}
                     className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
-                      isLight ? 'border-slate-200 bg-slate-50 text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
+                      isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
                     }`}
                   >
                     <option value="Espanha">🇪🇸 Espanha</option>
@@ -610,26 +614,26 @@ export const KanbanView: React.FC<KanbanViewProps> = ({ onNavigateToCampaigns })
                 </div>
 
                 <div>
-                  <label className="block text-slate-400 mb-1">Cidade</label>
+                  <label className={`block mb-1 font-semibold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>Cidade</label>
                   <input
                     type="text"
                     value={newLeadData.city}
                     onChange={(e) => setNewLeadData({ ...newLeadData, city: e.target.value })}
                     placeholder="Madrid ou São Paulo"
                     className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
-                      isLight ? 'border-slate-200 bg-slate-50 text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
+                      isLight ? 'border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-yellow-500/50' : 'border-zinc-800 bg-zinc-950 text-white'
                     }`}
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-slate-400 mb-1">Estágio Inicial</label>
+                <label className={`block mb-1 font-semibold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>Estágio Inicial</label>
                 <select
                   value={newLeadData.status}
                   onChange={(e) => setNewLeadData({ ...newLeadData, status: e.target.value as LeadStatus })}
-                  className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
-                    isLight ? 'border-slate-200 bg-slate-50 text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
+                  className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none cursor-pointer ${
+                    isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
                   }`}
                 >
                   {stages.map((st) => (
@@ -640,17 +644,17 @@ export const KanbanView: React.FC<KanbanViewProps> = ({ onNavigateToCampaigns })
                 </select>
               </div>
 
-              <div className="pt-3 flex items-center justify-end gap-2">
+              <div className={`pt-3 flex items-center justify-end gap-2 border-t ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
                 <button
                   type="button"
                   onClick={() => setIsNewLeadModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-slate-400 hover:text-slate-200"
+                  className={`px-4 py-2 rounded-xl cursor-pointer ${isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200'}`}
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-bold"
+                  className="px-4 py-2 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-bold cursor-pointer shadow-md"
                 >
                   Adicionar Lead
                 </button>
@@ -665,22 +669,22 @@ export const KanbanView: React.FC<KanbanViewProps> = ({ onNavigateToCampaigns })
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div
             className={`w-full max-w-lg rounded-2xl border p-6 shadow-2xl space-y-4 ${
-              isLight ? 'border-slate-200 bg-white' : 'border-zinc-800 bg-zinc-900'
+              isLight ? 'border-slate-200 bg-white text-slate-900' : 'border-zinc-800 bg-zinc-900 text-white'
             }`}
           >
-            <div className="flex items-center justify-between border-b pb-3">
+            <div className={`flex items-center justify-between pb-3 border-b ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
               <h3 className={`font-bold text-sm ${isLight ? 'text-slate-900' : 'text-white'}`}>
                 Personalizar Estágios do Funil
               </h3>
               <button
                 onClick={() => setIsConfigStagesModalOpen(false)}
-                className="text-slate-400 hover:text-slate-200"
+                className={`cursor-pointer ${isLight ? 'text-slate-400 hover:text-slate-700' : 'text-slate-400 hover:text-slate-200'}`}
               >
                 ✕
               </button>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-3 pt-1">
               {stages.map((stage, idx) => (
                 <div
                   key={stage.id}
@@ -703,16 +707,16 @@ export const KanbanView: React.FC<KanbanViewProps> = ({ onNavigateToCampaigns })
                         isLight ? 'text-slate-900' : 'text-white'
                       }`}
                     />
-                    <span className="text-[10px] text-slate-500 block">{stage.description}</span>
+                    <span className={`text-[10px] block ${isLight ? 'text-slate-500' : 'text-slate-500'}`}>{stage.description}</span>
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="pt-3 flex items-center justify-end">
+            <div className={`pt-3 flex items-center justify-end border-t ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
               <button
                 onClick={() => setIsConfigStagesModalOpen(false)}
-                className="px-4 py-2 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-bold text-xs"
+                className="px-4 py-2 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-bold text-xs cursor-pointer shadow-md"
               >
                 Salvar Configuração
               </button>

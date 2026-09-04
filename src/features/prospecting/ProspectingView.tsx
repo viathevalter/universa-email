@@ -1603,10 +1603,10 @@ export const ProspectingView: React.FC = () => {
               isLight ? 'border-slate-200 bg-white text-slate-900' : 'border-zinc-800 bg-zinc-900 text-white'
             }`}
           >
-            <div className="flex items-center justify-between border-b pb-3 border-zinc-800">
+            <div className={`flex items-center justify-between border-b pb-3 ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
               <div className="flex items-center gap-2">
                 <Share2 className="h-5 w-5 text-pink-500" />
-                <h2 className="text-base font-bold">Extrator de Dorks de Redes Sociais & Fóruns Espanha</h2>
+                <h2 className={`text-base font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>Extrator de Dorks de Redes Sociais & Fóruns Espanha</h2>
               </div>
               <button
                 onClick={() => setIsDorkModalOpen(false)}
@@ -1751,10 +1751,10 @@ export const ProspectingView: React.FC = () => {
               isLight ? 'border-slate-200 bg-white text-slate-900' : 'border-zinc-800 bg-zinc-900 text-white'
             }`}
           >
-            <div className="flex items-center justify-between border-b pb-3 border-zinc-800">
+            <div className={`flex items-center justify-between border-b pb-3 ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
               <div className="flex items-center gap-2">
                 <FileText className="h-5 w-5 text-emerald-500" />
-                <h2 className="text-base font-bold">Importador & Auditor de Raspagens Reais (Colar Texto / HTML)</h2>
+                <h2 className={`text-base font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>Importador & Auditor de Raspagens Reais (Colar Texto / HTML)</h2>
               </div>
               <button
                 onClick={() => setIsRawPasteModalOpen(false)}

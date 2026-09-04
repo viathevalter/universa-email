@@ -963,18 +963,24 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
       </div>
 
       {/* Sub-tabs Header matching mcs-personal layout */}
-      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-zinc-800 pb-2">
+      <div className={`flex items-center gap-2 border-b pb-2 ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
         <button
           onClick={() => setActiveSubTab('campaigns')}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
             activeSubTab === 'campaigns'
               ? 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20'
+              : isLight
+              ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
               : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
           }`}
         >
           <Send className="h-4 w-4" />
           <span>Campanhas</span>
-          <span className="rounded-full bg-slate-800 text-slate-300 px-2 py-0.2 text-[10px] ml-1">
+          <span
+            className={`rounded-full px-2 py-0.2 text-[10px] ml-1 font-semibold ${
+              isLight ? 'bg-slate-200 text-slate-700' : 'bg-slate-800 text-slate-300'
+            }`}
+          >
             {campaigns.length}
           </span>
         </button>
@@ -984,12 +990,18 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
             activeSubTab === 'templates'
               ? 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20'
+              : isLight
+              ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
               : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
           }`}
         >
           <FileCode className="h-4 w-4" />
           <span>Templates de E-mail</span>
-          <span className="rounded-full bg-slate-800 text-slate-300 px-2 py-0.2 text-[10px] ml-1">
+          <span
+            className={`rounded-full px-2 py-0.2 text-[10px] ml-1 font-semibold ${
+              isLight ? 'bg-slate-200 text-slate-700' : 'bg-slate-800 text-slate-300'
+            }`}
+          >
             {templates.length}
           </span>
         </button>
@@ -999,12 +1011,18 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
             activeSubTab === 'audiences'
               ? 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20'
+              : isLight
+              ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
               : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
           }`}
         >
           <Users className="h-4 w-4" />
           <span>Públicos / Segmentos</span>
-          <span className="rounded-full bg-slate-800 text-slate-300 px-2 py-0.2 text-[10px] ml-1">
+          <span
+            className={`rounded-full px-2 py-0.2 text-[10px] ml-1 font-semibold ${
+              isLight ? 'bg-slate-200 text-slate-700' : 'bg-slate-800 text-slate-300'
+            }`}
+          >
             {audiences.length}
           </span>
         </button>
@@ -2038,12 +2056,15 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
             }`}
           >
             {/* Header */}
-            <div className="flex items-center justify-between border-b pb-4">
+            <div className={`flex items-center justify-between border-b pb-4 ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
               <div>
-                <h3 className="font-bold text-base">Criar Nova Campanha de Disparo</h3>
-                <span className="text-xs text-slate-400">Passo {wizardStep} de 4</span>
+                <h3 className={`font-bold text-base ${isLight ? 'text-slate-900' : 'text-white'}`}>Criar Nova Campanha de Disparo</h3>
+                <span className={`text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Passo {wizardStep} de 4</span>
               </div>
-              <button onClick={() => setIsCreateModalOpen(false)} className="text-slate-400 hover:text-white">
+              <button
+                onClick={() => setIsCreateModalOpen(false)}
+                className={`cursor-pointer ${isLight ? 'text-slate-400 hover:text-slate-700' : 'text-slate-400 hover:text-white'}`}
+              >
                 ✕
               </button>
             </div>
@@ -2052,34 +2073,34 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
             {wizardStep === 1 && (
               <div className="space-y-4 text-xs">
                 <div>
-                  <label className="block text-slate-400 mb-1">Título Interno da Campanha</label>
+                  <label className={`block mb-1 font-semibold ${isLight ? 'text-slate-700' : 'text-slate-400'}`}>Título Interno da Campanha</label>
                   <input
                     type="text"
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                     placeholder="Ex: Disparo Espanha - Peñas LaLiga Madrid"
                     className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
-                      isLight ? 'border-slate-200 bg-slate-50 text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
+                      isLight ? 'border-slate-300 bg-white text-slate-900 placeholder:text-slate-400' : 'border-zinc-800 bg-zinc-950 text-white placeholder:text-zinc-500'
                     }`}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-slate-400 mb-1">Assunto do E-mail</label>
+                  <label className={`block mb-1 font-semibold ${isLight ? 'text-slate-700' : 'text-slate-400'}`}>Assunto do E-mail</label>
                   <input
                     type="text"
                     value={formData.subject}
                     onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
                     placeholder="Ex: ⚽ Todos os canais em 4K (Teste 24 Horas Grátis)"
                     className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
-                      isLight ? 'border-slate-200 bg-slate-50 text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
+                      isLight ? 'border-slate-300 bg-white text-slate-900 placeholder:text-slate-400' : 'border-zinc-800 bg-zinc-950 text-white placeholder:text-zinc-500'
                     }`}
                   />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-slate-400 mb-1">Identidade do Remetente (Verificado Resend)</label>
+                    <label className={`block mb-1 font-semibold ${isLight ? 'text-slate-700' : 'text-slate-400'}`}>Identidade do Remetente (Verificado Resend)</label>
                     <select
                       value={formData.sender_email}
                       onChange={(e) => {
@@ -2092,7 +2113,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                         });
                       }}
                       className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
-                        isLight ? 'border-slate-200 bg-slate-50 text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
+                        isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
                       }`}
                     >
                       {VERIFIED_SENDERS.map((s) => (
@@ -2104,13 +2125,13 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                   </div>
 
                   <div>
-                    <label className="block text-slate-400 mb-1">E-mail de Resposta (Reply-To)</label>
+                    <label className={`block mb-1 font-semibold ${isLight ? 'text-slate-700' : 'text-slate-400'}`}>E-mail de Resposta (Reply-To)</label>
                     <input
                       type="text"
                       value={formData.reply_to}
                       onChange={(e) => setFormData({ ...formData, reply_to: e.target.value })}
                       className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
-                        isLight ? 'border-slate-200 bg-slate-50 text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
+                        isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
                       }`}
                     />
                   </div>
@@ -2121,7 +2142,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
             {/* Step 2: Seleção de Template */}
             {wizardStep === 2 && (
               <div className="space-y-4 text-xs">
-                <label className="block text-slate-400 mb-1">Selecione o Template HTML</label>
+                <label className={`block mb-1 font-semibold ${isLight ? 'text-slate-700' : 'text-slate-400'}`}>Selecione o Template HTML</label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-72 overflow-y-auto pr-1">
                   {templates.map((tmpl) => (
                     <div
@@ -2129,12 +2150,14 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                       onClick={() => setFormData({ ...formData, template_id: tmpl.id, subject: tmpl.subject })}
                       className={`p-4 rounded-xl border cursor-pointer transition-all ${
                         formData.template_id === tmpl.id
-                          ? 'border-yellow-500 bg-yellow-500/10 text-yellow-400 shadow-md'
-                          : 'border-slate-800 hover:border-slate-700 bg-zinc-950/60'
+                          ? 'border-yellow-500 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 shadow-md ring-2 ring-yellow-500/30'
+                          : isLight
+                          ? 'border-slate-200 bg-slate-50 hover:bg-slate-100/80 text-slate-800'
+                          : 'border-slate-800 hover:border-slate-700 bg-zinc-950/60 text-slate-200'
                       }`}
                     >
-                      <div className="font-bold text-xs">{tmpl.title}</div>
-                      <div className="text-[11px] text-slate-400 truncate mt-1">{tmpl.subject}</div>
+                      <div className={`font-bold text-xs ${isLight ? 'text-slate-900' : 'text-white'}`}>{tmpl.title}</div>
+                      <div className={`text-[11px] truncate mt-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>{tmpl.subject}</div>
                     </div>
                   ))}
                 </div>
@@ -2145,12 +2168,12 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
             {wizardStep === 3 && (
               <div className="space-y-4 text-xs">
                 <div>
-                  <label className="block text-slate-400 mb-1">Segmento ou Público Salvo</label>
+                  <label className={`block mb-1 font-semibold ${isLight ? 'text-slate-700' : 'text-slate-400'}`}>Segmento ou Público Salvo</label>
                   <select
                     value={formData.target_audience_id}
                     onChange={(e) => handleAudienceChange(e.target.value)}
                     className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
-                      isLight ? 'border-slate-200 bg-slate-50 text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
+                      isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
                     }`}
                   >
                     <option value="all">🌍 Toda a Base Ativa (Apenas MX Válidos)</option>
@@ -2162,14 +2185,14 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                   </select>
                 </div>
 
-                <div className="p-4 rounded-xl border border-yellow-500/20 bg-yellow-500/5 flex items-center justify-between">
+                <div className={`p-4 rounded-xl border ${isLight ? 'border-yellow-300 bg-yellow-50 text-yellow-900' : 'border-yellow-500/20 bg-yellow-500/5 text-yellow-400'} flex items-center justify-between`}>
                   <div className="flex items-center gap-3">
                     <Sparkles className="h-5 w-5 text-yellow-500" />
                     <div>
-                      <div className="font-bold text-xs text-yellow-400">
+                      <div className={`font-bold text-xs ${isLight ? 'text-yellow-800' : 'text-yellow-400'}`}>
                         {selectedLeadIds.length.toLocaleString()} Leads Selecionados
                       </div>
-                      <div className="text-[11px] text-slate-400">
+                      <div className={`text-[11px] ${isLight ? 'text-yellow-700/80' : 'text-slate-400'}`}>
                         Prontos para receber o e-mail via motor Resend
                       </div>
                     </div>
@@ -2181,24 +2204,24 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
             {/* Step 4: Revisão & Agendamento */}
             {wizardStep === 4 && (
               <div className="space-y-4 text-xs">
-                <div className="rounded-xl border border-slate-800 bg-zinc-950 p-4 space-y-3">
-                  <div className="flex justify-between border-b border-slate-800 pb-2">
-                    <span className="text-slate-400">Campanha:</span>
-                    <span className="font-bold text-slate-200">{formData.title}</span>
+                <div className={`rounded-xl border p-4 space-y-3 ${isLight ? 'border-slate-200 bg-slate-50' : 'border-slate-800 bg-zinc-950'}`}>
+                  <div className={`flex justify-between border-b pb-2 ${isLight ? 'border-slate-200' : 'border-slate-800'}`}>
+                    <span className={isLight ? 'text-slate-600' : 'text-slate-400'}>Campanha:</span>
+                    <span className={`font-bold ${isLight ? 'text-slate-900' : 'text-slate-200'}`}>{formData.title}</span>
                   </div>
-                  <div className="flex justify-between border-b border-slate-800 pb-2">
-                    <span className="text-slate-400">Assunto:</span>
-                    <span className="font-semibold text-slate-200">{formData.subject}</span>
+                  <div className={`flex justify-between border-b pb-2 ${isLight ? 'border-slate-200' : 'border-slate-800'}`}>
+                    <span className={isLight ? 'text-slate-600' : 'text-slate-400'}>Assunto:</span>
+                    <span className={`font-semibold ${isLight ? 'text-slate-900' : 'text-slate-200'}`}>{formData.subject}</span>
                   </div>
-                  <div className="flex justify-between border-b border-slate-800 pb-2">
-                    <span className="text-slate-400">Remetente:</span>
-                    <span className="text-slate-200">
+                  <div className={`flex justify-between border-b pb-2 ${isLight ? 'border-slate-200' : 'border-slate-800'}`}>
+                    <span className={isLight ? 'text-slate-600' : 'text-slate-400'}>Remetente:</span>
+                    <span className={isLight ? 'text-slate-800' : 'text-slate-200'}>
                       {formData.sender_name} &lt;{formData.sender_email}&gt;
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Total de Destinatários:</span>
-                    <span className="font-bold text-emerald-400">
+                    <span className={isLight ? 'text-slate-600' : 'text-slate-400'}>Total de Destinatários:</span>
+                    <span className="font-bold text-emerald-500">
                       {selectedLeadIds.length.toLocaleString()} leads
                     </span>
                   </div>
@@ -2210,9 +2233,9 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                     id="launch_now_check"
                     checked={formData.launch_now}
                     onChange={(e) => setFormData({ ...formData, launch_now: e.target.checked })}
-                    className="rounded border-slate-700 text-yellow-500 focus:ring-yellow-500"
+                    className="rounded border-slate-400 text-yellow-500 focus:ring-yellow-500"
                   />
-                  <label htmlFor="launch_now_check" className="font-semibold text-slate-200 cursor-pointer">
+                  <label htmlFor="launch_now_check" className={`font-semibold cursor-pointer ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
                     Iniciar envio imediatamente após confirmação
                   </label>
                 </div>
@@ -2220,14 +2243,16 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
             )}
 
             {/* Wizard Navigation */}
-            <div className="flex items-center justify-between border-t pt-4">
+            <div className={`flex items-center justify-between border-t pt-4 ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
               <button
                 type="button"
                 onClick={() => {
                   if (wizardStep > 1) setWizardStep((prev) => (prev - 1) as any);
                   else setIsCreateModalOpen(false);
                 }}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 cursor-pointer"
+                className={`px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer ${
+                  isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200'
+                }`}
               >
                 {wizardStep === 1 ? 'Cancelar' : 'Voltar'}
               </button>
@@ -2264,18 +2289,21 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
               isLight ? 'border-slate-200 bg-white' : 'border-zinc-800 bg-zinc-900'
             }`}
           >
-            <div className="flex items-center justify-between border-b pb-3">
+            <div className={`flex items-center justify-between border-b pb-3 ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
               <h3 className={`font-bold text-sm ${isLight ? 'text-slate-900' : 'text-white'}`}>
                 {editingTemplate ? 'Editar Template HTML' : 'Criar Novo Template HTML'}
               </h3>
-              <button onClick={() => setIsTemplateModalOpen(false)} className="text-slate-400 hover:text-slate-200">
+              <button
+                onClick={() => setIsTemplateModalOpen(false)}
+                className={`cursor-pointer ${isLight ? 'text-slate-400 hover:text-slate-700' : 'text-slate-400 hover:text-slate-200'}`}
+              >
                 ✕
               </button>
             </div>
 
             <form onSubmit={handleSaveTemplate} className="space-y-3 text-xs">
               <div>
-                <label className="block text-slate-400 mb-1">Título do Template</label>
+                <label className={`block mb-1 font-semibold ${isLight ? 'text-slate-700' : 'text-slate-400'}`}>Título do Template</label>
                 <input
                   type="text"
                   required
@@ -2283,13 +2311,13 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                   onChange={(e) => setTemplateFormData({ ...templateFormData, title: e.target.value })}
                   placeholder="Ex: Oferta Especial 4K LaLiga"
                   className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
-                    isLight ? 'border-slate-200 bg-slate-50 text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
+                    isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
                   }`}
                 />
               </div>
 
               <div>
-                <label className="block text-slate-400 mb-1">Assunto Padrão</label>
+                <label className={`block mb-1 font-semibold ${isLight ? 'text-slate-700' : 'text-slate-400'}`}>Assunto Padrão</label>
                 <input
                   type="text"
                   required
@@ -2297,15 +2325,15 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                   onChange={(e) => setTemplateFormData({ ...templateFormData, subject: e.target.value })}
                   placeholder="Ex: ⚽ Todos os jogos em 4K (Teste 24 Horas Grátis)"
                   className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
-                    isLight ? 'border-slate-200 bg-slate-50 text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
+                    isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
                   }`}
                 />
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="block text-slate-400">Código HTML do E-mail</label>
-                  <span className="text-[10px] text-slate-500">
+                  <label className={`font-semibold ${isLight ? 'text-slate-700' : 'text-slate-400'}`}>Código HTML do E-mail</label>
+                  <span className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-slate-500'}`}>
                     Tags: &#123;&#123;nome&#125;&#125;, &#123;&#123;cidade&#125;&#125;, &#123;&#123;whatsapp_link&#125;&#125;
                   </span>
                 </div>
@@ -2315,22 +2343,22 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                   value={templateFormData.html_content}
                   onChange={(e) => setTemplateFormData({ ...templateFormData, html_content: e.target.value })}
                   className={`w-full rounded-xl border p-3 font-mono text-[11px] focus:outline-none ${
-                    isLight ? 'border-slate-200 bg-slate-50 text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
+                    isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
                   }`}
                 />
               </div>
 
-              <div className="pt-3 flex items-center justify-end gap-2">
+              <div className={`pt-3 border-t flex items-center justify-end gap-2 ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
                 <button
                   type="button"
                   onClick={() => setIsTemplateModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-slate-400 hover:text-slate-200"
+                  className={`px-4 py-2 rounded-xl cursor-pointer ${isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200'}`}
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-bold"
+                  className="px-5 py-2 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-bold cursor-pointer"
                 >
                   Salvar Template
                 </button>
@@ -2347,17 +2375,20 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div
             className={`w-full max-w-2xl rounded-2xl border p-6 shadow-2xl space-y-4 max-h-[85vh] flex flex-col ${
-              isLight ? 'border-slate-200 bg-white' : 'border-zinc-800 bg-zinc-900'
+              isLight ? 'border-slate-200 bg-white text-slate-900' : 'border-zinc-800 bg-zinc-900 text-white'
             }`}
           >
-            <div className="flex items-center justify-between border-b pb-3 shrink-0">
+            <div className={`flex items-center justify-between border-b pb-3 shrink-0 ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
               <div>
                 <h3 className={`font-bold text-sm ${isLight ? 'text-slate-900' : 'text-white'}`}>
                   {previewingTemplate.title}
                 </h3>
-                <span className="text-xs text-slate-400">Assunto: {previewingTemplate.subject}</span>
+                <span className={`text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Assunto: {previewingTemplate.subject}</span>
               </div>
-              <button onClick={() => setPreviewingTemplate(null)} className="text-slate-400 hover:text-slate-200">
+              <button
+                onClick={() => setPreviewingTemplate(null)}
+                className={`cursor-pointer ${isLight ? 'text-slate-400 hover:text-slate-700' : 'text-slate-400 hover:text-slate-200'}`}
+              >
                 ✕
               </button>
             </div>
@@ -2372,7 +2403,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
             <div className="shrink-0 pt-2 flex justify-end">
               <button
                 onClick={() => setPreviewingTemplate(null)}
-                className="px-4 py-2 rounded-xl bg-yellow-500 text-slate-950 font-bold text-xs"
+                className="px-4 py-2 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-bold text-xs cursor-pointer"
               >
                 Fechar Prévia
               </button>

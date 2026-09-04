@@ -1544,11 +1544,15 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ onNavigateToCampaigns }) =
                           )}
 
                           {/* Quick Stage Move Dropdown & Edit */}
-                          <div className="pt-1.5 border-t border-slate-100 dark:border-zinc-800/60 flex items-center justify-between gap-1">
+                          <div className={`pt-1.5 border-t flex items-center justify-between gap-1 ${isLight ? 'border-slate-100' : 'border-zinc-800/60'}`}>
                             <select
                               value={lead.status}
                               onChange={(e) => updateLead(lead.id, { status: e.target.value as LeadStatus })}
-                              className="rounded-md border border-zinc-700 bg-zinc-800 text-zinc-200 px-1.5 py-0.5 text-[10px] font-semibold cursor-pointer max-w-[120px]"
+                              className={`rounded-md border px-1.5 py-0.5 text-[10px] font-semibold cursor-pointer max-w-[120px] ${
+                                isLight
+                                  ? 'border-slate-200 bg-slate-50 text-slate-800'
+                                  : 'border-zinc-700 bg-zinc-800 text-zinc-200'
+                              }`}
                             >
                               <option value="new">Novo Lead</option>
                               <option value="qualified">Qualificado</option>
@@ -1618,42 +1622,48 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ onNavigateToCampaigns }) =
               isLight ? 'border-slate-200 bg-white text-slate-900' : 'border-zinc-800 bg-zinc-900 text-white'
             }`}
           >
-            <div className="flex items-center justify-between mb-4">
+            <div className={`flex items-center justify-between pb-3 border-b ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
               <div className="flex items-center gap-2">
                 <Edit className="h-5 w-5 text-indigo-500" />
-                <h3 className="text-lg font-bold">Editar Lead (CRUD)</h3>
+                <h3 className={`text-lg font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>Editar Lead (CRUD)</h3>
               </div>
               <button
                 onClick={() => {
                   setIsEditModalOpen(false);
                   setEditingLead(null);
                 }}
-                className="rounded-lg p-1 text-zinc-400 hover:bg-white/10"
+                className={`rounded-lg p-1 cursor-pointer transition-colors ${
+                  isLight ? 'text-slate-400 hover:text-slate-700' : 'text-zinc-400 hover:text-white'
+                }`}
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <form onSubmit={handleUpdateLeadSubmit} className="space-y-3.5">
+            <form onSubmit={handleUpdateLeadSubmit} className="space-y-3.5 pt-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-zinc-400">Nome do Consumidor</label>
+                  <label className={`text-xs font-semibold ${isLight ? 'text-slate-700' : 'text-zinc-300'}`}>Nome do Consumidor</label>
                   <input
                     type="text"
                     value={editingLead.name}
                     onChange={(e) => setEditingLead({ ...editingLead, name: e.target.value })}
-                    className="w-full mt-1 rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2 text-xs text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                    className={`w-full mt-1 rounded-xl border px-3 py-2 text-xs focus:outline-none ${
+                      isLight ? 'border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-indigo-500' : 'border-zinc-700 bg-zinc-800 text-white focus:ring-2 focus:ring-indigo-500'
+                    }`}
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-zinc-400">E-mail</label>
+                  <label className={`text-xs font-semibold ${isLight ? 'text-slate-700' : 'text-zinc-300'}`}>E-mail</label>
                   <input
                     type="email"
                     value={editingLead.email}
                     onChange={(e) => setEditingLead({ ...editingLead, email: e.target.value })}
-                    className="w-full mt-1 rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2 text-xs text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                    className={`w-full mt-1 rounded-xl border px-3 py-2 text-xs focus:outline-none ${
+                      isLight ? 'border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-indigo-500' : 'border-zinc-700 bg-zinc-800 text-white focus:ring-2 focus:ring-indigo-500'
+                    }`}
                     required
                   />
                 </div>
@@ -1661,44 +1671,52 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ onNavigateToCampaigns }) =
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-zinc-400">Perfil / Comunidade / Clube</label>
+                  <label className={`text-xs font-semibold ${isLight ? 'text-slate-700' : 'text-zinc-300'}`}>Perfil / Comunidade / Clube</label>
                   <input
                     type="text"
                     value={editingLead.company_name}
                     onChange={(e) => setEditingLead({ ...editingLead, company_name: e.target.value })}
-                    className="w-full mt-1 rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2 text-xs text-white focus:outline-hidden"
+                    className={`w-full mt-1 rounded-xl border px-3 py-2 text-xs focus:outline-none ${
+                      isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-zinc-700 bg-zinc-800 text-white'
+                    }`}
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-zinc-400">WhatsApp / Telefone (+34)</label>
+                  <label className={`text-xs font-semibold ${isLight ? 'text-slate-700' : 'text-zinc-300'}`}>WhatsApp / Telefone (+34)</label>
                   <input
                     type="text"
                     value={editingLead.phone || ''}
                     onChange={(e) => setEditingLead({ ...editingLead, phone: e.target.value })}
                     placeholder="+34 600 000 000"
-                    className="w-full mt-1 rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2 text-xs text-white focus:outline-hidden"
+                    className={`w-full mt-1 rounded-xl border px-3 py-2 text-xs focus:outline-none ${
+                      isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-zinc-700 bg-zinc-800 text-white'
+                    }`}
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-zinc-400">Cidade (Espanha)</label>
+                  <label className={`text-xs font-semibold ${isLight ? 'text-slate-700' : 'text-zinc-300'}`}>Cidade (Espanha)</label>
                   <input
                     type="text"
                     value={editingLead.city || ''}
                     onChange={(e) => setEditingLead({ ...editingLead, city: e.target.value })}
-                    className="w-full mt-1 rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2 text-xs text-white focus:outline-hidden"
+                    className={`w-full mt-1 rounded-xl border px-3 py-2 text-xs focus:outline-none ${
+                      isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-zinc-700 bg-zinc-800 text-white'
+                    }`}
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-zinc-400">Status no CRM</label>
+                  <label className={`text-xs font-semibold ${isLight ? 'text-slate-700' : 'text-zinc-300'}`}>Status no CRM</label>
                   <select
                     value={editingLead.status}
                     onChange={(e) => setEditingLead({ ...editingLead, status: e.target.value as LeadStatus })}
-                    className="w-full mt-1 rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2 text-xs text-white focus:outline-hidden cursor-pointer"
+                    className={`w-full mt-1 rounded-xl border px-3 py-2 text-xs focus:outline-none cursor-pointer ${
+                      isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-zinc-700 bg-zinc-800 text-white'
+                    }`}
                   >
                     <option value="new">Novo Lead</option>
                     <option value="qualified">Qualificado</option>
@@ -1711,18 +1729,20 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ onNavigateToCampaigns }) =
               </div>
 
               <div>
-                <label className="text-xs font-bold text-zinc-400">URL da Fonte / Rede Social</label>
+                <label className={`text-xs font-semibold ${isLight ? 'text-slate-700' : 'text-zinc-300'}`}>URL da Fonte / Rede Social</label>
                 <input
                   type="text"
                   value={editingLead.source_url || ''}
                   onChange={(e) => setEditingLead({ ...editingLead, source_url: e.target.value })}
                   placeholder="https://instagram.com/..."
-                  className="w-full mt-1 rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2 text-xs text-white focus:outline-hidden"
+                  className={`w-full mt-1 rounded-xl border px-3 py-2 text-xs focus:outline-none ${
+                    isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-zinc-700 bg-zinc-800 text-white'
+                  }`}
                 />
               </div>
 
               <div>
-                <label className="text-xs font-bold text-zinc-400">Tags (separadas por vírgula)</label>
+                <label className={`text-xs font-semibold ${isLight ? 'text-slate-700' : 'text-zinc-300'}`}>Tags (separadas por vírgula)</label>
                 <input
                   type="text"
                   value={(editingLead.tags || []).join(', ')}
@@ -1732,7 +1752,9 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ onNavigateToCampaigns }) =
                       tags: e.target.value.split(',').map((t) => t.trim()),
                     })
                   }
-                  className="w-full mt-1 rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2 text-xs text-white focus:outline-hidden"
+                  className={`w-full mt-1 rounded-xl border px-3 py-2 text-xs focus:outline-none ${
+                    isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-zinc-700 bg-zinc-800 text-white'
+                  }`}
                 />
               </div>
 
@@ -1742,18 +1764,20 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ onNavigateToCampaigns }) =
                   id="optout-edit"
                   checked={editingLead.opted_out}
                   onChange={(e) => setEditingLead({ ...editingLead, opted_out: e.target.checked })}
-                  className="h-4 w-4 rounded border-zinc-700 text-rose-600 focus:ring-rose-500 cursor-pointer"
+                  className="h-4 w-4 rounded border-slate-300 text-rose-600 focus:ring-rose-500 cursor-pointer"
                 />
-                <label htmlFor="optout-edit" className="text-xs text-zinc-300 cursor-pointer">
+                <label htmlFor="optout-edit" className={`text-xs cursor-pointer ${isLight ? 'text-slate-700' : 'text-zinc-300'}`}>
                   Marcar como Descadastrado (Opt-out)
                 </label>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
+              <div className={`flex items-center justify-end gap-2 pt-3 border-t ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
                 <button
                   type="button"
                   onClick={() => setIsEditModalOpen(false)}
-                  className="rounded-xl border border-zinc-700 px-4 py-2 text-xs font-semibold text-zinc-300 hover:bg-zinc-800 cursor-pointer"
+                  className={`rounded-xl border px-4 py-2 text-xs font-semibold cursor-pointer ${
+                    isLight ? 'border-slate-300 text-slate-700 hover:bg-slate-100' : 'border-zinc-700 text-zinc-300 hover:bg-zinc-800'
+                  }`}
                 >
                   Cancelar
                 </button>
@@ -1777,38 +1801,47 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ onNavigateToCampaigns }) =
               isLight ? 'border-slate-200 bg-white text-slate-900' : 'border-zinc-800 bg-zinc-900 text-white'
             }`}
           >
-            <div className="flex items-center justify-between mb-4">
+            <div className={`flex items-center justify-between pb-3 border-b ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
               <div className="flex items-center gap-2">
                 <Plus className="h-5 w-5 text-indigo-500" />
-                <h3 className="text-lg font-bold">Cadastrar Novo Lead</h3>
+                <h3 className={`text-lg font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>Cadastrar Novo Lead</h3>
               </div>
-              <button onClick={() => setIsAddModalOpen(false)} className="rounded-lg p-1 text-zinc-400 hover:bg-white/10">
+              <button
+                onClick={() => setIsAddModalOpen(false)}
+                className={`rounded-lg p-1 cursor-pointer transition-colors ${
+                  isLight ? 'text-slate-400 hover:text-slate-700' : 'text-zinc-400 hover:text-white'
+                }`}
+              >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveLead} className="space-y-3.5">
+            <form onSubmit={handleSaveLead} className="space-y-3.5 pt-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-zinc-400">Nome do Consumidor</label>
+                  <label className={`text-xs font-semibold ${isLight ? 'text-slate-700' : 'text-zinc-300'}`}>Nome do Consumidor</label>
                   <input
                     type="text"
                     value={newLead.name}
                     onChange={(e) => setNewLead({ ...newLead, name: e.target.value })}
                     placeholder="Ex: Carlos Martínez"
-                    className="w-full mt-1 rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2 text-xs text-white focus:outline-hidden"
+                    className={`w-full mt-1 rounded-xl border px-3 py-2 text-xs focus:outline-none ${
+                      isLight ? 'border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-indigo-500' : 'border-zinc-700 bg-zinc-800 text-white focus:ring-2 focus:ring-indigo-500'
+                    }`}
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-zinc-400">E-mail *</label>
+                  <label className={`text-xs font-semibold ${isLight ? 'text-slate-700' : 'text-zinc-300'}`}>E-mail *</label>
                   <input
                     type="email"
                     value={newLead.email}
                     onChange={(e) => setNewLead({ ...newLead, email: e.target.value })}
                     placeholder="carlos@gmail.com"
-                    className="w-full mt-1 rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2 text-xs text-white focus:outline-hidden"
+                    className={`w-full mt-1 rounded-xl border px-3 py-2 text-xs focus:outline-none ${
+                      isLight ? 'border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-indigo-500' : 'border-zinc-700 bg-zinc-800 text-white focus:ring-2 focus:ring-indigo-500'
+                    }`}
                     required
                   />
                 </div>
@@ -1816,45 +1849,53 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ onNavigateToCampaigns }) =
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-zinc-400">Clube / Comunidade</label>
+                  <label className={`text-xs font-semibold ${isLight ? 'text-slate-700' : 'text-zinc-300'}`}>Clube / Comunidade</label>
                   <input
                     type="text"
                     value={newLead.company_name}
                     onChange={(e) => setNewLead({ ...newLead, company_name: e.target.value })}
                     placeholder="Ex: Peña Madridista"
-                    className="w-full mt-1 rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2 text-xs text-white focus:outline-hidden"
+                    className={`w-full mt-1 rounded-xl border px-3 py-2 text-xs focus:outline-none ${
+                      isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-zinc-700 bg-zinc-800 text-white'
+                    }`}
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-zinc-400">WhatsApp / Telefone (+34)</label>
+                  <label className={`text-xs font-semibold ${isLight ? 'text-slate-700' : 'text-zinc-300'}`}>WhatsApp / Telefone (+34)</label>
                   <input
                     type="text"
                     value={newLead.phone}
                     onChange={(e) => setNewLead({ ...newLead, phone: e.target.value })}
                     placeholder="+34 612 345 678"
-                    className="w-full mt-1 rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2 text-xs text-white focus:outline-hidden"
+                    className={`w-full mt-1 rounded-xl border px-3 py-2 text-xs focus:outline-none ${
+                      isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-zinc-700 bg-zinc-800 text-white'
+                    }`}
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-zinc-400">Cidade (Espanha)</label>
+                  <label className={`text-xs font-semibold ${isLight ? 'text-slate-700' : 'text-zinc-300'}`}>Cidade (Espanha)</label>
                   <input
                     type="text"
                     value={newLead.city}
                     onChange={(e) => setNewLead({ ...newLead, city: e.target.value })}
-                    className="w-full mt-1 rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2 text-xs text-white focus:outline-hidden"
+                    className={`w-full mt-1 rounded-xl border px-3 py-2 text-xs focus:outline-none ${
+                      isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-zinc-700 bg-zinc-800 text-white'
+                    }`}
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-zinc-400">Status Inicial CRM</label>
+                  <label className={`text-xs font-semibold ${isLight ? 'text-slate-700' : 'text-zinc-300'}`}>Status Inicial CRM</label>
                   <select
                     value={newLead.status}
                     onChange={(e) => setNewLead({ ...newLead, status: e.target.value as LeadStatus })}
-                    className="w-full mt-1 rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2 text-xs text-white focus:outline-hidden cursor-pointer"
+                    className={`w-full mt-1 rounded-xl border px-3 py-2 text-xs focus:outline-none cursor-pointer ${
+                      isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-zinc-700 bg-zinc-800 text-white'
+                    }`}
                   >
                     <option value="new">Novo Lead</option>
                     <option value="qualified">Qualificado</option>
@@ -1863,21 +1904,25 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ onNavigateToCampaigns }) =
               </div>
 
               <div>
-                <label className="text-xs font-bold text-zinc-400">Tags (separadas por vírgula)</label>
+                <label className={`text-xs font-semibold ${isLight ? 'text-slate-700' : 'text-zinc-300'}`}>Tags (separadas por vírgula)</label>
                 <input
                   type="text"
                   value={newLead.tags}
                   onChange={(e) => setNewLead({ ...newLead, tags: e.target.value })}
                   placeholder="LaLiga, Instagram, Teste 24h"
-                  className="w-full mt-1 rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2 text-xs text-white focus:outline-hidden"
+                  className={`w-full mt-1 rounded-xl border px-3 py-2 text-xs focus:outline-none ${
+                    isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-zinc-700 bg-zinc-800 text-white'
+                  }`}
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
+              <div className={`flex items-center justify-end gap-2 pt-3 border-t ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="rounded-xl border border-zinc-700 px-4 py-2 text-xs font-semibold text-zinc-300 hover:bg-zinc-800 cursor-pointer"
+                  className={`rounded-xl border px-4 py-2 text-xs font-semibold cursor-pointer ${
+                    isLight ? 'border-slate-300 text-slate-700 hover:bg-slate-100' : 'border-zinc-700 text-zinc-300 hover:bg-zinc-800'
+                  }`}
                 >
                   Cancelar
                 </button>
@@ -1901,52 +1946,65 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ onNavigateToCampaigns }) =
               isLight ? 'border-slate-200 bg-white text-slate-900' : 'border-zinc-800 bg-zinc-900 text-white'
             }`}
           >
-            <div className="flex items-center justify-between mb-4">
+            <div className={`flex items-center justify-between pb-3 border-b ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
               <div className="flex items-center gap-2">
                 <BookmarkPlus className="h-5 w-5 text-purple-500" />
-                <h3 className="text-lg font-bold">Salvar Segmentação de Público</h3>
+                <h3 className={`text-lg font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>Salvar Segmentação de Público</h3>
               </div>
-              <button onClick={() => setIsAudienceModalOpen(false)} className="rounded-lg p-1 text-zinc-400 hover:bg-white/10">
+              <button
+                onClick={() => setIsAudienceModalOpen(false)}
+                className={`rounded-lg p-1 cursor-pointer transition-colors ${
+                  isLight ? 'text-slate-400 hover:text-slate-700' : 'text-zinc-400 hover:text-white'
+                }`}
+              >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="mb-4 rounded-xl bg-purple-500/10 border border-purple-500/20 p-3 text-xs text-purple-300">
-              <div className="font-bold text-purple-400">Total Pré-Calculado do Segmento:</div>
-              <div className="text-lg font-extrabold text-white mt-0.5">
+            <div className={`mb-4 rounded-xl border p-3 text-xs ${
+              isLight ? 'bg-purple-50 border-purple-200 text-purple-800' : 'bg-purple-500/10 border-purple-500/20 text-purple-300'
+            }`}>
+              <div className={`font-bold ${isLight ? 'text-purple-900' : 'text-purple-400'}`}>Total Pré-Calculado do Segmento:</div>
+              <div className={`text-lg font-extrabold mt-0.5 ${isLight ? 'text-purple-950' : 'text-white'}`}>
                 {filteredAndSortedLeads.length.toLocaleString()} Leads Prontos para Campanha
               </div>
             </div>
 
             <form onSubmit={handleSaveAudience} className="space-y-3.5">
               <div>
-                <label className="text-xs font-bold text-zinc-400">Nome do Público</label>
+                <label className={`text-xs font-semibold ${isLight ? 'text-slate-700' : 'text-zinc-300'}`}>Nome do Público</label>
                 <input
                   type="text"
                   value={audienceName}
                   onChange={(e) => setAudienceName(e.target.value)}
                   placeholder="Ex: Torcedores LaLiga Instagram - Madrid & Barcelona"
-                  className="w-full mt-1 rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2 text-xs text-white focus:outline-hidden focus:ring-2 focus:ring-purple-500"
+                  className={`w-full mt-1 rounded-xl border px-3 py-2 text-xs focus:outline-none ${
+                    isLight ? 'border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-purple-500' : 'border-zinc-700 bg-zinc-800 text-white focus:ring-2 focus:ring-purple-500'
+                  }`}
                   required
                 />
               </div>
 
               <div>
-                <label className="text-xs font-bold text-zinc-400">Descrição / Objetivo da Campanha</label>
+                <label className={`text-xs font-semibold ${isLight ? 'text-slate-700' : 'text-zinc-300'}`}>Descrição / Objetivo da Campanha</label>
                 <textarea
                   value={audienceDesc}
                   onChange={(e) => setAudienceDesc(e.target.value)}
                   placeholder="Ex: Disparo do template de 24h para aficionados de futebol na Espanha"
                   rows={3}
-                  className="w-full mt-1 rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2 text-xs text-white focus:outline-hidden"
+                  className={`w-full mt-1 rounded-xl border px-3 py-2 text-xs focus:outline-none ${
+                    isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-zinc-700 bg-zinc-800 text-white'
+                  }`}
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
+              <div className={`flex items-center justify-end gap-2 pt-3 border-t ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
                 <button
                   type="button"
                   onClick={() => setIsAudienceModalOpen(false)}
-                  className="rounded-xl border border-zinc-700 px-4 py-2 text-xs font-semibold text-zinc-300 hover:bg-zinc-800 cursor-pointer"
+                  className={`rounded-xl border px-4 py-2 text-xs font-semibold cursor-pointer ${
+                    isLight ? 'border-slate-300 text-slate-700 hover:bg-slate-100' : 'border-zinc-700 text-zinc-300 hover:bg-zinc-800'
+                  }`}
                 >
                   Cancelar
                 </button>
@@ -1970,12 +2028,17 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ onNavigateToCampaigns }) =
               isLight ? 'border-slate-200 bg-white text-slate-900' : 'border-zinc-800 bg-zinc-900 text-white'
             }`}
           >
-            <div className="flex items-center justify-between mb-4">
+            <div className={`flex items-center justify-between pb-3 border-b ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
               <div className="flex items-center gap-2">
                 <BookmarkPlus className="h-5 w-5 text-purple-500" />
-                <h3 className="text-lg font-bold">Públicos Segmentados Salvos ({audiences.length})</h3>
+                <h3 className={`text-lg font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>Públicos Segmentados Salvos ({audiences.length})</h3>
               </div>
-              <button onClick={() => setIsAudiencesListModalOpen(false)} className="rounded-lg p-1 text-zinc-400 hover:bg-white/10">
+              <button
+                onClick={() => setIsAudiencesListModalOpen(false)}
+                className={`rounded-lg p-1 cursor-pointer transition-colors ${
+                  isLight ? 'text-slate-400 hover:text-slate-700' : 'text-zinc-400 hover:text-white'
+                }`}
+              >
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -1985,7 +2048,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ onNavigateToCampaigns }) =
                 <div className="py-12 text-center text-zinc-500">
                   <BookmarkPlus className="h-8 w-8 mx-auto mb-2 opacity-30 text-purple-500" />
                   <p className="text-sm font-semibold">Nenhum público salvo ainda.</p>
-                  <p className="text-xs text-zinc-400">Filtre a galeria e clique em "Salvar Filtro como Público".</p>
+                  <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>Filtre a galeria e clique em "Salvar Filtro como Público".</p>
                 </div>
               ) : (
                 audiences.map((aud) => (
@@ -1996,10 +2059,10 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ onNavigateToCampaigns }) =
                     }`}
                   >
                     <div className="space-y-1">
-                      <div className="font-bold text-sm text-indigo-400">{aud.name}</div>
-                      {aud.description && <div className="text-xs text-zinc-400">{aud.description}</div>}
-                      <div className="flex items-center gap-2 text-[10px] text-zinc-500 pt-1">
-                        <span className="rounded bg-indigo-500/10 px-2 py-0.5 font-bold text-indigo-400">
+                      <div className="font-bold text-sm text-indigo-500">{aud.name}</div>
+                      {aud.description && <div className={`text-xs ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>{aud.description}</div>}
+                      <div className={`flex items-center gap-2 text-[10px] pt-1 ${isLight ? 'text-slate-500' : 'text-zinc-500'}`}>
+                        <span className="rounded bg-indigo-500/10 px-2 py-0.5 font-bold text-indigo-500">
                           {aud.lead_count ? aud.lead_count.toLocaleString() : 'Todos'} Leads
                         </span>
                         <span>Criado em {new Date(aud.created_at).toLocaleDateString()}</span>
@@ -2045,18 +2108,29 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ onNavigateToCampaigns }) =
               isLight ? 'border-slate-200 bg-white text-slate-900' : 'border-zinc-800 bg-zinc-900 text-white'
             }`}
           >
-            <div className="flex items-center justify-between mb-4">
+            <div className={`flex items-center justify-between pb-3 border-b ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
               <div className="flex items-center gap-2">
                 <Upload className="h-5 w-5 text-indigo-500" />
-                <h3 className="text-lg font-bold">Importar Lista de Leads (CSV)</h3>
+                <h3 className={`text-lg font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>Importar Lista de Leads (CSV)</h3>
               </div>
-              <button onClick={() => setIsImportModalOpen(false)} className="rounded-lg p-1 text-zinc-400 hover:bg-white/10">
+              <button
+                onClick={() => setIsImportModalOpen(false)}
+                className={`rounded-lg p-1 cursor-pointer transition-colors ${
+                  isLight ? 'text-slate-400 hover:text-slate-700' : 'text-zinc-400 hover:text-white'
+                }`}
+              >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="space-y-4">
-              <div className="rounded-xl border-2 border-dashed border-zinc-700 p-6 text-center hover:border-indigo-500 transition-colors">
+            <div className="space-y-4 pt-3">
+              <div
+                className={`rounded-xl border-2 border-dashed p-6 text-center transition-colors ${
+                  isLight
+                    ? 'border-slate-300 bg-slate-50 hover:bg-slate-100/80 hover:border-indigo-400'
+                    : 'border-zinc-700 bg-zinc-950/40 hover:border-indigo-500'
+                }`}
+              >
                 <input
                   type="file"
                   accept=".csv"
@@ -2066,21 +2140,27 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ onNavigateToCampaigns }) =
                 />
                 <label htmlFor="csv-upload" className="cursor-pointer flex flex-col items-center gap-2">
                   <Upload className="h-8 w-8 text-indigo-500" />
-                  <span className="text-xs font-semibold">Clique para selecionar arquivo .CSV</span>
-                  <span className="text-[10px] text-zinc-400">Colunas: Nome, Email, WhatsApp, Cidade, Clube</span>
+                  <span className={`text-xs font-semibold ${isLight ? 'text-slate-800' : 'text-white'}`}>Clique para selecionar arquivo .CSV</span>
+                  <span className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>Colunas: Nome, Email, WhatsApp, Cidade, Clube</span>
                 </label>
               </div>
 
               {csvFile && (
-                <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-xs text-indigo-300">
+                <div className={`p-3 rounded-xl border text-xs ${
+                  isLight ? 'bg-indigo-50 border-indigo-200 text-indigo-800' : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300'
+                }`}>
                   <span className="font-bold">Arquivo selecionado:</span> {csvFile.name}
                 </div>
               )}
 
               {csvPreviewData.length > 0 && (
-                <div className="text-[11px] text-zinc-400 space-y-1">
-                  <div className="font-bold text-zinc-300">Prévia das primeiras linhas:</div>
-                  <div className="max-h-24 overflow-y-auto rounded-lg bg-zinc-950 p-2 font-mono text-[10px]">
+                <div className="text-[11px] space-y-1">
+                  <div className={`font-bold ${isLight ? 'text-slate-700' : 'text-zinc-300'}`}>Prévia das primeiras linhas:</div>
+                  <div
+                    className={`max-h-24 overflow-y-auto rounded-lg p-2 font-mono text-[10px] border ${
+                      isLight ? 'bg-slate-100 border-slate-200 text-slate-800' : 'bg-zinc-950 border-zinc-800 text-zinc-300'
+                    }`}
+                  >
                     {csvPreviewData.map((row, i) => (
                       <div key={i} className="truncate">
                         {row.Nome || row.name || 'Sem nome'} • {row.Email || row.email}
@@ -2090,11 +2170,13 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ onNavigateToCampaigns }) =
                 </div>
               )}
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-800">
+              <div className={`flex items-center justify-end gap-2 pt-2 border-t ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
                 <button
                   type="button"
                   onClick={() => setIsImportModalOpen(false)}
-                  className="rounded-xl border border-zinc-700 px-4 py-2 text-xs font-semibold text-zinc-300 hover:bg-zinc-800 cursor-pointer"
+                  className={`rounded-xl border px-4 py-2 text-xs font-semibold cursor-pointer ${
+                    isLight ? 'border-slate-300 text-slate-700 hover:bg-slate-100' : 'border-zinc-700 text-zinc-300 hover:bg-zinc-800'
+                  }`}
                 >
                   Cancelar
                 </button>
@@ -2119,17 +2201,22 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ onNavigateToCampaigns }) =
               isLight ? 'border-slate-200 bg-white text-slate-900' : 'border-zinc-800 bg-zinc-900 text-white'
             }`}
           >
-            <div className="flex items-center justify-between mb-4">
+            <div className={`flex items-center justify-between pb-3 border-b ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
               <div className="flex items-center gap-2">
                 <Settings className="h-5 w-5 text-indigo-500" />
-                <h3 className="text-lg font-bold">Customizar Etapas do Funil (Kanban)</h3>
+                <h3 className={`text-lg font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>Customizar Etapas do Funil (Kanban)</h3>
               </div>
-              <button onClick={() => setIsStagesModalOpen(false)} className="rounded-lg p-1 text-zinc-400 hover:bg-white/10">
+              <button
+                onClick={() => setIsStagesModalOpen(false)}
+                className={`rounded-lg p-1 cursor-pointer transition-colors ${
+                  isLight ? 'text-slate-400 hover:text-slate-700' : 'text-zinc-400 hover:text-white'
+                }`}
+              >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="space-y-3 max-h-[350px] overflow-y-auto scrollbar-thin">
+            <div className="space-y-3 max-h-[350px] overflow-y-auto scrollbar-thin pt-3">
               {crmStages.map((stg, index) => (
                 <div
                   key={stg.id}
@@ -2138,7 +2225,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ onNavigateToCampaigns }) =
                   }`}
                 >
                   <div className="flex items-center gap-2 flex-1">
-                    <span className="text-xs font-bold text-zinc-500">#{index + 1}</span>
+                    <span className={`text-xs font-bold ${isLight ? 'text-slate-400' : 'text-zinc-500'}`}>#{index + 1}</span>
                     <input
                       type="text"
                       value={stg.name}
@@ -2148,7 +2235,9 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ onNavigateToCampaigns }) =
                           prev.map((s) => (s.id === stg.id ? { ...s, name: newName } : s))
                         );
                       }}
-                      className="flex-1 rounded-lg border border-zinc-700 bg-zinc-800 px-2.5 py-1 text-xs text-white focus:outline-hidden"
+                      className={`flex-1 rounded-lg border px-2.5 py-1 text-xs focus:outline-none ${
+                        isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-zinc-700 bg-zinc-800 text-white'
+                      }`}
                     />
                   </div>
                   <div className={`h-4 w-4 rounded-full bg-gradient-to-r ${stg.color}`} />
@@ -2156,7 +2245,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ onNavigateToCampaigns }) =
               ))}
             </div>
 
-            <div className="flex items-center justify-between pt-4 border-t border-zinc-800 mt-4">
+            <div className={`flex items-center justify-between pt-4 border-t mt-4 ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
               <button
                 type="button"
                 onClick={() => {
@@ -2164,7 +2253,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ onNavigateToCampaigns }) =
                   localStorage.removeItem('universa_crm_stages');
                   setNotification({ type: 'success', message: 'Etapas restauradas para o padrão!' });
                 }}
-                className="text-xs text-zinc-400 hover:text-zinc-200 underline cursor-pointer"
+                className={`text-xs underline cursor-pointer ${isLight ? 'text-slate-500 hover:text-slate-900' : 'text-zinc-400 hover:text-zinc-200'}`}
               >
                 Restaurar Padrão
               </button>
