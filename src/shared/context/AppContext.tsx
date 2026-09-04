@@ -30,6 +30,7 @@ import {
   getLeadsFromIndexedDb,
   clearAllIndexedDb,
 } from '../services/indexedDbService';
+import { OFFICIAL_UNIVERSA_TEMPLATES } from '../constants/templatesData';
 
 export type AppTheme = 'dark' | 'light';
 
@@ -86,6 +87,7 @@ interface AppContextType {
   addTemplate: (template: Omit<MarketingTemplate, 'id' | 'tenant_id' | 'created_at' | 'updated_at'>) => Promise<MarketingTemplate>;
   updateTemplate: (id: string, updates: Partial<MarketingTemplate>) => Promise<void>;
   deleteTemplate: (id: string) => Promise<void>;
+  resetTemplatesToOfficial: () => Promise<void>;
   
   // Campaigns
   campaigns: MarketingCampaign[];
@@ -170,116 +172,10 @@ const DEFAULT_TENANT: Tenant = {
   marketing_sender_email: 'carlos_ventas@mail.universatv.com',
   sender_name: 'Carlos Ventas - Universa TV España',
   gemini_api_key: import.meta.env.VITE_GEMINI_API_KEY || '',
-  whatsapp_support_number: '+34 600 000 000',
+  whatsapp_support_number: '+34 617 59 84 21',
   created_at: new Date().toISOString(),
 };
 
-const INITIAL_TEMPLATES: MarketingTemplate[] = [
-  {
-    id: 'tmpl_laliga_24h_es',
-    tenant_id: '00000000-0000-0000-0000-000000000001',
-    title: '⚽ [ES] LaLiga & Fútbol - Prueba de 24 Horas Gratis',
-    subject: '⚽ ¿Ver todo el fútbol y Champions sin pagar 120€/mes? (Test 24 Horas Gratis)',
-    category: 'b2c_es',
-    html_content: `<div style="font-family: Arial, Helvetica, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; color: #18181b; line-height: 1.6; padding: 24px; border-radius: 8px; border: 1px solid #e4e4e7;">
-  <div style="text-align: center; margin-bottom: 24px;">
-    <h2 style="color: #4f46e5; margin: 0; font-size: 22px;">⚽ Universa TV España</h2>
-    <p style="color: #71717a; font-size: 14px; margin-top: 4px;">Toda LaLiga, Champions League, DAZN y +8.000 Canales en 4K</p>
-  </div>
-
-  <p>Hola <strong>{{nome}}</strong>,</p>
-  <p>Sabemos que pagar más de <strong>120€ al mes</strong> en plataformas de televisión para ver el fútbol y tus series favoritas es excesivo.</p>
-  <p>Por eso, queremos que pruebes nuestro servicio <strong>completamente gratis durante 24 Horas</strong> en tu Smart TV, Fire Stick, Móvil o Tablet antes de decidir nada:</p>
-
-  <div style="background-color: #f8fafc; border: 2px dashed #6366f1; border-radius: 8px; padding: 18px; margin: 24px 0; text-align: center;">
-    <h3 style="margin: 0 0 10px 0; color: #1e293b; font-size: 17px;">🎁 Tu Prueba Gratuita de 24 Horas</h3>
-    <p style="font-size: 13px; color: #64748b; margin-bottom: 16px;">Sin cortes, calidad Full HD/4K real y soporte en español 24/7.</p>
-    <a href="https://api.whatsapp.com/send?phone=34600000000&text=Hola,%20quiero%20activar%20mi%20prueba%20gratis%20de%2024%20horas" style="background-color: #22c55e; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 15px; display: inline-block;">👉 Activar Mi Prueba de 24 Horas por WhatsApp</a>
-  </div>
-
-  <div style="background-color: #f1f5f9; padding: 16px; border-radius: 6px; margin: 20px 0;">
-    <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #334155;">Nuestros Planes Oficiales en España:</h4>
-    <ul style="margin: 0; padding-left: 20px; font-size: 13px; color: #475569;">
-      <li><strong>Mensual:</strong> 9,50€ / mes</li>
-      <li><strong>Trimestral:</strong> 25€ (Ahorras 15%)</li>
-      <li><strong>Semestral:</strong> 40€ (Ahorras 30%)</li>
-      <li><strong>Anual:</strong> 70€ (Menos de 6€ al mes - ¡Super Oferta!)</li>
-    </ul>
-  </div>
-
-  <p style="font-size: 13px; color: #64748b; margin-top: 24px;">¿Tienes alguna pregunta? Respóndenos a este e-mail o escríbenos directo por WhatsApp.<br><strong>Carlos Ventas - Universa TV España</strong></p>
-</div>`,
-    variables: ['{{nome}}', '{{cidade}}', '{{link_descadastro}}'],
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: 'tmpl_cine_24h_es',
-    tenant_id: '00000000-0000-0000-0000-000000000001',
-    title: '🎬 [ES] Cine, Series y +8.000 Canales - Test 24 Horas',
-    subject: '🎬 Todos los estrenos de cine, series y TV en 4K - Prueba 24 Horas Gratis',
-    category: 'b2c_es',
-    html_content: `<div style="font-family: Arial, Helvetica, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; color: #18181b; line-height: 1.6; padding: 24px; border-radius: 8px; border: 1px solid #e4e4e7;">
-  <div style="text-align: center; margin-bottom: 20px;">
-    <h2 style="color: #6366f1; margin: 0; font-size: 22px;">🍿 Cine & Series en 4K en Casa</h2>
-    <p style="color: #71717a; font-size: 14px;">Netflix, HBO Max, Disney+, SkyShowtime y +8.000 Canales en una sola app</p>
-  </div>
-
-  <p>Hola <strong>{{nome}}</strong>,</p>
-  <p>¿Cansado de pagar múltiples suscripciones mensuales que suman más de 60€ al mes? En <strong>Universa TV</strong> tienes todas las plataformas, canales de cine 24/7 y estrenos de cartelera unificados en tu Smart TV o Fire Stick.</p>
-
-  <p style="text-align: center; margin: 28px 0;">
-    <a href="https://api.whatsapp.com/send?phone=34600000000&text=Hola,%20quiero%20probar%20Universa%20TV%20por%2024%20horas" style="background-color: #4f46e5; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 15px; display: inline-block;">🍿 Solicitar Test de 24 Horas Gratis</a>
-  </p>
-
-  <div style="border-top: 1px solid #e2e8f0; padding-top: 16px; font-size: 13px; color: #475569;">
-    <p style="margin: 0 0 6px 0;"><strong>Planes Disponibles:</strong></p>
-    <p style="margin: 0;">• Mensual: <strong>9.50€</strong> | Trimestral: <strong>25€</strong> | Semestral: <strong>40€</strong> | Anual: <strong>70€</strong></p>
-  </div>
-</div>`,
-    variables: ['{{nome}}', '{{cidade}}', '{{link_descadastro}}'],
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: 'tmpl_brasil_tv_24h_br',
-    tenant_id: '00000000-0000-0000-0000-000000000001',
-    title: '⚽ [BR] Brasileirão, Premiere & +8.000 Canais - Teste 24 Horas Grátis',
-    subject: '⚽ Brasileirão, Premiere e Filmes 4K sem travar (Seu Teste 24 Horas Grátis)',
-    category: 'b2c_br',
-    html_content: `<div style="font-family: Arial, Helvetica, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; color: #18181b; line-height: 1.6; padding: 24px; border-radius: 8px; border: 1px solid #e4e4e7;">
-  <div style="text-align: center; margin-bottom: 24px;">
-    <h2 style="color: #16a34a; margin: 0; font-size: 22px;">⚽ Universa TV Brasil</h2>
-    <p style="color: #71717a; font-size: 14px; margin-top: 4px;">Brasileirão Série A, Libertadores, Premiere e +8.000 Canais em 4K</p>
-  </div>
-
-  <p>Olá <strong>{{nome}}</strong>,</p>
-  <p>Cansado de pagar mais de <strong>R$ 250 por mês</strong> em operadoras de TV para assistir ao Brasileirão e seus canais favoritos cheios de travamentos?</p>
-  <p>Na <strong>Universa TV</strong> liberamos um <strong>Teste Gratuito de 24 Horas</strong> para você testar na sua Smart TV, TV Box, Firestick, Celular ou Computador antes de contratar qualquer plano:</p>
-
-  <div style="background-color: #f0fdf4; border: 2px dashed #22c55e; border-radius: 8px; padding: 18px; margin: 24px 0; text-align: center;">
-    <h3 style="margin: 0 0 10px 0; color: #15803d; font-size: 17px;">🎁 Seu Teste de 24 Horas Liberado</h3>
-    <p style="font-size: 13px; color: #166534; margin-bottom: 16px;">Sem travas, servidor dedicado com qualidade Full HD/4K e suporte 24/7 no WhatsApp.</p>
-    <a href="https://api.whatsapp.com/send?phone=5511999999999&text=Ola,%20quero%20ativar%20meu%20teste%20gratis%20de%2024%20horas" style="background-color: #22c55e; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 15px; display: inline-block;">👉 Ativar Teste de 24 Horas no WhatsApp</a>
-  </div>
-
-  <div style="background-color: #f8fafc; padding: 16px; border-radius: 6px; margin: 20px 0;">
-    <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #334155;">Nossos Planos Promocionais no Brasil:</h4>
-    <ul style="margin: 0; padding-left: 20px; font-size: 13px; color: #475569;">
-      <li><strong>Mensal:</strong> R$ 29,90 / mês</li>
-      <li><strong>Trimestral:</strong> R$ 75,00 (Economia de 16%)</li>
-      <li><strong>Semestral:</strong> R$ 120,00 (Economia de 33%)</li>
-      <li><strong>Anual:</strong> R$ 199,00 (Menos de R$ 17 por mês!)</li>
-    </ul>
-  </div>
-
-  <p style="font-size: 13px; color: #64748b; margin-top: 24px;">Tem alguma dúvida? Basta responder a este e-mail ou falar direto conosco no WhatsApp.<br><strong>Jackson Vendas - Equipe Universa TV Brasil</strong></p>
-</div>`,
-    variables: ['{{nome}}', '{{cidade}}', '{{link_descadastro}}'],
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-];
 
 const MOCK_EMAILS_TO_PURGE = new Set([
   'carlos.silveira@nexuslog.com.br',
@@ -447,13 +343,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
-  // Templates State
+  // Templates State (Garante presença e atualização de todos os templates oficiais da UniversaTV)
   const [templates, setTemplates] = useState<MarketingTemplate[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.TEMPLATES);
-      return saved ? JSON.parse(saved) : INITIAL_TEMPLATES;
+      if (saved) {
+        const parsed: MarketingTemplate[] = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const officialMap = new Map(OFFICIAL_UNIVERSA_TEMPLATES.map((t) => [t.id, t]));
+          const userTemplates = parsed.filter(
+            (t) =>
+              !officialMap.has(t.id) &&
+              t.id !== 'tmpl_laliga_24h_es' &&
+              t.id !== 'tmpl_cine_24h_es'
+          );
+          const fullList = [...OFFICIAL_UNIVERSA_TEMPLATES, ...userTemplates];
+          safeStorageSet(STORAGE_KEYS.TEMPLATES, fullList);
+          return fullList;
+        }
+      }
+      safeStorageSet(STORAGE_KEYS.TEMPLATES, OFFICIAL_UNIVERSA_TEMPLATES);
+      return OFFICIAL_UNIVERSA_TEMPLATES;
     } catch {
-      return INITIAL_TEMPLATES;
+      return OFFICIAL_UNIVERSA_TEMPLATES;
     }
   });
 
@@ -1136,6 +1048,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTemplates((prev) => prev.filter((t) => t.id !== id));
   };
 
+  const resetTemplatesToOfficial = async () => {
+    setTemplates(OFFICIAL_UNIVERSA_TEMPLATES);
+    safeStorageSet(STORAGE_KEYS.TEMPLATES, OFFICIAL_UNIVERSA_TEMPLATES);
+  };
+
   // Campaign Operations
   const createCampaign = async (
     campaignData: Omit<MarketingCampaign, 'id' | 'tenant_id' | 'created_at' | 'updated_at' | 'sent_count' | 'delivered_count' | 'opened_count' | 'clicked_count' | 'bounced_count' | 'failed_count'>,
@@ -1313,6 +1230,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addTemplate,
         updateTemplate,
         deleteTemplate,
+        resetTemplatesToOfficial,
         campaigns,
         campaignQueue,
         createCampaign,

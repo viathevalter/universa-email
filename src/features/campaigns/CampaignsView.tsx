@@ -20,6 +20,7 @@ import {
   Sparkles,
   Mail,
   SlidersHorizontal,
+  RotateCcw,
 } from 'lucide-react';
 import { useApp, VERIFIED_SENDERS } from '../../shared/context/AppContext';
 import type { MarketingTemplate, SavedAudience, Lead, LeadStatus } from '../../types';
@@ -242,6 +243,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
     addTemplate,
     updateTemplate,
     deleteTemplate,
+    resetTemplatesToOfficial,
     addAudience,
     deleteAudience,
     theme,
@@ -1208,6 +1210,32 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
       {/* ========================================================================= */}
       {activeSubTab === 'templates' && (
         <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-slate-100 dark:border-zinc-800">
+            <div>
+              <h2 className={`text-base font-bold flex items-center gap-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                Templates Oficiais UniversaTV ({templates.length})
+              </h2>
+              <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
+                Templates de alta conversão em espanhol com botões para WhatsApp (+34 617 59 84 21) e prova de 24h.
+              </p>
+            </div>
+            <button
+              onClick={async () => {
+                if (window.confirm('Carregar e restaurar todos os 8 templates oficiais de alta conversão da UniversaTV?')) {
+                  await resetTemplatesToOfficial();
+                }
+              }}
+              className={`inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-1.5 text-xs font-semibold cursor-pointer transition-all ${
+                isLight
+                  ? 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50 shadow-xs'
+                  : 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800'
+              }`}
+            >
+              <RotateCcw className="h-3.5 w-3.5 text-amber-500" />
+              Restaurar Templates Oficiais UniversaTV
+            </button>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {templates.map((tmpl) => (
               <div

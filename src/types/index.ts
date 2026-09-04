@@ -136,9 +136,21 @@ export interface MarketingTemplate {
   title: string;
   subject: string;
   html_content: string;
-  preview_text?: string;
   variables: string[];
-  category?: 'b2c_es' | 'b2c_pt' | 'b2c_br' | 'b2b' | 'followup';
+  category?:
+    | 'b2c_es'
+    | 'b2c_pt'
+    | 'b2c_br'
+    | 'b2b'
+    | 'followup'
+    | 'futbol_laliga'
+    | 'real_madrid'
+    | 'barcelona'
+    | 'motores_f1'
+    | 'cine_series'
+    | 'latinos_europa'
+    | 'multidispositivo'
+    | string;
   created_at: string;
   updated_at: string;
 }

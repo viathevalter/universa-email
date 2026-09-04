@@ -39,10 +39,33 @@ export function interpolateEmailVariables(template: string, lead: Lead, appBaseU
   }
 
   // Adiciona rodapé de opt-out automático caso não exista no template
-  if (!content.includes('opt-out') && !content.includes('descadastro')) {
-    const optOutFooter = `
+  const lower = content.toLowerCase();
+  const alreadyHasOptOut =
+    lower.includes('opt-out') ||
+    lower.includes('descadastro') ||
+    lower.includes('darse de baja') ||
+    lower.includes('cancelar suscripci') ||
+    lower.includes('unsubscribe') ||
+    lower.includes('rgpd');
+
+  if (!alreadyHasOptOut) {
+    const isSpanish =
+      lower.includes('hola') ||
+      lower.includes('laliga') ||
+      lower.includes('españa') ||
+      lower.includes('prueba') ||
+      lower.includes('películas');
+
+    const optOutFooter = isSpanish
+      ? `
+      <div style="margin-top: 32px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #71717a; text-align: center;">
+        <p>Has recibido este correo informativo sobre entretenimiento y televisión en España.</p>
+        <p>Si no deseas recibir más avisos de pruebas gratuitas, <a href="${replacements['{{link_descadastro}}']}" style="color: #ea580c; text-decoration: underline;">haz clic aquí para darte de baja</a>.</p>
+      </div>
+    `
+      : `
       <div style="margin-top: 32px; padding-top: 16px; border-top: 1px solid #e4e4e7; font-size: 11px; color: #71717a; text-align: center;">
-        <p>Você recebeu esta mensagem porque sua empresa foi selecionada para contato profissional B2B.</p>
+        <p>Você recebeu esta mensagem porque demonstrou interesse em canais de TV e streaming.</p>
         <p>Caso não deseje mais receber nossos e-mails, <a href="${replacements['{{link_descadastro}}']}" style="color: #6366f1; text-decoration: underline;">clique aqui para descadastrar-se</a>.</p>
       </div>
     `;

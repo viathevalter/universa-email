@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   FileCode,
   Plus,
@@ -10,13 +10,24 @@ import {
   Tag,
   Copy,
   Check,
+  RotateCcw,
+  Sparkles,
+  Search,
 } from 'lucide-react';
 import { useApp } from '../../shared/context/AppContext';
 import { interpolateEmailVariables } from '../../shared/services/resendService';
 import type { MarketingTemplate, Lead } from '../../types';
 
 export const TemplatesView: React.FC = () => {
-  const { templates, addTemplate, updateTemplate, deleteTemplate, leads, theme } = useApp();
+  const {
+    templates,
+    addTemplate,
+    updateTemplate,
+    deleteTemplate,
+    resetTemplatesToOfficial,
+    leads,
+    theme,
+  } = useApp();
 
   const isLight = theme === 'light';
 
@@ -26,6 +37,9 @@ export const TemplatesView: React.FC = () => {
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
   const [copiedTag, setCopiedTag] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isResetting, setIsResetting] = useState(false);
 
   const activeTemplate = templates.find((t) => t.id === selectedTemplateId) || templates[0];
 
@@ -35,6 +49,17 @@ export const TemplatesView: React.FC = () => {
     subject: activeTemplate?.subject || '',
     html_content: activeTemplate?.html_content || '',
   });
+
+  // Keep form in sync when activeTemplate changes
+  useEffect(() => {
+    if (activeTemplate && !isCreatingNew) {
+      setFormData({
+        title: activeTemplate.title,
+        subject: activeTemplate.subject,
+        html_content: activeTemplate.html_content,
+      });
+    }
+  }, [activeTemplate?.id, isCreatingNew]);
 
   // Sample Lead for Live Preview interpolation
   const sampleLead: Lead = leads[0] || {
@@ -61,19 +86,53 @@ export const TemplatesView: React.FC = () => {
   const dynamicTags = [
     { tag: '{{nome}}', label: 'Nome do Destinatário', example: sampleLead.name },
     { tag: '{{cidade}}', label: 'Cidade / Região', example: sampleLead.city },
-    { tag: '{{link_descadastro}}', label: 'Link de Opt-out Seguro', example: 'https://universaemail.com/opt-out' },
+    { tag: '{{pais}}', label: 'País', example: sampleLead.country },
+    { tag: '{{link_descadastro}}', label: 'Link de Cancelamento / Opt-out (RGPD)', example: 'https://universaemail.com/opt-out' },
   ];
+
+  const categories = [
+    { id: 'all', label: 'Todos os Templates' },
+    { id: 'futbol_laliga', label: '⚽ LaLiga & Futebol' },
+    { id: 'real_madrid', label: '👑 Real Madrid' },
+    { id: 'barcelona', label: '🔵🔴 FC Barcelona' },
+    { id: 'motores_f1', label: '🏎️ F1 & Motores' },
+    { id: 'cine_series', label: '🎬 Cine & Series' },
+    { id: 'latinos_europa', label: '🌎 Latinos na Europa' },
+    { id: 'multidispositivo', label: '📺 Multidispositivo' },
+    { id: 'b2c_br', label: '🇧🇷 Brasil & Brasileirão' },
+  ];
+
+  const filteredTemplates = templates.filter((t) => {
+    const matchesCategory =
+      selectedCategory === 'all' ||
+      t.category === selectedCategory ||
+      (selectedCategory === 'futbol_laliga' && (t.title.includes('LaLiga') || t.title.includes('Fútbol'))) ||
+      (selectedCategory === 'real_madrid' && t.title.includes('Real Madrid')) ||
+      (selectedCategory === 'barcelona' && (t.title.includes('Barça') || t.title.includes('Barcelona'))) ||
+      (selectedCategory === 'motores_f1' && (t.title.includes('Fórmula 1') || t.title.includes('MotoGP'))) ||
+      (selectedCategory === 'cine_series' && (t.title.includes('Cine') || t.title.includes('Series'))) ||
+      (selectedCategory === 'latinos_europa' && (t.title.includes('Latinos') || t.title.includes('Latino'))) ||
+      (selectedCategory === 'multidispositivo' && t.title.includes('Multidispositivo')) ||
+      (selectedCategory === 'b2c_br' && (t.title.includes('[BR]') || t.title.includes('Brasil')));
+
+    const matchesSearch =
+      !searchTerm ||
+      t.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      t.subject.toLowerCase().includes(searchTerm.toLowerCase());
+
+    return matchesCategory && matchesSearch;
+  });
 
   const handleStartCreate = () => {
     setIsCreatingNew(true);
     setFormData({
-      title: 'Novo Template de Prospecção',
-      subject: 'Oportunidade para a {{empresa}}',
+      title: 'Novo Template UniversaTV',
+      subject: '⚽ Ver contenido en 4K sin cortes (Prueba 24 Horas Gratis)',
       html_content: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #18181b; line-height: 1.6; padding: 20px;">
-  <p>Olá <strong>{{nome}}</strong>,</p>
-  <p>Espero que este e-mail o encontre bem. Acompanho o trabalho da <strong>{{empresa}}</strong> em {{cidade}} e gostaria de compartilhar uma solução para otimizar seus resultados.</p>
-  <p>Podemos agendar uma breve conversa de 10 minutos?</p>
-  <p>Atenciosamente,<br><strong>Equipe Comercial</strong></p>
+  <p>Hola <strong>{{nome}}</strong>,</p>
+  <p>¿Cansado de pagar de más por la televisión? En <strong>UniversaTV</strong> tienes acceso completo en 4K.</p>
+  <p>Pide tu prueba gratis de 24 horas por WhatsApp sin compromiso.</p>
+  <p>Atentamente,<br><strong>Carlos Ventas - UniversaTV España</strong></p>
 </div>`,
     });
   };
@@ -119,9 +178,35 @@ export const TemplatesView: React.FC = () => {
     setTimeout(() => setCopiedTag(null), 1500);
   };
 
+  const handleResetToOfficial = async () => {
+    if (
+      window.confirm(
+        'Deseja carregar e restaurar o pacote oficial com os 8 templates de alta conversão da UniversaTV?'
+      )
+    ) {
+      setIsResetting(true);
+      await resetTemplatesToOfficial();
+      setTimeout(() => {
+        setIsResetting(false);
+        if (templates[0]) {
+          setSelectedTemplateId(templates[0].id);
+        }
+      }, 300);
+    }
+  };
+
   // Interpolated Preview Content
   const previewSubject = interpolateEmailVariables(formData.subject, sampleLead);
   const previewHtml = interpolateEmailVariables(formData.html_content, sampleLead);
+
+  const isBrazilTemplate =
+    activeTemplate?.category === 'b2c_br' ||
+    formData.title.includes('[BR]') ||
+    formData.title.includes('Brasil');
+
+  const senderPreview = isBrazilTemplate
+    ? 'Jackson Vendas - Universa TV Brasil <jackson_vendas@mail.universatv.com>'
+    : 'Carlos Ventas - Universa TV España <carlos_ventas@mail.universatv.com>';
 
   return (
     <div className="space-y-6">
@@ -130,29 +215,45 @@ export const TemplatesView: React.FC = () => {
         <div>
           <div className="flex items-center gap-2">
             <h1 className={`text-2xl font-bold tracking-tight flex items-center gap-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
-              <FileCode className="h-6 w-6 text-indigo-500" />
-              Editor de Templates & Variáveis Dinâmicas
+              <FileCode className="h-6 w-6 text-orange-500" />
+              Templates de Alta Conversão UniversaTV
             </h1>
             <span
               className={`rounded-full px-2.5 py-0.5 text-xs font-semibold border ${
-                isLight ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
+                isLight ? 'bg-orange-50 text-orange-700 border-orange-200' : 'bg-orange-500/10 text-orange-400 border-orange-500/20'
               }`}
             >
               {templates.length} Modelos
             </span>
           </div>
           <p className={`text-sm mt-1 ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>
-            Crie emails altamente personalizados com tags dinâmicas e teste a renderização em tempo real para Desktop e Mobile.
+            Templates formatados para máxima entrega na caixa de entrada (Gmail, Outlook) com textos de alta conversão e CTA para WhatsApp.
           </p>
         </div>
 
-        <button
-          onClick={handleStartCreate}
-          className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-2.5 text-xs font-semibold text-white shadow-lg shadow-indigo-500/20 hover:opacity-95 transition-all cursor-pointer"
-        >
-          <Plus className="h-4 w-4" />
-          Novo Template
-        </button>
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={handleResetToOfficial}
+            disabled={isResetting}
+            title="Recarrega todos os 8 templates oficiais da UniversaTV com logo e links atualizados"
+            className={`inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-xs font-semibold transition-all cursor-pointer ${
+              isLight
+                ? 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50 shadow-xs'
+                : 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800'
+            }`}
+          >
+            <RotateCcw className={`h-3.5 w-3.5 text-orange-500 ${isResetting ? 'animate-spin' : ''}`} />
+            Restaurar Oficiais
+          </button>
+
+          <button
+            onClick={handleStartCreate}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-orange-500/20 hover:opacity-95 transition-all cursor-pointer"
+          >
+            <Plus className="h-4 w-4" />
+            Novo Template
+          </button>
+        </div>
       </div>
 
       {/* Main Grid: Sidebar + Editor + Live Preview */}
@@ -164,11 +265,50 @@ export const TemplatesView: React.FC = () => {
               isLight ? 'border-slate-200 bg-white' : 'border-zinc-800 bg-zinc-900/60'
             }`}
           >
-            <h2 className={`text-xs font-bold uppercase tracking-wider mb-3 ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>
-              Seus Templates
-            </h2>
-            <div className="space-y-2">
-              {templates.map((tmpl) => {
+            <div className="flex items-center justify-between mb-2">
+              <h2 className={`text-xs font-bold uppercase tracking-wider ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>
+                Segmentos UniversaTV
+              </h2>
+              <span className="text-[11px] text-orange-500 font-semibold flex items-center gap-1">
+                <Sparkles className="h-3 w-3" /> 4K & WhatsApp
+              </span>
+            </div>
+
+            {/* Filter Search */}
+            <div className="relative mb-3">
+              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Buscar template..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className={`w-full rounded-lg pl-8 pr-2.5 py-1.5 text-xs border focus:outline-none ${
+                  isLight ? 'border-slate-200 bg-slate-50 text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
+                }`}
+              />
+            </div>
+
+            {/* Category Pill Selector */}
+            <div className="flex flex-wrap gap-1 mb-3">
+              {categories.slice(0, 5).map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setSelectedCategory(cat.id)}
+                  className={`text-[10px] px-2 py-0.5 rounded-md font-medium transition-all cursor-pointer ${
+                    selectedCategory === cat.id
+                      ? 'bg-orange-500 text-white shadow-xs'
+                      : isLight
+                      ? 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="space-y-2 max-h-[460px] overflow-y-auto scrollbar-thin pr-0.5">
+              {filteredTemplates.map((tmpl) => {
                 const isSelected = tmpl.id === selectedTemplateId && !isCreatingNew;
                 return (
                   <div
@@ -177,31 +317,35 @@ export const TemplatesView: React.FC = () => {
                     className={`rounded-xl border p-3 cursor-pointer transition-all ${
                       isSelected
                         ? isLight
-                          ? 'border-indigo-400 bg-indigo-50/70 shadow-xs'
-                          : 'border-indigo-500/50 bg-indigo-500/10 shadow-xs'
+                          ? 'border-orange-400 bg-orange-50/70 shadow-xs ring-1 ring-orange-400/40'
+                          : 'border-orange-500/50 bg-orange-500/10 shadow-xs ring-1 ring-orange-500/30'
                         : isLight
                         ? 'border-slate-200 bg-slate-50 hover:bg-slate-100'
                         : 'border-zinc-800/80 bg-zinc-950/40 hover:bg-zinc-800/40'
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <h3 className={`font-semibold text-xs truncate ${isSelected ? 'text-indigo-600' : isLight ? 'text-slate-800' : 'text-zinc-200'}`}>
+                      <h3 className={`font-semibold text-xs truncate ${isSelected ? 'text-orange-600 dark:text-orange-400 font-bold' : isLight ? 'text-slate-800' : 'text-zinc-200'}`}>
                         {tmpl.title}
                       </h3>
                       {templates.length > 1 && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            deleteTemplate(tmpl.id);
+                            if (window.confirm(`Excluir o template "${tmpl.title}"?`)) {
+                              deleteTemplate(tmpl.id);
+                            }
                           }}
-                          className={`opacity-60 hover:opacity-100 transition-opacity p-1 ${isLight ? 'text-slate-400 hover:text-rose-600' : 'text-zinc-500 hover:text-rose-400'}`}
+                          className={`opacity-40 hover:opacity-100 transition-opacity p-1 ${isLight ? 'text-slate-400 hover:text-rose-600' : 'text-zinc-500 hover:text-rose-400'}`}
                           title="Excluir"
                         >
                           <Trash2 className="h-3 w-3" />
                         </button>
                       )}
                     </div>
-                    <div className={`text-[11px] mt-1 truncate ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>{tmpl.subject}</div>
+                    <div className={`text-[11px] mt-1 truncate ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
+                      {tmpl.subject}
+                    </div>
                   </div>
                 );
               })}
@@ -214,7 +358,7 @@ export const TemplatesView: React.FC = () => {
               isLight ? 'border-slate-200 bg-white shadow-xs' : 'border-zinc-800 bg-zinc-900/60'
             }`}
           >
-            <div className="flex items-center gap-1.5 mb-2 text-indigo-500">
+            <div className="flex items-center gap-1.5 mb-2 text-orange-500">
               <Tag className="h-4 w-4" />
               <h2 className="text-xs font-bold uppercase tracking-wider">Tags Dinâmicas</h2>
             </div>
@@ -229,13 +373,15 @@ export const TemplatesView: React.FC = () => {
                   onClick={() => insertTag(tagItem.tag)}
                   className={`w-full flex items-center justify-between rounded-lg border p-2 text-left transition-all text-xs cursor-pointer ${
                     isLight
-                      ? 'border-slate-200 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-200 text-slate-800'
-                      : 'border-zinc-800 bg-zinc-950/60 hover:bg-indigo-950/20 hover:border-indigo-500/30 text-zinc-300'
+                      ? 'border-slate-200 bg-slate-50 hover:bg-orange-50 hover:border-orange-200 text-slate-800'
+                      : 'border-zinc-800 bg-zinc-950/60 hover:bg-orange-950/20 hover:border-orange-500/30 text-zinc-300'
                   }`}
                 >
                   <div>
-                    <span className="font-mono text-indigo-500 font-semibold">{tagItem.tag}</span>
-                    <span className={`block text-[10px] ${isLight ? 'text-slate-500' : 'text-zinc-500'}`}>{tagItem.label}</span>
+                    <span className="font-mono text-orange-500 font-semibold">{tagItem.tag}</span>
+                    <span className={`block text-[10px] ${isLight ? 'text-slate-500' : 'text-zinc-500'}`}>
+                      {tagItem.label}
+                    </span>
                   </div>
                   {copiedTag === tagItem.tag ? (
                     <Check className="h-3.5 w-3.5 text-emerald-500" />
@@ -262,7 +408,7 @@ export const TemplatesView: React.FC = () => {
               </h2>
               <button
                 type="submit"
-                className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500 cursor-pointer shadow-xs"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-orange-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-orange-500 cursor-pointer shadow-xs"
               >
                 <Save className="h-3.5 w-3.5" />
                 Salvar
@@ -270,7 +416,9 @@ export const TemplatesView: React.FC = () => {
             </div>
 
             <div>
-              <label className={`block text-xs font-medium mb-1 ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>Nome Interno do Template</label>
+              <label className={`block text-xs font-medium mb-1 ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>
+                Nome Interno do Template
+              </label>
               <input
                 type="text"
                 required
@@ -293,7 +441,7 @@ export const TemplatesView: React.FC = () => {
                 required
                 value={formData.subject}
                 onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                placeholder="Ex: Parceria com a {{empresa}}"
+                placeholder="Ex: ⚽ ¿Ver todo el fútbol en 4K? (Prueba 24h gratis)"
                 className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
                   isLight
                     ? 'border-slate-300 bg-slate-50 text-slate-900 placeholder-slate-400'
@@ -304,11 +452,11 @@ export const TemplatesView: React.FC = () => {
 
             <div>
               <label className={`block text-xs font-medium mb-1 ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>
-                Corpo do E-mail (HTML & Texto)
+                Corpo do E-mail (HTML & Formato de Alta Entregabilidade)
               </label>
               <textarea
                 required
-                rows={16}
+                rows={17}
                 value={formData.html_content}
                 onChange={(e) => setFormData({ ...formData, html_content: e.target.value })}
                 className={`w-full rounded-xl border p-3 font-mono text-xs focus:outline-none leading-relaxed ${
@@ -331,7 +479,7 @@ export const TemplatesView: React.FC = () => {
             {/* Preview Toolbar */}
             <div className={`flex items-center justify-between pb-3 border-b ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
               <div className="flex items-center gap-2">
-                <Eye className="h-4 w-4 text-indigo-500" />
+                <Eye className="h-4 w-4 text-orange-500" />
                 <span className={`text-xs font-bold uppercase tracking-wider ${isLight ? 'text-slate-800' : 'text-zinc-300'}`}>
                   Live Preview com Dados Reais
                 </span>
@@ -343,8 +491,8 @@ export const TemplatesView: React.FC = () => {
                   className={`flex items-center gap-1 rounded-md px-2 py-1 transition-all cursor-pointer ${
                     previewDevice === 'desktop'
                       ? isLight
-                        ? 'bg-white text-slate-900 shadow-xs'
-                        : 'bg-zinc-800 text-white'
+                        ? 'bg-white text-slate-900 shadow-xs font-semibold'
+                        : 'bg-zinc-800 text-white font-semibold'
                       : isLight
                       ? 'text-slate-600'
                       : 'text-zinc-400'
@@ -358,8 +506,8 @@ export const TemplatesView: React.FC = () => {
                   className={`flex items-center gap-1 rounded-md px-2 py-1 transition-all cursor-pointer ${
                     previewDevice === 'mobile'
                       ? isLight
-                        ? 'bg-white text-slate-900 shadow-xs'
-                        : 'bg-zinc-800 text-white'
+                        ? 'bg-white text-slate-900 shadow-xs font-semibold'
+                        : 'bg-zinc-800 text-white font-semibold'
                       : isLight
                       ? 'text-slate-600'
                       : 'text-zinc-400'
@@ -380,22 +528,25 @@ export const TemplatesView: React.FC = () => {
                 }`}
               >
                 <div>
-                  <span className={isLight ? 'text-slate-400 font-semibold' : 'text-zinc-500 font-semibold'}>De:</span> Time UniversaEmail &lt;contato@universaemail.com&gt;
+                  <span className={isLight ? 'text-slate-400 font-semibold' : 'text-zinc-500 font-semibold'}>De:</span>{' '}
+                  <span className="font-semibold">{senderPreview}</span>
                 </div>
                 <div>
-                  <span className={isLight ? 'text-slate-400 font-semibold' : 'text-zinc-500 font-semibold'}>Para:</span> {sampleLead.name} &lt;{sampleLead.email}&gt;
+                  <span className={isLight ? 'text-slate-400 font-semibold' : 'text-zinc-500 font-semibold'}>Para:</span>{' '}
+                  {sampleLead.name} &lt;{sampleLead.email}&gt;
                 </div>
                 <div className={`font-semibold pt-1 border-t ${isLight ? 'border-slate-200 text-slate-900' : 'border-zinc-800 text-white'}`}>
-                  <span className={isLight ? 'text-slate-400 font-normal' : 'text-zinc-500 font-normal'}>Assunto:</span> {previewSubject}
+                  <span className={isLight ? 'text-slate-400 font-normal' : 'text-zinc-500 font-normal'}>Assunto:</span>{' '}
+                  {previewSubject}
                 </div>
               </div>
 
               {/* Rendered Body */}
               <div
-                className={`mx-auto rounded-xl border bg-white text-zinc-900 p-6 overflow-y-auto shadow-inner transition-all ${
-                  previewDevice === 'mobile' ? 'max-w-[340px] text-xs' : 'w-full min-h-[380px]'
+                className={`mx-auto rounded-xl border bg-white text-zinc-900 p-2 sm:p-4 overflow-y-auto shadow-inner transition-all ${
+                  previewDevice === 'mobile' ? 'max-w-[360px] text-xs' : 'w-full min-h-[440px]'
                 }`}
-                style={{ minHeight: '380px' }}
+                style={{ minHeight: '440px' }}
                 dangerouslySetInnerHTML={{ __html: previewHtml }}
               />
             </div>
