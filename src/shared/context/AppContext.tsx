@@ -18,6 +18,8 @@ import { getSupabaseClient } from '../services/supabaseClient';
 import {
   SPAIN_B2C_MISSIONS,
   INITIAL_DORK_QUEUE,
+  BRAZIL_B2C_MISSIONS,
+  BRAZIL_DORK_QUEUE,
   searchB2BLeadsWithAI,
   executeDorkTargetJob,
   deduplicateProspects,
@@ -125,13 +127,47 @@ const safeStorageSet = (key: string, data: any) => {
   }
 };
 
+export interface VerifiedSenderIdentity {
+  id: string;
+  name: string;
+  email: string;
+  reply_to: string;
+  region: string;
+  country: 'Espanha' | 'Brasil';
+  flag: string;
+  description: string;
+}
+
+export const VERIFIED_SENDERS: VerifiedSenderIdentity[] = [
+  {
+    id: 'carlos_es',
+    name: 'Carlos Ventas - Universa TV España',
+    email: 'carlos_ventas@mail.universatv.com',
+    reply_to: 'carlos_ventas@mail.universatv.com',
+    region: 'Espanha 🇪🇸',
+    country: 'Espanha',
+    flag: '🇪🇸',
+    description: 'Remetente oficial para peñas, aficionados LaLiga e público espanhol',
+  },
+  {
+    id: 'jackson_br',
+    name: 'Jackson Vendas - Universa TV Brasil',
+    email: 'jackson_vendas@mail.universatv.com',
+    reply_to: 'jackson_vendas@mail.universatv.com',
+    region: 'Brasil 🇧🇷',
+    country: 'Brasil',
+    flag: '🇧🇷',
+    description: 'Remetente oficial para o Brasileirão, Premiere e público no Brasil',
+  },
+];
+
 const DEFAULT_TENANT: Tenant = {
   id: '00000000-0000-0000-0000-000000000001',
-  name: 'Universa TV España',
+  name: 'Universa TV',
   trade_name: 'Universa Streaming & IPTV',
   resend_api_key: import.meta.env.VITE_RESEND_API_KEY || '',
-  marketing_sender_email: 'soporte@universaemail.com',
-  sender_name: 'Universa TV España',
+  marketing_sender_email: 'carlos_ventas@mail.universatv.com',
+  sender_name: 'Carlos Ventas - Universa TV España',
   gemini_api_key: import.meta.env.VITE_GEMINI_API_KEY || '',
   whatsapp_support_number: '+34 600 000 000',
   created_at: new Date().toISOString(),
@@ -170,7 +206,7 @@ const INITIAL_TEMPLATES: MarketingTemplate[] = [
     </ul>
   </div>
 
-  <p style="font-size: 13px; color: #64748b; margin-top: 24px;">¿Tienes alguma pergunta? Respóndenos a este e-mail o escríbenos directo por WhatsApp.<br><strong>Equipo Universa TV España</strong></p>
+  <p style="font-size: 13px; color: #64748b; margin-top: 24px;">¿Tienes alguna pregunta? Respóndenos a este e-mail o escríbenos directo por WhatsApp.<br><strong>Carlos Ventas - Universa TV España</strong></p>
 </div>`,
     variables: ['{{nome}}', '{{cidade}}', '{{link_descadastro}}'],
     created_at: new Date().toISOString(),
@@ -199,6 +235,44 @@ const INITIAL_TEMPLATES: MarketingTemplate[] = [
     <p style="margin: 0 0 6px 0;"><strong>Planes Disponibles:</strong></p>
     <p style="margin: 0;">• Mensual: <strong>9.50€</strong> | Trimestral: <strong>25€</strong> | Semestral: <strong>40€</strong> | Anual: <strong>70€</strong></p>
   </div>
+</div>`,
+    variables: ['{{nome}}', '{{cidade}}', '{{link_descadastro}}'],
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'tmpl_brasil_tv_24h_br',
+    tenant_id: '00000000-0000-0000-0000-000000000001',
+    title: '⚽ [BR] Brasileirão, Premiere & +8.000 Canais - Teste 24 Horas Grátis',
+    subject: '⚽ Brasileirão, Premiere e Filmes 4K sem travar (Seu Teste 24 Horas Grátis)',
+    category: 'b2c_br',
+    html_content: `<div style="font-family: Arial, Helvetica, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; color: #18181b; line-height: 1.6; padding: 24px; border-radius: 8px; border: 1px solid #e4e4e7;">
+  <div style="text-align: center; margin-bottom: 24px;">
+    <h2 style="color: #16a34a; margin: 0; font-size: 22px;">⚽ Universa TV Brasil</h2>
+    <p style="color: #71717a; font-size: 14px; margin-top: 4px;">Brasileirão Série A, Libertadores, Premiere e +8.000 Canais em 4K</p>
+  </div>
+
+  <p>Olá <strong>{{nome}}</strong>,</p>
+  <p>Cansado de pagar mais de <strong>R$ 250 por mês</strong> em operadoras de TV para assistir ao Brasileirão e seus canais favoritos cheios de travamentos?</p>
+  <p>Na <strong>Universa TV</strong> liberamos um <strong>Teste Gratuito de 24 Horas</strong> para você testar na sua Smart TV, TV Box, Firestick, Celular ou Computador antes de contratar qualquer plano:</p>
+
+  <div style="background-color: #f0fdf4; border: 2px dashed #22c55e; border-radius: 8px; padding: 18px; margin: 24px 0; text-align: center;">
+    <h3 style="margin: 0 0 10px 0; color: #15803d; font-size: 17px;">🎁 Seu Teste de 24 Horas Liberado</h3>
+    <p style="font-size: 13px; color: #166534; margin-bottom: 16px;">Sem travas, servidor dedicado com qualidade Full HD/4K e suporte 24/7 no WhatsApp.</p>
+    <a href="https://api.whatsapp.com/send?phone=5511999999999&text=Ola,%20quero%20ativar%20meu%20teste%20gratis%20de%2024%20horas" style="background-color: #22c55e; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 15px; display: inline-block;">👉 Ativar Teste de 24 Horas no WhatsApp</a>
+  </div>
+
+  <div style="background-color: #f8fafc; padding: 16px; border-radius: 6px; margin: 20px 0;">
+    <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #334155;">Nossos Planos Promocionais no Brasil:</h4>
+    <ul style="margin: 0; padding-left: 20px; font-size: 13px; color: #475569;">
+      <li><strong>Mensal:</strong> R$ 29,90 / mês</li>
+      <li><strong>Trimestral:</strong> R$ 75,00 (Economia de 16%)</li>
+      <li><strong>Semestral:</strong> R$ 120,00 (Economia de 33%)</li>
+      <li><strong>Anual:</strong> R$ 199,00 (Menos de R$ 17 por mês!)</li>
+    </ul>
+  </div>
+
+  <p style="font-size: 13px; color: #64748b; margin-top: 24px;">Tem alguma dúvida? Basta responder a este e-mail ou falar direto conosco no WhatsApp.<br><strong>Jackson Vendas - Equipe Universa TV Brasil</strong></p>
 </div>`,
     variables: ['{{nome}}', '{{cidade}}', '{{link_descadastro}}'],
     created_at: new Date().toISOString(),
@@ -279,7 +353,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [tenant, setTenant] = useState<Tenant>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.TENANT);
-      return saved ? JSON.parse(saved) : DEFAULT_TENANT;
+      if (!saved) return DEFAULT_TENANT;
+      const parsed = JSON.parse(saved);
+      if (
+        !parsed.marketing_sender_email ||
+        parsed.marketing_sender_email.includes('@universaemail.com') ||
+        parsed.marketing_sender_email.includes('soporte@')
+      ) {
+        return {
+          ...parsed,
+          marketing_sender_email: 'carlos_ventas@mail.universatv.com',
+          sender_name: 'Carlos Ventas - Universa TV España',
+          resend_api_key: parsed.resend_api_key || DEFAULT_TENANT.resend_api_key,
+        };
+      }
+      return parsed;
     } catch {
       return DEFAULT_TENANT;
     }
@@ -297,13 +385,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
-  // Missions State
+  // Missions State (Combina Espanha e Brasil)
   const [missions, setMissions] = useState<LeadProspectingMission[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.MISSIONS);
-      return saved ? JSON.parse(saved) : SPAIN_B2C_MISSIONS;
+      if (saved) {
+        const parsed: LeadProspectingMission[] = JSON.parse(saved);
+        const hasBrazil = parsed.some((m) => m.country === 'Brasil');
+        if (hasBrazil) return parsed;
+        return [...parsed, ...BRAZIL_B2C_MISSIONS];
+      }
+      return [...SPAIN_B2C_MISSIONS, ...BRAZIL_B2C_MISSIONS];
     } catch {
-      return SPAIN_B2C_MISSIONS;
+      return [...SPAIN_B2C_MISSIONS, ...BRAZIL_B2C_MISSIONS];
     }
   });
 
@@ -313,13 +407,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [autoBatchesCount, setAutoBatchesCount] = useState(0);
   const autoMissionsIntervalRef = useRef<any>(null);
 
-  // Dork Queue State
+  // Dork Queue State (Combina Espanha e Brasil)
   const [dorkQueue, setDorkQueue] = useState<DorkTargetJob[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.DORK_QUEUE);
-      return saved ? JSON.parse(saved) : INITIAL_DORK_QUEUE;
+      if (saved) {
+        const parsed: DorkTargetJob[] = JSON.parse(saved);
+        const hasBrazil = parsed.some((d) => d.id.includes('_br') || d.city === 'São Paulo');
+        if (hasBrazil) return parsed;
+        return [...parsed, ...BRAZIL_DORK_QUEUE];
+      }
+      return [...INITIAL_DORK_QUEUE, ...BRAZIL_DORK_QUEUE];
     } catch {
-      return INITIAL_DORK_QUEUE;
+      return [...INITIAL_DORK_QUEUE, ...BRAZIL_DORK_QUEUE];
     }
   });
 
@@ -788,17 +888,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let currentMissionIdx = 0;
     let currentCityIdx = 0;
 
+    const BRAZILIAN_CITIES_ROTATION = ['São Paulo', 'Rio de Janeiro', 'Belo Horizonte', 'Curitiba', 'Porto Alegre', 'Salvador', 'Brasília', 'Campinas'];
+
     const processNextMission = async () => {
       const mission = missions[currentMissionIdx % missions.length];
-      const city = SPANISH_CITIES_ROTATION[currentCityIdx % SPANISH_CITIES_ROTATION.length];
-      setActiveAutoRegion(city);
+      const isBr = mission.country === 'Brasil';
+      const city = isBr
+        ? BRAZILIAN_CITIES_ROTATION[currentCityIdx % BRAZILIAN_CITIES_ROTATION.length]
+        : SPANISH_CITIES_ROTATION[currentCityIdx % SPANISH_CITIES_ROTATION.length];
+      const countryLabel = isBr ? 'Brasil' : 'Espanha';
+      setActiveAutoRegion(`${city} (${countryLabel})`);
       setAutoBatchesCount((prev) => prev + 1);
 
       currentMissionIdx++;
       currentCityIdx++;
 
       try {
-        await runMission(mission.id, `${city}, Espanha`, 20);
+        await runMission(mission.id, `${city}, ${countryLabel}`, 20);
       } catch (e) {
         console.warn('[Auto-Missions Loop Error]', e);
       }

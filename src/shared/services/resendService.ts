@@ -78,20 +78,40 @@ export async function sendEmailViaResend(payload: SendEmailPayload): Promise<Sen
   }
 
   try {
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey.trim()}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: from.includes('<') ? from : `Comercial <${from}>`,
-        to: [to.trim()],
-        subject: subject,
-        html: html,
-        reply_to: replyTo || undefined,
-      }),
-    });
+    let response;
+    // Tenta primeiro através da API serverless /api/send-email para evitar CORS no browser
+    try {
+      response = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          apiKey: apiKey.trim(),
+          from: from.includes('<') ? from : `Comercial <${from}>`,
+          to: [to.trim()],
+          subject: subject,
+          html: html,
+          reply_to: replyTo || undefined,
+        }),
+      });
+    } catch {
+      // Se não houver rota serverless (ex: dev puro), tenta direto na api.resend.com
+      response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey.trim()}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: from.includes('<') ? from : `Comercial <${from}>`,
+          to: [to.trim()],
+          subject: subject,
+          html: html,
+          reply_to: replyTo || undefined,
+        }),
+      });
+    }
 
     const data = await response.json();
 
@@ -103,7 +123,7 @@ export async function sendEmailViaResend(payload: SendEmailPayload): Promise<Sen
     } else {
       return {
         success: false,
-        error: data.message || `Erro Resend API (${response.status})`,
+        error: data.message || data.error || `Erro Resend API (${response.status})`,
       };
     }
   } catch (error: any) {
@@ -123,25 +143,34 @@ export async function getResendDomains(apiKey?: string): Promise<ResendDomainSta
     return [
       {
         id: 'dom_123456',
-        name: 'comercial-b2b.com.br',
+        name: 'mail.universatv.com',
         status: 'verified',
-        region: 'sa-east-1',
+        region: 'eu-west-1',
         dns_records: [
-          { record: 'SPF', name: 'bounces.comercial-b2b.com.br', type: 'TXT', value: 'v=spf1 include:resend.com ~all', status: 'verified' },
-          { record: 'DKIM', name: 'resend._domainkey.comercial-b2b.com.br', type: 'TXT', value: 'k=rsa; p=MIGfMA0GCSqG...', status: 'verified' },
-          { record: 'DMARC', name: '_dmarc.comercial-b2b.com.br', type: 'TXT', value: 'v=DMARC1; p=none;', status: 'verified' },
-          { record: 'MX', name: 'feedback.comercial-b2b.com.br', type: 'MX', value: 'feedback-smtp.resend.com', status: 'verified' },
+          { record: 'SPF', name: 'bounces.mail.universatv.com', type: 'TXT', value: 'v=spf1 include:resend.com ~all', status: 'verified' },
+          { record: 'DKIM', name: 'resend._domainkey.mail.universatv.com', type: 'TXT', value: 'k=rsa; p=MIGfMA0GCSqG...', status: 'verified' },
+          { record: 'DMARC', name: '_dmarc.mail.universatv.com', type: 'TXT', value: 'v=DMARC1; p=none;', status: 'verified' },
+          { record: 'MX', name: 'feedback.mail.universatv.com', type: 'MX', value: 'feedback-smtp.resend.com', status: 'verified' },
         ],
       },
     ];
   }
 
   try {
-    const response = await fetch('https://api.resend.com/domains', {
-      headers: {
-        'Authorization': `Bearer ${apiKey.trim()}`,
-      },
-    });
+    let response;
+    try {
+      response = await fetch('/api/resend-domains', {
+        headers: {
+          'Authorization': `Bearer ${apiKey.trim()}`,
+        },
+      });
+    } catch {
+      response = await fetch('https://api.resend.com/domains', {
+        headers: {
+          'Authorization': `Bearer ${apiKey.trim()}`,
+        },
+      });
+    }
 
     if (response.ok) {
       const data = await response.json();

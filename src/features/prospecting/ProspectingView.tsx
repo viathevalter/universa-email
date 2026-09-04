@@ -68,9 +68,23 @@ export const ProspectingView: React.FC = () => {
 
   // Active view mode
   const [activeMode, setActiveMode] = useState<'missions' | 'dorks' | 'custom'>('missions');
-  const [selectedMission, setSelectedMission] = useState<LeadProspectingMission>(missions[0]);
+  const [selectedCountryFilter, setSelectedCountryFilter] = useState<'all' | 'Espanha' | 'Brasil'>('all');
+  const [selectedMission, setSelectedMission] = useState<LeadProspectingMission>(missions[0] || {} as any);
   const [selectedCity, setSelectedCity] = useState('Madrid');
   const [batchCount, setBatchCount] = useState(25);
+
+  const displayedMissions = missions.filter((m) => {
+    if (selectedCountryFilter === 'all') return true;
+    return m.country === selectedCountryFilter;
+  });
+
+  const displayedDorks = dorkQueue.filter((d) => {
+    if (selectedCountryFilter === 'all') return true;
+    if (selectedCountryFilter === 'Brasil') {
+      return d.id.includes('_br') || d.city === 'São Paulo' || d.city === 'Brasil' || d.city === 'Rio de Janeiro';
+    }
+    return !d.id.includes('_br') && d.city !== 'São Paulo' && d.city !== 'Rio de Janeiro';
+  });
 
   // Pagination for Staging Table
   const [currentPage, setCurrentPage] = useState(1);
@@ -851,6 +865,63 @@ export const ProspectingView: React.FC = () => {
       {/* SECTION 1: 5 B2C MISSIONS CARDS */}
       {activeMode === 'missions' && (
         <div className="space-y-6">
+          {/* Country Filter Pills */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`text-xs font-semibold mr-1 ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>Filtrar por Mercado:</span>
+            <button
+              onClick={() => setSelectedCountryFilter('all')}
+              className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
+                selectedCountryFilter === 'all'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : isLight
+                  ? 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-750'
+              }`}
+            >
+              🌐 Todas as Missões ({missions.length})
+            </button>
+            <button
+              onClick={() => {
+                setSelectedCountryFilter('Espanha');
+                const firstEs = missions.find((m) => m.country === 'Espanha');
+                if (firstEs) setSelectedMission(firstEs);
+                setSelectedCity('Madrid');
+              }}
+              className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
+                selectedCountryFilter === 'Espanha'
+                  ? 'bg-gradient-to-r from-amber-500 to-red-500 text-white shadow-xs'
+                  : isLight
+                  ? 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-750'
+              }`}
+            >
+              <span>🇪🇸 Espanha</span>
+              <span className="rounded-full bg-white/20 px-1.5 py-0.2 text-[10px]">
+                {missions.filter((m) => m.country === 'Espanha').length}
+              </span>
+            </button>
+            <button
+              onClick={() => {
+                setSelectedCountryFilter('Brasil');
+                const firstBr = missions.find((m) => m.country === 'Brasil');
+                if (firstBr) setSelectedMission(firstBr);
+                setSelectedCity('São Paulo');
+              }}
+              className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer ${
+                selectedCountryFilter === 'Brasil'
+                  ? 'bg-gradient-to-r from-emerald-600 to-green-500 text-white shadow-xs'
+                  : isLight
+                  ? 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-750'
+              }`}
+            >
+              <span>🇧🇷 Brasil</span>
+              <span className="rounded-full bg-white/20 px-1.5 py-0.2 text-[10px]">
+                {missions.filter((m) => m.country === 'Brasil').length}
+              </span>
+            </button>
+          </div>
+
           {/* Mission Batch Settings Bar */}
           <div
             className={`rounded-2xl border p-4 backdrop-blur-sm flex flex-wrap items-center justify-between gap-4 ${
@@ -868,15 +939,30 @@ export const ProspectingView: React.FC = () => {
                     isLight ? 'border-slate-300 bg-slate-50 text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
                   }`}
                 >
-                  <option value="Toda Espanha">🔁 Rotação Automática de Toda Espanha</option>
-                  <option value="Madrid">Madrid (Capital & Peñas)</option>
-                  <option value="Barcelona">Barcelona (Cataluña)</option>
-                  <option value="Valencia">Valencia (Comunidad Valenciana)</option>
-                  <option value="Sevilla">Sevilla (Andalucía)</option>
-                  <option value="Málaga">Málaga & Costa del Sol</option>
-                  <option value="Bilbao">Bilbao (País Vasco)</option>
-                  <option value="Alicante">Alicante & Região</option>
-                  <option value="Zaragoza">Zaragoza (Aragón)</option>
+                  <optgroup label="🇪🇸 Províncias da Espanha">
+                    <option value="Toda Espanha">🔁 Rotação Automática de Toda Espanha</option>
+                    <option value="Madrid">Madrid (Capital & Peñas)</option>
+                    <option value="Barcelona">Barcelona (Cataluña)</option>
+                    <option value="Valencia">Valencia (Comunidad Valenciana)</option>
+                    <option value="Sevilla">Sevilla (Andalucía)</option>
+                    <option value="Málaga">Málaga & Costa del Sol</option>
+                    <option value="Bilbao">Bilbao (País Vasco)</option>
+                    <option value="Alicante">Alicante & Região</option>
+                    <option value="Zaragoza">Zaragoza (Aragón)</option>
+                  </optgroup>
+                  <optgroup label="🇧🇷 Capitais e Regiões do Brasil">
+                    <option value="Todo o Brasil">🔁 Rotação Automática Todo o Brasil</option>
+                    <option value="São Paulo">São Paulo (SP)</option>
+                    <option value="Rio de Janeiro">Rio de Janeiro (RJ)</option>
+                    <option value="Belo Horizonte">Belo Horizonte (MG)</option>
+                    <option value="Curitiba">Curitiba (PR)</option>
+                    <option value="Porto Alegre">Porto Alegre (RS)</option>
+                    <option value="Salvador">Salvador (BA)</option>
+                    <option value="Brasília">Brasília (DF)</option>
+                    <option value="Campinas">Campinas (SP)</option>
+                    <option value="Goiânia">Goiânia (GO)</option>
+                    <option value="Fortaleza">Fortaleza (CE)</option>
+                  </optgroup>
                 </select>
               </div>
 
@@ -903,9 +989,9 @@ export const ProspectingView: React.FC = () => {
             </div>
           </div>
 
-          {/* 5 Missions Cards Grid */}
+          {/* Missions Cards Grid */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {missions.map((mission) => {
+            {displayedMissions.map((mission) => {
               const isSelected = selectedMission.id === mission.id;
               return (
                 <div
@@ -1023,7 +1109,7 @@ export const ProspectingView: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {dorkQueue.map((item) => (
+            {displayedDorks.map((item) => (
               <div
                 key={item.id}
                 className={`rounded-2xl border p-4 flex flex-col justify-between transition-all ${

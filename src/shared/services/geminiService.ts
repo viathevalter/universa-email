@@ -178,6 +178,102 @@ export const INITIAL_DORK_QUEUE: DorkTargetJob[] = [
   },
 ];
 
+// Missões de Prospecção B2C no Brasil
+export const BRAZIL_B2C_MISSIONS: LeadProspectingMission[] = [
+  {
+    id: 'mission_brasileirao_br',
+    title: '⚽ Brasileirão, Premiere & Libertadores Ao Vivo',
+    description: 'Torcedores fanáticos por Flamengo, Corinthians, Palmeiras, São Paulo, Grêmio, etc., buscando Premiere e futebol ao vivo sem travas.',
+    niche: 'brasileirao_br',
+    icon: '⚽',
+    country: 'Brasil',
+    target_regions: ['São Paulo', 'Rio de Janeiro', 'Belo Horizonte', 'Curitiba', 'Porto Alegre', 'Salvador', 'Brasília'],
+    target_goal: 50000,
+    captured_count: 0,
+    valid_mx_count: 0,
+    keywords: 'Brasileirão Série A, Premiere futebol ao vivo, torcida organizada, Libertadores sem travas',
+    pitch_highlight: 'Todos os jogos do Brasileirão, Premiere, Libertadores e Copa do Brasil em 4K por R$ 29,90/mês ou R$ 199/ano.',
+    pricing_reference: 'R$ 29,90/mês | R$ 75/trimestre | R$ 120/semestre | R$ 199/ano',
+    status: 'active',
+  },
+  {
+    id: 'mission_cine_series_br',
+    title: '🍿 Filmes, Séries & Smart TV 4K no Brasil',
+    description: 'Consumidores de streaming unificado (Netflix, Max, Prime, Disney+) e lançamentos de cinema em Smart TV, TV Box e Firestick.',
+    niche: 'cine_series_br',
+    icon: '🍿',
+    country: 'Brasil',
+    target_regions: ['São Paulo', 'Rio de Janeiro', 'Campinas', 'Curitiba', 'Goiânia', 'Florianópolis'],
+    target_goal: 45000,
+    captured_count: 0,
+    valid_mx_count: 0,
+    keywords: 'TV Box 4K Brasil, Firestick filmes e series, Smart TV streaming unificado, lancamentos cinema',
+    pitch_highlight: '+8.000 Canais, todas as plataformas de streaming e filmes de cinema em um só app por R$ 29,90/mês.',
+    pricing_reference: 'R$ 29,90/mês | R$ 75/trimestre | R$ 120/semestre | R$ 199/ano',
+    status: 'active',
+  },
+  {
+    id: 'mission_canais_tv_br',
+    title: '📺 Grade Completa TV por Assinatura (Abertos e Fechados)',
+    description: 'Usuários que buscam grade completa com canais de notícias, documentários, infantis e esportes sem pagar R$ 250+/mês em operadoras.',
+    niche: 'canais_tv_br',
+    icon: '📺',
+    country: 'Brasil',
+    target_regions: ['Todo o Brasil', 'São Paulo', 'Rio de Janeiro', 'Belo Horizonte', 'Recife', 'Fortaleza'],
+    target_goal: 40000,
+    captured_count: 0,
+    valid_mx_count: 0,
+    keywords: 'TV por assinatura barata, canais fechados ao vivo, grade completa canais HD 4K',
+    pitch_highlight: 'Mais de 8.000 canais ao vivo, esportes, infantis e filmes com teste grátis de 24 horas.',
+    pricing_reference: 'R$ 29,90/mês | R$ 75/trimestre | R$ 120/semestre | R$ 199/ano',
+    status: 'active',
+  },
+];
+
+// Dorks de Prospecção no Brasil
+export const BRAZIL_DORK_QUEUE: DorkTargetJob[] = [
+  {
+    id: 'dork_ig_sp_futebol',
+    title: 'Instagram Bios: Torcedores São Paulo (Corinthians / Palmeiras / SPFC)',
+    platform: 'instagram',
+    query: 'site:instagram.com ("@gmail.com" OR "@hotmail.com") "sao paulo" ("futebol" OR "corinthians" OR "palmeiras" OR "spfc")',
+    city: 'São Paulo',
+    niche: 'Brasileirão & Futebol',
+    status: 'queued',
+    leads_found: 0,
+  },
+  {
+    id: 'dork_ig_rj_futebol',
+    title: 'Instagram Bios: Torcedores Rio de Janeiro (Flamengo / Vasco / Fluminense / Botafogo)',
+    platform: 'instagram',
+    query: 'site:instagram.com ("@gmail.com" OR "@hotmail.com") "rio de janeiro" ("flamengo" OR "vasco" OR "brasileirao")',
+    city: 'Rio de Janeiro',
+    niche: 'Brasileirão & Futebol',
+    status: 'queued',
+    leads_found: 0,
+  },
+  {
+    id: 'dork_fb_smart_tv_br',
+    title: 'Facebook Grupos: Smart TV & TV Box Brasil',
+    platform: 'facebook',
+    query: 'site:facebook.com/groups ("smart tv" OR "tv box brasil" OR "firestick brasil") ("@gmail.com")',
+    city: 'Brasil',
+    niche: 'Smart TV & Streaming',
+    status: 'queued',
+    leads_found: 0,
+  },
+  {
+    id: 'dork_foros_streaming_br',
+    title: 'Fóruns de Tecnologia & TV Brasil (Adrenaline / Hardmob)',
+    platform: 'foros',
+    query: 'site:adrenaline.com.br OR site:hardmob.com.br ("@gmail.com" OR "@hotmail.com") ("premiere" OR "iptv" OR "futebol ao vivo")',
+    city: 'Brasil',
+    niche: 'Streaming & Tecnologia',
+    status: 'queued',
+    leads_found: 0,
+  },
+];
+
 interface SearchParams {
   keywords: string;
   location: string;
@@ -398,16 +494,42 @@ function generateSpainB2CNeuralLeads(
     { city: 'Murcia', province: 'Región de Murcia' },
   ];
 
+  const brazilianCities = [
+    { city: 'São Paulo', province: 'São Paulo' },
+    { city: 'Rio de Janeiro', province: 'Rio de Janeiro' },
+    { city: 'Belo Horizonte', province: 'Minas Gerais' },
+    { city: 'Curitiba', province: 'Paraná' },
+    { city: 'Porto Alegre', province: 'Rio Grande do Sul' },
+    { city: 'Salvador', province: 'Bahia' },
+    { city: 'Brasília', province: 'Distrito Federal' },
+    { city: 'Campinas', province: 'São Paulo' },
+    { city: 'Goiânia', province: 'Goiás' },
+    { city: 'Fortaleza', province: 'Ceará' },
+  ];
+
   const providers = ['gmail.com', 'hotmail.es', 'outlook.es', 'yahoo.es', 'gmail.com'];
+  const brProviders = ['gmail.com', 'hotmail.com', 'outlook.com', 'yahoo.com.br', 'uol.com.br', 'gmail.com'];
 
   const leads = [];
 
   for (let i = 0; i < count; i++) {
+    const isBrazil =
+      niche === 'brasileirao_br' ||
+      niche === 'cine_series_br' ||
+      niche === 'canais_tv_br' ||
+      _location.toLowerCase().includes('brasil');
+
     let firstName = spanishFirstNames[Math.floor(Math.random() * spanishFirstNames.length)];
     let lastName = spanishLastNames[Math.floor(Math.random() * spanishLastNames.length)];
     let interestLabel = 'Aficionado LaLiga & TV';
 
-    if (niche === 'brasileiros_es') {
+    if (isBrazil) {
+      firstName = brFirstNames[Math.floor(Math.random() * brFirstNames.length)];
+      lastName = brLastNames[Math.floor(Math.random() * brLastNames.length)];
+      if (niche === 'brasileirao_br') interestLabel = 'Torcedor Brasileirão & Premiere';
+      else if (niche === 'cine_series_br') interestLabel = 'Smart TV 4K & Filmes Brasil';
+      else interestLabel = 'Assinante TV por Assinatura Brasil';
+    } else if (niche === 'brasileiros_es') {
       firstName = brFirstNames[Math.floor(Math.random() * brFirstNames.length)];
       lastName = brLastNames[Math.floor(Math.random() * brLastNames.length)];
       interestLabel = 'Brasileiro residente na Espanha';
@@ -421,8 +543,13 @@ function generateSpainB2CNeuralLeads(
       interestLabel = 'Seguidor F1 & MotoGP España';
     }
 
-    const cityObj = spanishCities[Math.floor(Math.random() * spanishCities.length)];
-    const provider = providers[Math.floor(Math.random() * providers.length)];
+    const cityObj = isBrazil
+      ? brazilianCities[Math.floor(Math.random() * brazilianCities.length)]
+      : spanishCities[Math.floor(Math.random() * spanishCities.length)];
+
+    const provider = isBrazil
+      ? brProviders[Math.floor(Math.random() * brProviders.length)]
+      : providers[Math.floor(Math.random() * providers.length)];
     
     // Normaliza nome para email
     const cleanFirst = firstName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -435,17 +562,17 @@ function generateSpainB2CNeuralLeads(
       company_name: `${interestLabel} (${cityObj.city})`,
       role: 'Consumidor B2C / TV Streaming',
       email,
-      phone: generateSpanishPhone(),
+      phone: isBrazil ? generateBrazilianPhone() : generateSpanishPhone(),
       website: '',
       source_url: generatePublicSourceUrl(`${firstName} ${lastName}`, cityObj.city, niche),
-      address: `${cityObj.city}, ${cityObj.province}, Espanha`,
+      address: `${cityObj.city}, ${cityObj.province}, ${isBrazil ? 'Brasil' : 'Espanha'}`,
       city: cityObj.city,
       province: cityObj.province,
-      country: 'Espanha',
+      country: isBrazil ? 'Brasil' : 'Espanha',
       sector: 'Streaming & Entretenimento B2C',
       company_size: 'B2C (Consumidor)',
       confidence_score: Math.floor(Math.random() * 12 + 86),
-      reasoning: `Perfil qualificado na Espanha com interesse direto em ${keywords} em ${cityObj.city}.`,
+      reasoning: `Perfil qualificado com interesse direto em ${keywords} em ${cityObj.city}.`,
     });
   }
 
@@ -457,6 +584,13 @@ function generateSpanishPhone(): string {
   const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
   const num = Math.floor(Math.random() * 89999999 + 10000000);
   return `+34 ${prefix}${num.toString().slice(1, 4)} ${num.toString().slice(4, 6)} ${num.toString().slice(6, 8)}`;
+}
+
+function generateBrazilianPhone(): string {
+  const ddds = ['11', '19', '21', '31', '41', '51', '61', '71', '81', '85'];
+  const ddd = ddds[Math.floor(Math.random() * ddds.length)];
+  const num = Math.floor(Math.random() * 89999999 + 10000000);
+  return `+55 (${ddd}) 9${num.toString().slice(0, 4)}-${num.toString().slice(4)}`;
 }
 
 /**

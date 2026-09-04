@@ -15,6 +15,9 @@ export type MissionNiche =
   | 'brasileiros_es'
   | 'latinos_es'
   | 'motorsport_es'
+  | 'brasileirao_br'
+  | 'cine_series_br'
+  | 'canais_tv_br'
   | 'custom_b2c';
 
 export interface LeadProspectingMission {
@@ -135,7 +138,7 @@ export interface MarketingTemplate {
   html_content: string;
   preview_text?: string;
   variables: string[];
-  category?: 'b2c_es' | 'b2c_pt' | 'b2b' | 'followup';
+  category?: 'b2c_es' | 'b2c_pt' | 'b2c_br' | 'b2b' | 'followup';
   created_at: string;
   updated_at: string;
 }

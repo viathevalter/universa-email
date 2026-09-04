@@ -6,8 +6,11 @@ import {
   Pause,
   CheckCircle,
   Gauge,
+  ShieldCheck,
+  Globe,
+  Activity,
 } from 'lucide-react';
-import { useApp } from '../../shared/context/AppContext';
+import { useApp, VERIFIED_SENDERS } from '../../shared/context/AppContext';
 import confetti from 'canvas-confetti';
 
 export const CampaignsView: React.FC = () => {
@@ -185,6 +188,57 @@ export const CampaignsView: React.FC = () => {
           </button>
         </div>
       )}
+
+      {/* Resend & Backend Deliverability Status Bar */}
+      <div
+        className={`grid grid-cols-1 md:grid-cols-3 gap-3 rounded-2xl border p-4 text-xs ${
+          isLight ? 'border-slate-200 bg-white shadow-xs' : 'border-zinc-800 bg-zinc-950/70 shadow-lg'
+        }`}
+      >
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-500">
+            <Globe className="h-5 w-5" />
+          </div>
+          <div>
+            <span className="font-bold text-[13px] text-emerald-500 flex items-center gap-1.5">
+              mail.universatv.com
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            </span>
+            <span className={`text-[11px] block ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
+              Domínio Ativo Resend (SPF, DKIM, DMARC OK)
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 rounded-xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-500">
+            <Activity className="h-5 w-5" />
+          </div>
+          <div>
+            <span className={`font-bold text-[13px] ${isLight ? 'text-slate-900' : 'text-white'} flex items-center gap-1.5`}>
+              Webhook Ativo
+              <span className="rounded bg-indigo-500/20 px-1.5 py-0.2 text-[10px] text-indigo-400 font-mono">/api/resend-webhook</span>
+            </span>
+            <span className={`text-[11px] block ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
+              Rastreamento em tempo real de cliques e aberturas
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-500">
+            <ShieldCheck className="h-5 w-5" />
+          </div>
+          <div>
+            <span className={`font-bold text-[13px] ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              2 Identidades Oficiais
+            </span>
+            <span className={`text-[11px] block ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
+              🇪🇸 Carlos Ventas (Espanha) • 🇧🇷 Jackson Vendas (Brasil)
+            </span>
+          </div>
+        </div>
+      </div>
 
       {/* Campaigns List */}
       <div className="space-y-4">
@@ -433,6 +487,50 @@ export const CampaignsView: React.FC = () => {
                       isLight ? 'border-slate-300 bg-slate-50 text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
                     }`}
                   />
+                </div>
+
+                {/* Sender Identity Quick Cards */}
+                <div>
+                  <label className={`block text-xs font-medium mb-2 ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>
+                    Identidade Oficial de Disparo (Domínio mail.universatv.com) *
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {VERIFIED_SENDERS.map((s) => {
+                      const isSelected = formData.sender_email === s.email;
+                      return (
+                        <div
+                          key={s.id}
+                          onClick={() =>
+                            setFormData({
+                              ...formData,
+                              sender_name: s.name,
+                              sender_email: s.email,
+                              reply_to: s.reply_to,
+                            })
+                          }
+                          className={`flex items-start gap-3 rounded-xl border p-3 cursor-pointer transition-all ${
+                            isSelected
+                              ? 'border-indigo-500 bg-indigo-500/10 ring-2 ring-indigo-500/40 shadow-sm'
+                              : isLight
+                              ? 'border-slate-200 bg-slate-50 hover:bg-slate-100/80'
+                              : 'border-zinc-800 bg-zinc-950 hover:bg-zinc-800/60'
+                          }`}
+                        >
+                          <span className="text-2xl mt-0.5">{s.flag}</span>
+                          <div className="space-y-0.5 flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <span className={`text-xs font-bold truncate ${isSelected ? 'text-indigo-400' : isLight ? 'text-slate-900' : 'text-white'}`}>
+                                {s.name}
+                              </span>
+                              {isSelected && <CheckCircle className="h-4 w-4 text-indigo-500 shrink-0" />}
+                            </div>
+                            <span className="text-[11px] text-zinc-400 font-mono block truncate">{s.email}</span>
+                            <span className="text-[10px] text-zinc-500 block line-clamp-1">{s.description}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
