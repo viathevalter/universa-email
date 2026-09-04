@@ -21,6 +21,8 @@ import {
   Mail,
   SlidersHorizontal,
   RotateCcw,
+  Monitor,
+  Smartphone,
 } from 'lucide-react';
 import { useApp, VERIFIED_SENDERS } from '../../shared/context/AppContext';
 import type { MarketingTemplate, SavedAudience, Lead, LeadStatus } from '../../types';
@@ -269,6 +271,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
 
   // Template Preview Modal
   const [previewingTemplate, setPreviewingTemplate] = useState<MarketingTemplate | null>(null);
+  const [previewDeviceMode, setPreviewDeviceMode] = useState<'desktop' | 'mobile'>('desktop');
 
   // =========================================================================
   // ADVANCED SAVED AUDIENCE MODAL STATE (Matching Screenshot 2 & mcs-personal)
@@ -2399,46 +2402,135 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
       {/* ========================================================================= */}
       {/* MODAL 5: PREVIEW DE TEMPLATE */}
       {/* ========================================================================= */}
-      {previewingTemplate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div
-            className={`w-full max-w-2xl rounded-2xl border p-6 shadow-2xl space-y-4 max-h-[85vh] flex flex-col ${
-              isLight ? 'border-slate-200 bg-white text-slate-900' : 'border-zinc-800 bg-zinc-900 text-white'
-            }`}
-          >
-            <div className={`flex items-center justify-between border-b pb-3 shrink-0 ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
-              <div>
-                <h3 className={`font-bold text-sm ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                  {previewingTemplate.title}
-                </h3>
-                <span className={`text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Assunto: {previewingTemplate.subject}</span>
-              </div>
-              <button
-                onClick={() => setPreviewingTemplate(null)}
-                className={`cursor-pointer ${isLight ? 'text-slate-400 hover:text-slate-700' : 'text-slate-400 hover:text-slate-200'}`}
-              >
-                ✕
-              </button>
-            </div>
+      {/* ========================================================================= */}
+      {/* MODAL 5: PREVIEW DE TEMPLATE COM TOGGLE DESKTOP / CELULAR */}
+      {/* ========================================================================= */}
+      {previewingTemplate && (() => {
+        const renderedHtml = previewingTemplate.html_content
+          .replace(/\{\{nome\}\}/g, 'Alejandro Martínez')
+          .replace(/\{\{cidade\}\}/g, 'Madrid')
+          .replace(/\{\{link_descadastro\}\}/g, '#optout');
 
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <div
-              className={`flex-1 overflow-y-auto p-4 rounded-xl border ${
-                isLight ? 'border-slate-200 bg-slate-50' : 'border-zinc-800 bg-zinc-950'
+              className={`w-full ${
+                previewDeviceMode === 'mobile' ? 'max-w-xl' : 'max-w-3xl'
+              } rounded-2xl border p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col transition-all duration-300 ${
+                isLight ? 'border-slate-200 bg-white text-slate-900' : 'border-zinc-800 bg-zinc-900 text-white'
               }`}
-              dangerouslySetInnerHTML={{ __html: previewingTemplate.html_content }}
-            />
+            >
+              {/* Header do Preview com Alternador Mobile / Desktop */}
+              <div className={`flex flex-wrap items-center justify-between gap-3 border-b pb-3 shrink-0 ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
+                <div className="min-w-0 flex-1">
+                  <h3 className={`font-bold text-sm truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                    {previewingTemplate.title}
+                  </h3>
+                  <span className={`text-xs truncate block ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                    Assunto: {previewingTemplate.subject}
+                  </span>
+                </div>
 
-            <div className="shrink-0 pt-2 flex justify-end">
-              <button
-                onClick={() => setPreviewingTemplate(null)}
-                className="px-4 py-2 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-bold text-xs cursor-pointer"
+                {/* Seletor Desktop / Celular */}
+                <div className="flex items-center gap-3">
+                  <div className={`flex items-center p-1 rounded-xl border ${isLight ? 'bg-slate-100 border-slate-200' : 'bg-zinc-800/80 border-zinc-700'}`}>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewDeviceMode('desktop')}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                        previewDeviceMode === 'desktop'
+                          ? 'bg-yellow-500 text-slate-950 shadow-sm'
+                          : isLight
+                          ? 'text-slate-600 hover:text-slate-900'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                      title="Visualização em Computador (Desktop)"
+                    >
+                      <Monitor className="h-3.5 w-3.5" />
+                      <span>Desktop</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewDeviceMode('mobile')}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                        previewDeviceMode === 'mobile'
+                          ? 'bg-yellow-500 text-slate-950 shadow-sm'
+                          : isLight
+                          ? 'text-slate-600 hover:text-slate-900'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                      title="Visualização em Celular / Smartphone"
+                    >
+                      <Smartphone className="h-3.5 w-3.5" />
+                      <span>Celular</span>
+                    </button>
+                  </div>
+
+                  <button
+                    onClick={() => setPreviewingTemplate(null)}
+                    className={`p-1.5 rounded-lg border text-sm font-bold transition-colors cursor-pointer ${
+                      isLight
+                        ? 'border-slate-200 text-slate-400 hover:text-slate-700 hover:bg-slate-100'
+                        : 'border-zinc-800 text-slate-400 hover:text-white hover:bg-zinc-800'
+                    }`}
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+
+              {/* Área de Visualização do E-mail */}
+              <div
+                className={`flex-1 overflow-y-auto p-4 rounded-xl border flex justify-center ${
+                  isLight ? 'border-slate-200 bg-slate-100/70' : 'border-zinc-800 bg-zinc-950'
+                }`}
               >
-                Fechar Prévia
-              </button>
+                {previewDeviceMode === 'mobile' ? (
+                  /* Mockup de Celular (Smartphone Frame) */
+                  <div className="w-[370px] max-w-full rounded-[38px] border-[8px] border-slate-900 shadow-2xl overflow-hidden bg-slate-900 my-auto flex flex-col">
+                    {/* Notch do aparelho */}
+                    <div className="h-6 bg-slate-900 flex items-center justify-center shrink-0">
+                      <div className="w-16 h-3 bg-slate-950 rounded-full flex items-center justify-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-slate-800"></div>
+                        <div className="w-2 h-2 rounded-full bg-blue-900/60"></div>
+                      </div>
+                    </div>
+
+                    {/* Tela do celular com o e-mail responsivo */}
+                    <div className="bg-white overflow-y-auto max-h-[520px] px-1 py-1">
+                      <div dangerouslySetInnerHTML={{ __html: renderedHtml }} />
+                    </div>
+
+                    {/* Barra inferior de navegação do celular */}
+                    <div className="h-5 bg-slate-900 flex items-center justify-center shrink-0">
+                      <div className="w-24 h-1 bg-slate-700 rounded-full"></div>
+                    </div>
+                  </div>
+                ) : (
+                  /* Layout Desktop com largura natural de e-mail */
+                  <div className="w-full max-w-[620px] bg-white rounded-xl shadow-md overflow-hidden my-auto">
+                    <div dangerouslySetInnerHTML={{ __html: renderedHtml }} />
+                  </div>
+                )}
+              </div>
+
+              <div className="shrink-0 pt-2 flex items-center justify-between">
+                <span className={`text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                  {previewDeviceMode === 'mobile'
+                    ? '📱 Visualizando layout adaptado para telas de celular (max 600px).'
+                    : '💻 Visualizando layout para clientes de e-mail em computador.'}
+                </span>
+                <button
+                  onClick={() => setPreviewingTemplate(null)}
+                  className="px-4 py-2 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-bold text-xs cursor-pointer"
+                >
+                  Fechar Prévia
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 };
