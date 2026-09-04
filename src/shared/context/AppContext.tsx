@@ -195,7 +195,68 @@ const sanitizeLeads = (leadsArray: Lead[]): Lead[] => {
   );
 };
 
-const INITIAL_AUDIENCES: SavedAudience[] = [];
+const INITIAL_AUDIENCES: SavedAudience[] = [
+  {
+    id: '00000000-0000-0000-0002-000000000001',
+    tenant_id: '00000000-0000-0000-0000-000000000001',
+    name: '⚽ Aficionados LaLiga & Futebol Espanha (Peñas)',
+    description: 'Público qualificado de peñas e aficionados por LaLiga, Real Madrid, Barcelona e Champions League.',
+    filters: { niche: ['laliga_es'], sector: ['Streaming & Esportes'], country: ['Espanha'], tags: ['LaLiga'] },
+    lead_count: 58000,
+    lead_ids: [],
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: '00000000-0000-0000-0002-000000000002',
+    tenant_id: '00000000-0000-0000-0000-000000000001',
+    name: '👑 Comunidade & Fãs Real Madrid CF',
+    description: 'Público exclusivo focado no Real Madrid para transmissões de Champions e LaLiga em 4K.',
+    filters: { niche: ['real_madrid'], sector: ['Streaming & Esportes'], country: ['Espanha'], tags: ['Peña Madridista'] },
+    lead_count: 34000,
+    lead_ids: [],
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: '00000000-0000-0000-0002-000000000003',
+    tenant_id: '00000000-0000-0000-0000-000000000001',
+    name: '🔵🔴 Torcedores FC Barcelona (Culés)',
+    description: 'Aficionados e sócios culés para assistir a todos os jogos do Barça em 4K e 60 FPS.',
+    filters: { niche: ['barcelona'], sector: ['Streaming & Esportes'], country: ['Espanha'], tags: ['Peña Barcelonista'] },
+    lead_count: 29000,
+    lead_ids: [],
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: '00000000-0000-0000-0002-000000000004',
+    tenant_id: '00000000-0000-0000-0000-000000000001',
+    name: '🏎️ Motores: Fórmula 1 & MotoGP Espanha (DAZN)',
+    description: 'Aficionados por F1 (Alonso, Sainz) e MotoGP em alta resolução sem cortes comerciais.',
+    filters: { niche: ['motorsport_es'], sector: ['Streaming & Esportes'], country: ['Espanha'], tags: ['Motorsport'] },
+    lead_count: 22000,
+    lead_ids: [],
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: '00000000-0000-0000-0002-000000000005',
+    tenant_id: '00000000-0000-0000-0000-000000000001',
+    name: '🎬 Cinéfilos, Séries On Demand & Família',
+    description: 'Público interessado em estreias de cinema e catálogo de +10.000 títulos sem múltiplas assinaturas.',
+    filters: { niche: ['cine_series_es'], sector: ['Streaming & Entretenimento'], country: ['Espanha'], tags: ['Cinema 4K'] },
+    lead_count: 31000,
+    lead_ids: [],
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: '00000000-0000-0000-0002-000000000006',
+    tenant_id: '00000000-0000-0000-0000-000000000001',
+    name: '🌎 Comunidade Latina na Espanha & Europa',
+    description: 'Público latino-americano (Colômbia, México, Argentina, Venezuela, Peru) buscando canais de sua terra natal.',
+    filters: { niche: ['latinos_es'], sector: ['Streaming & Entretenimento'], country: ['Espanha'], tags: ['Latinos Espanha'] },
+    lead_count: 28000,
+    lead_ids: [],
+    created_at: new Date().toISOString(),
+  },
+];
 
 const SPANISH_CITIES_ROTATION = [
   'Madrid',
@@ -429,7 +490,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       const { data: dbTemplates, error: tmplErr } = await supabase.from('marketing_templates').select('*');
       if (!tmplErr && dbTemplates && dbTemplates.length > 0) {
-        setTemplates(dbTemplates);
+        const cleanTemplates = dbTemplates.filter(
+          (t: any) =>
+            !t.title?.includes('B2B') &&
+            !t.html_content?.includes('LUMINOUS') &&
+            !t.html_content?.includes('Soldadores')
+        );
+        if (cleanTemplates.length > 0) {
+          setTemplates(cleanTemplates);
+        } else {
+          setTemplates(OFFICIAL_UNIVERSA_TEMPLATES);
+        }
+      }
+
+      const { data: dbAudiences, error: audErr } = await supabase.from('saved_audiences').select('*');
+      if (!audErr && dbAudiences && dbAudiences.length > 0) {
+        const mappedAudiences: SavedAudience[] = dbAudiences.map((a: any) => ({
+          id: a.id,
+          tenant_id: a.tenant_id,
+          name: a.name,
+          description: a.description || '',
+          niche: a.filters_json?.niche || a.niche || '',
+          filters: a.filters_json || {},
+          lead_count: a.filters_json?.lead_count || a.lead_count || 0,
+          lead_ids: a.lead_ids || [],
+          created_at: a.created_at,
+        }));
+        setAudiences(mappedAudiences);
       }
 
       const { data: dbCampaigns, error: campErr } = await supabase
@@ -1051,6 +1138,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const resetTemplatesToOfficial = async () => {
     setTemplates(OFFICIAL_UNIVERSA_TEMPLATES);
     safeStorageSet(STORAGE_KEYS.TEMPLATES, OFFICIAL_UNIVERSA_TEMPLATES);
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const { data: current } = await supabase.from('marketing_templates').select('id');
+        if (current && current.length > 0) {
+          for (const item of current) {
+            await supabase.from('marketing_templates').delete().eq('id', item.id);
+          }
+        }
+        const toInsert = OFFICIAL_UNIVERSA_TEMPLATES.map((t, idx) => ({
+          id: `00000000-0000-0000-0001-00000000000${idx + 1}`,
+          tenant_id: tenant.id,
+          title: t.title,
+          subject: t.subject,
+          html_content: t.html_content,
+          variables: t.variables,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }));
+        await supabase.from('marketing_templates').insert(toInsert);
+      } catch (e) {
+        console.warn('[Supabase Templates Reset Sync Warning]', e);
+      }
+    }
   };
 
   // Campaign Operations
