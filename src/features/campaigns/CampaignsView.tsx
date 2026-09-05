@@ -272,6 +272,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
     theme,
     autoSchedulerEnabled,
     setAutoSchedulerEnabled,
+    cancelAllScheduledCampaigns,
     syncCampaignWithResend,
   } = useApp();
 
@@ -1498,6 +1499,19 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                   <span className={`relative inline-flex rounded-full h-2 w-2 ${autoSchedulerEnabled ? 'bg-emerald-500' : 'bg-zinc-500'}`}></span>
                 </span>
                 <span>Auto-Disparo: <strong>{autoSchedulerEnabled ? 'Ativo' : 'Pausado'}</strong></span>
+              </button>
+
+              <button
+                onClick={() => {
+                  if (confirm('Tem certeza que deseja cancelar todos os agendamentos e pausar todos os disparos automáticos?')) {
+                    cancelAllScheduledCampaigns();
+                  }
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-rose-500/40 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 text-xs font-bold cursor-pointer transition-all"
+                title="Cancela todas as campanhas agendadas para hoje, amanhã e segunda-feira e limpa a fila"
+              >
+                <Pause className="h-3.5 w-3.5" />
+                <span>Cancelar Agendamentos</span>
               </button>
 
               <button

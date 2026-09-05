@@ -111,6 +111,7 @@ interface AppContextType {
   // Auto-Scheduler
   autoSchedulerEnabled: boolean;
   setAutoSchedulerEnabled: React.Dispatch<React.SetStateAction<boolean>>;
+  cancelAllScheduledCampaigns: () => void;
   syncCampaignWithResend: (campaignId: string) => Promise<void>;
 }
 
@@ -1775,10 +1776,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // =========================================================================
   // AUTO-SCHEDULER ENGINE (MOTOR DE DISPARO AUTOMÁTICO DE CRONOGRAMA)
   // =========================================================================
-  const [autoSchedulerEnabled, setAutoSchedulerEnabled] = useState<boolean>(() => {
-    const saved = localStorage.getItem('saas_auto_scheduler_enabled');
-    return saved !== null ? saved === 'true' : true;
-  });
+  const [autoSchedulerEnabled, setAutoSchedulerEnabled] = useState<boolean>(false);
+
+  const cancelAllScheduledCampaigns = () => {
+    setAutoSchedulerEnabled(false);
+    try {
+      localStorage.setItem('saas_auto_scheduler_enabled', 'false');
+    } catch {}
+    updateCampaignsState((prev) =>
+      prev.map((c) =>
+        c.status === 'scheduled' || c.status === 'sending' || c.status === 'paused'
+          ? { ...c, status: 'draft' }
+          : c
+      )
+    );
+    setCampaignQueue({});
+    safeStorageSet(STORAGE_KEYS.QUEUE, {});
+  };
 
   const isExecutingSchedulerRef = useRef<boolean>(false);
 
@@ -2018,6 +2032,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         syncWithSupabase,
         autoSchedulerEnabled,
         setAutoSchedulerEnabled,
+        cancelAllScheduledCampaigns,
         syncCampaignWithResend,
       }}
     >
