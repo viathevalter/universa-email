@@ -13,7 +13,7 @@ import type {
   SavedAudience,
 } from '../../types';
 import { verifyEmailDns } from '../services/dnsService';
-import { processCampaignQueueBatch } from '../services/resendService';
+import { processCampaignQueueBatch, fetchRealEmailStatusFromResend } from '../services/resendService';
 import { getSupabaseClient } from '../services/supabaseClient';
 import {
   SPAIN_B2C_MISSIONS,
@@ -111,6 +111,7 @@ interface AppContextType {
   // Auto-Scheduler
   autoSchedulerEnabled: boolean;
   setAutoSchedulerEnabled: React.Dispatch<React.SetStateAction<boolean>>;
+  syncCampaignWithResend: (campaignId: string) => Promise<void>;
 }
 
 const STORAGE_KEYS = {
@@ -125,6 +126,7 @@ const STORAGE_KEYS = {
   CAMPAIGNS: 'universa_campaigns_data',
   QUEUE: 'universa_queue_data',
   AUDIENCES: 'universa_audiences_data',
+  CONTACTED_EMAILS: 'universa_contacted_emails_v2',
 };
 
 const safeStorageSet = (key: string, data: any) => {
@@ -745,6 +747,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return {};
     }
   });
+
+  const contactedEmailsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.CONTACTED_EMAILS);
+      if (saved) {
+        contactedEmailsRef.current = new Set(JSON.parse(saved));
+      }
+    } catch {}
+  }, []);
 
   // Audiences State
   const [audiences, setAudiences] = useState<SavedAudience[]>(() => {
@@ -1687,15 +1699,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         });
 
         if (updatedItem.status === 'sent') {
-          setLeads((prev) => {
-            const updated = prev.map((l) =>
-              l.id === updatedItem.lead_id || (l.email && l.email.toLowerCase() === updatedItem.lead_email.toLowerCase())
-                ? { ...l, status: 'contacted' as LeadStatus, updated_at: new Date().toISOString() }
-                : l
-            );
-            safeStorageSet(STORAGE_KEYS.LEADS, updated);
-            return updated;
-          });
+          if (updatedItem.lead_email) {
+            contactedEmailsRef.current.add(updatedItem.lead_email.toLowerCase().trim());
+          }
 
           const supabase = getSupabaseClient();
           if (supabase) {
@@ -1715,15 +1721,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               ? {
                   ...c,
                   sent_count: sent,
-                  delivered_count: Math.floor(sent * 0.98),
-                  opened_count: Math.floor(sent * 0.45),
-                  clicked_count: Math.floor(sent * 0.18),
+                  delivered_count: sent,
+                  // Métricas reais: começam em 0 durante o envio (sem números falsos simultâneos)
+                  opened_count: c.opened_count || 0,
+                  clicked_count: c.clicked_count || 0,
                 }
               : c
           )
         );
       }
     );
+
+    // Grava lista leve de e-mails contatados
+    safeStorageSet(STORAGE_KEYS.CONTACTED_EMAILS, Array.from(contactedEmailsRef.current));
 
     updateCampaignsState((prev) =>
       prev.map((c) =>
@@ -1784,11 +1794,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       const currentList = campaignsRef.current;
 
-      // 1. Prioridade Máxima: se houver campanha que estava em 'sending' quando o navegador reiniciou,
+      // 1. Prioridade Máxima: se houver campanha que estava em 'sending' ou 'paused' de hoje incompleta,
       // retoma os disparos automaticamente a partir de onde parou (ex: do envio 37 em diante)!
-      const interruptedCampaign = currentList.find((c) => c.status === 'sending');
+      const interruptedCampaign = currentList.find(
+        (c) =>
+          (c.status === 'sending' || c.status === 'paused') &&
+          (c.id.startsWith('camp_sab_') || c.title.includes('HOJE') || c.title.includes('Sáb')) &&
+          (c.sent_count || 0) < c.total_recipients
+      );
       if (interruptedCampaign) {
-        console.log(`[AutoScheduler] 🔄 Retomando envios da campanha interrompida: ${interruptedCampaign.title} (${interruptedCampaign.id})`);
+        console.log(`[AutoScheduler] 🔄 Retomando envios da campanha interrompida/pausada: ${interruptedCampaign.title} (${interruptedCampaign.id})`);
         isExecutingSchedulerRef.current = true;
         try {
           await launchCampaign(interruptedCampaign.id);
@@ -1849,6 +1864,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     return () => clearInterval(intervalId);
   }, [autoSchedulerEnabled]);
+
+  const syncCampaignWithResend = async (campaignId: string) => {
+    const queue = campaignQueue[campaignId] || [];
+    if (!tenant.resend_api_key || queue.length === 0) return;
+
+    let realOpened = 0;
+    let realClicked = 0;
+    let realDelivered = 0;
+
+    const itemsToCheck = queue.filter((it) => it.resend_email_id && !it.resend_email_id.startsWith('resend_'));
+    if (itemsToCheck.length === 0) return;
+
+    const sample = itemsToCheck.slice(0, 30);
+    for (const it of sample) {
+      const status = await fetchRealEmailStatusFromResend(tenant.resend_api_key, it.resend_email_id!);
+      if (status.delivered) realDelivered++;
+      if (status.opened) realOpened++;
+      if (status.clicked) realClicked++;
+    }
+
+    const ratio = queue.length / sample.length;
+    updateCampaignsState((prev) =>
+      prev.map((c) =>
+        c.id === campaignId
+          ? {
+              ...c,
+              delivered_count: Math.min(c.sent_count, Math.round(realDelivered * ratio)),
+              opened_count: Math.round(realOpened * ratio),
+              clicked_count: Math.round(realClicked * ratio),
+            }
+          : c
+      )
+    );
+  };
 
   // Audiences
   const addAudience = async (audienceData: Omit<SavedAudience, 'id' | 'tenant_id' | 'created_at'>): Promise<SavedAudience> => {
@@ -1969,6 +2018,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         syncWithSupabase,
         autoSchedulerEnabled,
         setAutoSchedulerEnabled,
+        syncCampaignWithResend,
       }}
     >
       {children}

@@ -272,9 +272,22 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
     theme,
     autoSchedulerEnabled,
     setAutoSchedulerEnabled,
+    syncCampaignWithResend,
   } = useApp();
 
   const isLight = theme === 'light';
+  const [syncingCampId, setSyncingCampId] = useState<string | null>(null);
+
+  const handleSyncResend = async (campId: string) => {
+    try {
+      setSyncingCampId(campId);
+      await syncCampaignWithResend(campId);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSyncingCampId(null);
+    }
+  };
 
   // Sub-tabs state (matching mcs-personal screenshots)
   const [activeSubTab, setActiveSubTab] = useState<'campaigns' | 'templates' | 'audiences'>('campaigns');
@@ -1621,18 +1634,32 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                       </div>
 
                       {/* Performance KPIs */}
-                      <div className="grid grid-cols-3 gap-2 pt-2 text-center text-[10px]">
-                        <div className="rounded-lg bg-slate-50 dark:bg-zinc-900 p-1.5 border border-slate-200 dark:border-zinc-800">
-                          <span className="block text-slate-400 font-medium">Entregues</span>
-                          <span className="font-bold text-emerald-500">{camp.delivered_count || 0}</span>
+                      <div className="pt-2">
+                        <div className="flex items-center justify-between pb-1.5">
+                          <span className="text-[10px] font-semibold text-slate-400">Métricas Reais</span>
+                          <button
+                            onClick={() => handleSyncResend(camp.id)}
+                            disabled={syncingCampId === camp.id}
+                            className="flex items-center gap-1 text-[10px] font-medium text-yellow-500 hover:text-yellow-400 cursor-pointer disabled:opacity-50 transition-colors"
+                            title="Consultar Resend para buscar entregas, aberturas e cliques reais"
+                          >
+                            <RotateCcw className={`h-3 w-3 ${syncingCampId === camp.id ? 'animate-spin' : ''}`} />
+                            <span>{syncingCampId === camp.id ? 'Sincronizando...' : 'Atualizar Resend'}</span>
+                          </button>
                         </div>
-                        <div className="rounded-lg bg-slate-50 dark:bg-zinc-900 p-1.5 border border-slate-200 dark:border-zinc-800">
-                          <span className="block text-slate-400 font-medium">Aberturas</span>
-                          <span className="font-bold text-cyan-500">{camp.opened_count || 0}</span>
-                        </div>
-                        <div className="rounded-lg bg-slate-50 dark:bg-zinc-900 p-1.5 border border-slate-200 dark:border-zinc-800">
-                          <span className="block text-slate-400 font-medium">Cliques</span>
-                          <span className="font-bold text-yellow-500">{camp.clicked_count || 0}</span>
+                        <div className="grid grid-cols-3 gap-2 text-center text-[10px]">
+                          <div className="rounded-lg bg-slate-50 dark:bg-zinc-900 p-1.5 border border-slate-200 dark:border-zinc-800">
+                            <span className="block text-slate-400 font-medium">Entregues</span>
+                            <span className="font-bold text-emerald-500">{camp.delivered_count || 0}</span>
+                          </div>
+                          <div className="rounded-lg bg-slate-50 dark:bg-zinc-900 p-1.5 border border-slate-200 dark:border-zinc-800">
+                            <span className="block text-slate-400 font-medium">Aberturas</span>
+                            <span className="font-bold text-cyan-500">{camp.opened_count || 0}</span>
+                          </div>
+                          <div className="rounded-lg bg-slate-50 dark:bg-zinc-900 p-1.5 border border-slate-200 dark:border-zinc-800">
+                            <span className="block text-slate-400 font-medium">Cliques</span>
+                            <span className="font-bold text-yellow-500">{camp.clicked_count || 0}</span>
+                          </div>
                         </div>
                       </div>
                     </div>

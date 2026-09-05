@@ -284,10 +284,8 @@ export async function processCampaignQueueBatch(
       status: result.success ? 'sent' : 'failed',
       resend_email_id: result.id,
       sent_at: result.success ? now : undefined,
-      error_message: result.error,
-      // Se simulado, injeta dados de engajamento randômicos para dashboard dinâmico
-      opened_at: result.success && Math.random() > 0.4 ? now : undefined,
-      clicked_at: result.success && Math.random() > 0.75 ? now : undefined,
+      opened_at: undefined,
+      clicked_at: undefined,
     };
 
     if (result.success) {
@@ -307,4 +305,39 @@ export async function processCampaignQueueBatch(
   }
 
   return { sent: sentCount, failed: failedCount };
+}
+
+/**
+ * Consulta o status real de entrega, abertura e clique de um e-mail diretamente na API do Resend.
+ */
+export async function fetchRealEmailStatusFromResend(apiKey: string, emailId: string): Promise<{
+  lastEvent?: string;
+  delivered: boolean;
+  opened: boolean;
+  clicked: boolean;
+}> {
+  if (!apiKey || apiKey.startsWith('re_mock_') || apiKey.length < 10 || !emailId || emailId.startsWith('resend_')) {
+    return { delivered: true, opened: false, clicked: false };
+  }
+
+  try {
+    const res = await fetch(`https://api.resend.com/emails/${emailId}`, {
+      headers: {
+        Authorization: `Bearer ${apiKey.trim()}`,
+      },
+    });
+    if (!res.ok) {
+      return { delivered: true, opened: false, clicked: false };
+    }
+    const data = await res.json();
+    const lastEvent = data.last_event;
+    return {
+      lastEvent,
+      delivered: lastEvent === 'delivered' || lastEvent === 'opened' || lastEvent === 'clicked',
+      opened: lastEvent === 'opened' || lastEvent === 'clicked',
+      clicked: lastEvent === 'clicked',
+    };
+  } catch {
+    return { delivered: true, opened: false, clicked: false };
+  }
 }
