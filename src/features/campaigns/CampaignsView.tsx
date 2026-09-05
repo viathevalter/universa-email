@@ -24,7 +24,8 @@ import {
   Monitor,
   Smartphone,
 } from 'lucide-react';
-import { useApp, VERIFIED_SENDERS } from '../../shared/context/AppContext';
+import { useApp, VERIFIED_SENDERS, VALIDATION_TEST_EMAILS_DATA } from '../../shared/context/AppContext';
+import { sendEmailViaResend, interpolateEmailVariables } from '../../shared/services/resendService';
 import type { MarketingTemplate, SavedAudience, Lead, LeadStatus } from '../../types';
 import confetti from 'canvas-confetti';
 
@@ -333,6 +334,121 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
   // Selected leads for campaign
   const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([]);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // Test Campaign Modal State (8 E-mails de Validação)
+  const [isTestModalOpen, setIsTestModalOpen] = useState(false);
+  const [testMode, setTestMode] = useState<'distribute_8' | 'single_template' | 'all_to_all'>('distribute_8');
+  const [testSelectedTemplateId, setTestSelectedTemplateId] = useState<string>('');
+  const [testSenderId, setTestSenderId] = useState<string>('carlos_es');
+  const [isExecutingTest, setIsExecutingTest] = useState(false);
+  const [testLogs, setTestLogs] = useState<Array<{
+    email: string;
+    templateTitle: string;
+    status: 'pending' | 'sending' | 'success' | 'error';
+    error?: string;
+    resendId?: string;
+  }>>([]);
+
+  const handleExecuteTestCampaign = async () => {
+    if (templates.length === 0) return;
+    setIsExecutingTest(true);
+
+    const senderObj = VERIFIED_SENDERS.find((s) => s.id === testSenderId) || VERIFIED_SENDERS[0];
+    const senderFrom = `${senderObj.name} <${senderObj.email}>`;
+    const replyTo = senderObj.reply_to;
+
+    // Constrói a lista de envios conforme o modo
+    let dispatchPlan: Array<{ recipient: typeof VALIDATION_TEST_EMAILS_DATA[0]; template: MarketingTemplate }> = [];
+
+    if (testMode === 'distribute_8') {
+      // 1 template para cada um dos 8 emails
+      dispatchPlan = VALIDATION_TEST_EMAILS_DATA.map((recipient, idx) => {
+        const tmpl = templates[idx % templates.length];
+        return { recipient, template: tmpl };
+      });
+    } else if (testMode === 'single_template') {
+      const tmpl = templates.find((t) => t.id === testSelectedTemplateId) || templates[0];
+      dispatchPlan = VALIDATION_TEST_EMAILS_DATA.map((recipient) => ({
+        recipient,
+        template: tmpl,
+      }));
+    } else {
+      // all_to_all: todos os 8 templates para todos os 8 emails
+      for (const recipient of VALIDATION_TEST_EMAILS_DATA) {
+        for (const tmpl of templates) {
+          dispatchPlan.push({ recipient, template: tmpl });
+        }
+      }
+    }
+
+    const initialLogs = dispatchPlan.map((item) => ({
+      email: item.recipient.email,
+      templateTitle: item.template.title,
+      status: 'pending' as const,
+    }));
+    setTestLogs(initialLogs);
+
+    let successCount = 0;
+    for (let i = 0; i < dispatchPlan.length; i++) {
+      const item = dispatchPlan[i];
+
+      // Atualiza status para 'sending'
+      setTestLogs((prev) =>
+        prev.map((log, idx) => (idx === i ? { ...log, status: 'sending' } : log))
+      );
+
+      const fakeLead: Lead = {
+        id: `lead_val_${item.recipient.email.replace(/[^a-zA-Z0-9]/g, '_')}`,
+        tenant_id: tenant.id,
+        name: item.recipient.name,
+        company_name: item.recipient.company_name,
+        email: item.recipient.email,
+        phone: '+34 617 59 84 21',
+        city: item.recipient.city,
+        province: 'Comunidad',
+        country: item.recipient.country,
+        status: 'contacted' as LeadStatus,
+        opted_out: false,
+        tags: item.recipient.tags || [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      const personalizedHtml = interpolateEmailVariables(item.template.html_content, fakeLead);
+
+      const result = await sendEmailViaResend({
+        apiKey: tenant.resend_api_key || '',
+        from: senderFrom,
+        to: item.recipient.email,
+        subject: `[TESTE] ${item.template.subject}`,
+        html: personalizedHtml,
+        replyTo: replyTo,
+      });
+
+      if (result.success) {
+        successCount++;
+        setTestLogs((prev) =>
+          prev.map((log, idx) =>
+            idx === i ? { ...log, status: 'success', resendId: result.id } : log
+          )
+        );
+      } else {
+        setTestLogs((prev) =>
+          prev.map((log, idx) =>
+            idx === i ? { ...log, status: 'error', error: result.error } : log
+          )
+        );
+      }
+
+      // Pequeno intervalo entre envios para segurança de rate-limit
+      await new Promise((resolve) => setTimeout(resolve, 350));
+    }
+
+    setIsExecutingTest(false);
+    if (successCount > 0) {
+      confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
+    }
+  };
 
   // Helper to detect country from lead
   const getLeadCountry = (lead: Lead): { code: string; name: string; flag: string } => {
@@ -963,15 +1079,33 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
         </div>
 
         {/* Action Button depending on active subtab */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           {activeSubTab === 'campaigns' && (
-            <button
-              onClick={() => handleOpenWizard()}
-              className="flex items-center gap-2 rounded-xl bg-yellow-500 hover:bg-yellow-400 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-md shadow-yellow-500/20 transition-all cursor-pointer"
-            >
-              <Plus className="h-4 w-4 stroke-[3]" />
-              <span>+ Nova Campanha</span>
-            </button>
+            <>
+              <button
+                onClick={() => {
+                  setTestLogs([]);
+                  setIsTestModalOpen(true);
+                }}
+                className={`flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-xs font-bold transition-all cursor-pointer border shadow-sm ${
+                  isLight
+                    ? 'bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100'
+                    : 'bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20'
+                }`}
+                title="Disparar teste dos templates para os 8 e-mails de validação"
+              >
+                <Sparkles className="h-4 w-4 text-amber-500" />
+                <span>🧪 Testar 8 Templates</span>
+              </button>
+
+              <button
+                onClick={() => handleOpenWizard()}
+                className="flex items-center gap-2 rounded-xl bg-yellow-500 hover:bg-yellow-400 px-4 py-2.5 text-xs font-bold text-slate-950 shadow-md shadow-yellow-500/20 transition-all cursor-pointer"
+              >
+                <Plus className="h-4 w-4 stroke-[3]" />
+                <span>+ Nova Campanha</span>
+              </button>
+            </>
           )}
 
           {activeSubTab === 'templates' && (
@@ -2594,6 +2728,258 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
           </div>
         );
       })()}
+
+      {/* ========================================================================= */}
+      {/* MODAL 6: DISPARAR TESTE DOS 8 TEMPLATES (CONTATOS DE VALIDAÇÃO) */}
+      {/* ========================================================================= */}
+      {isTestModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto">
+          <div
+            className={`w-full max-w-3xl rounded-2xl border p-6 shadow-2xl space-y-5 my-auto max-h-[92vh] flex flex-col ${
+              isLight ? 'border-slate-200 bg-white text-slate-900' : 'border-zinc-800 bg-zinc-900 text-white'
+            }`}
+          >
+            {/* Modal Header */}
+            <div className={`flex items-start justify-between border-b pb-4 shrink-0 ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-amber-500/15 text-amber-500 flex items-center justify-center font-bold text-lg">
+                  🧪
+                </div>
+                <div>
+                  <h3 className={`font-bold text-base ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                    Teste de Entregabilidade dos 8 Templates
+                  </h3>
+                  <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                    Valide o recebimento em Caixa de Entrada (Gmail e Domínios Corporativos) e os links exclusivos do WhatsApp.
+                  </p>
+                </div>
+              </div>
+              <button
+                disabled={isExecutingTest}
+                onClick={() => setIsTestModalOpen(false)}
+                className={`p-1.5 rounded-lg border text-sm font-bold transition-colors cursor-pointer disabled:opacity-40 ${
+                  isLight
+                    ? 'border-slate-200 text-slate-400 hover:text-slate-700 hover:bg-slate-100'
+                    : 'border-zinc-800 text-slate-400 hover:text-white hover:bg-zinc-800'
+                }`}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="space-y-4 overflow-y-auto pr-1 flex-1">
+              {/* Opções de Envio */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                {/* Remetente */}
+                <div>
+                  <label className={`block text-xs font-semibold mb-1.5 ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
+                    Remetente do Disparo:
+                  </label>
+                  <select
+                    disabled={isExecutingTest}
+                    value={testSenderId}
+                    onChange={(e) => setTestSenderId(e.target.value)}
+                    className={`w-full rounded-xl border px-3 py-2 text-xs font-medium focus:outline-none ${
+                      isLight
+                        ? 'border-slate-300 bg-white text-slate-900 focus:border-amber-500'
+                        : 'border-zinc-700 bg-zinc-800 text-white focus:border-amber-500'
+                    }`}
+                  >
+                    {VERIFIED_SENDERS.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.flag} {s.name} ({s.email})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Modo de Teste */}
+                <div>
+                  <label className={`block text-xs font-semibold mb-1.5 ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
+                    Estratégia de Distribuição:
+                  </label>
+                  <select
+                    disabled={isExecutingTest}
+                    value={testMode}
+                    onChange={(e) => setTestMode(e.target.value as any)}
+                    className={`w-full rounded-xl border px-3 py-2 text-xs font-medium focus:outline-none ${
+                      isLight
+                        ? 'border-slate-300 bg-white text-slate-900 focus:border-amber-500'
+                        : 'border-zinc-700 bg-zinc-800 text-white focus:border-amber-500'
+                    }`}
+                  >
+                    <option value="distribute_8">🎯 Distribuir 8 Templates (1 para cada e-mail)</option>
+                    <option value="single_template">📄 Enviar 1 Template Escolhido para os 8 e-mails</option>
+                    <option value="all_to_all">🚀 Bateria Completa (Todos os 8 Templates para os 8 e-mails)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Seletor se escolheu Template Único */}
+              {testMode === 'single_template' && (
+                <div className="pt-1">
+                  <label className={`block text-xs font-semibold mb-1.5 ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
+                    Escolha o Template para Testar nos 8 e-mails:
+                  </label>
+                  <select
+                    disabled={isExecutingTest}
+                    value={testSelectedTemplateId || templates[0]?.id}
+                    onChange={(e) => setTestSelectedTemplateId(e.target.value)}
+                    className={`w-full rounded-xl border px-3 py-2 text-xs font-medium focus:outline-none ${
+                      isLight
+                        ? 'border-slate-300 bg-white text-slate-900 focus:border-amber-500'
+                        : 'border-zinc-700 bg-zinc-800 text-white focus:border-amber-500'
+                    }`}
+                  >
+                    {templates.map((t, idx) => (
+                      <option key={t.id} value={t.id}>
+                        T{idx + 1}: {t.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Tabela dos 8 Destinatários de Homologação */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className={`text-xs font-bold ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
+                    Destinatários de Validação Monitorados (8 Contatos):
+                  </span>
+                  <span className="text-[11px] text-amber-500 font-semibold">
+                    {testMode === 'all_to_all' ? '64 disparos totais' : '8 disparos no lote'}
+                  </span>
+                </div>
+
+                <div
+                  className={`rounded-xl border overflow-hidden text-xs ${
+                    isLight ? 'border-slate-200 bg-slate-50' : 'border-zinc-800 bg-zinc-950/60'
+                  }`}
+                >
+                  <div className="max-h-48 overflow-y-auto divide-y divide-zinc-800/20">
+                    {VALIDATION_TEST_EMAILS_DATA.map((lead, idx) => {
+                      const assignedTemplate =
+                        testMode === 'single_template'
+                          ? templates.find((t) => t.id === testSelectedTemplateId) || templates[0]
+                          : testMode === 'distribute_8'
+                          ? templates[idx % templates.length]
+                          : null;
+
+                      return (
+                        <div key={lead.email} className="px-3 py-2 flex items-center justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-semibold truncate">{lead.name}</span>
+                              <span
+                                className={`text-[10px] px-1.5 py-0.2 rounded font-mono font-medium ${
+                                  lead.email.includes('@gmail.com')
+                                    ? 'bg-red-500/10 text-red-500 border border-red-500/20'
+                                    : 'bg-blue-500/10 text-blue-500 border border-blue-500/20'
+                                }`}
+                              >
+                                {lead.email.includes('@gmail.com') ? 'Gmail' : 'Domínio'}
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-slate-400 truncate">{lead.email}</div>
+                          </div>
+
+                          <div className="text-right shrink-0">
+                            {assignedTemplate ? (
+                              <span className="inline-block text-[10px] px-2 py-0.5 rounded-lg bg-yellow-500/10 text-yellow-500 font-medium max-w-[220px] truncate border border-yellow-500/20">
+                                T{templates.indexOf(assignedTemplate) + 1}: {assignedTemplate.category || 'Geral'}
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-slate-400">Todos os 8 Templates</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Status e Logs de Execução em Tempo Real */}
+              {testLogs.length > 0 && (
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between">
+                    <span className={`text-xs font-bold ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
+                      Progresso dos Disparos em Tempo Real:
+                    </span>
+                    <span className="text-[11px] text-slate-400">
+                      {testLogs.filter((l) => l.status === 'success').length} de {testLogs.length} enviados
+                    </span>
+                  </div>
+
+                  <div
+                    className={`rounded-xl border p-2.5 max-h-44 overflow-y-auto space-y-1.5 font-mono text-[11px] ${
+                      isLight ? 'bg-slate-100 border-slate-200 text-slate-800' : 'bg-black/60 border-zinc-800 text-zinc-300'
+                    }`}
+                  >
+                    {testLogs.map((log, idx) => (
+                      <div key={idx} className="flex items-center justify-between gap-2 py-0.5 border-b border-white/5 last:border-0">
+                        <div className="truncate flex-1">
+                          <span className="text-slate-400">[{idx + 1}]</span> <strong>{log.email}</strong> - <span className="text-slate-400 truncate">{log.templateTitle}</span>
+                        </div>
+                        <div className="shrink-0 font-bold">
+                          {log.status === 'pending' && <span className="text-slate-400">⏳ Aguardando</span>}
+                          {log.status === 'sending' && <span className="text-amber-500 animate-pulse">📤 Enviando...</span>}
+                          {log.status === 'success' && <span className="text-emerald-500">✅ Enviado</span>}
+                          {log.status === 'error' && <span className="text-rose-500" title={log.error}>❌ Falhou</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className={`flex items-center justify-between border-t pt-4 shrink-0 ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
+              <div className="text-[11px] text-slate-400">
+                {tenant.resend_api_key && tenant.resend_api_key.length > 10 ? (
+                  <span className="text-emerald-500 font-medium">● Resend API Conectada</span>
+                ) : (
+                  <span className="text-amber-500 font-medium">● Modo Simulação (Insira API Key em Configurações para envio real)</span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2.5">
+                <button
+                  type="button"
+                  disabled={isExecutingTest}
+                  onClick={() => setIsTestModalOpen(false)}
+                  className={`px-4 py-2 rounded-xl border text-xs font-semibold cursor-pointer disabled:opacity-50 ${
+                    isLight ? 'border-slate-200 hover:bg-slate-100 text-slate-700' : 'border-zinc-800 hover:bg-zinc-800 text-slate-300'
+                  }`}
+                >
+                  {testLogs.length > 0 && !isExecutingTest ? 'Concluir' : 'Cancelar'}
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isExecutingTest}
+                  onClick={handleExecuteTestCampaign}
+                  className="flex items-center gap-2 px-5 py-2 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-slate-950 text-xs font-bold shadow-md shadow-yellow-500/20 cursor-pointer disabled:opacity-50"
+                >
+                  {isExecutingTest ? (
+                    <>
+                      <div className="h-3.5 w-3.5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                      <span>Disparando E-mails...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-3.5 w-3.5" />
+                      <span>Iniciar Disparo de Teste</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

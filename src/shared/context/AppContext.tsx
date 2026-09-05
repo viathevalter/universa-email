@@ -203,7 +203,136 @@ const sanitizeLeads = (leadsArray: Lead[]): Lead[] => {
     });
 };
 
+export const VALIDATION_TEST_EMAILS_DATA: Array<{
+  name: string;
+  email: string;
+  company_name: string;
+  city: string;
+  country: string;
+  tags: string[];
+}> = [
+  {
+    name: 'Valter Teles Alves',
+    email: 'thevalter@gmail.com',
+    company_name: 'Universa TV Teste',
+    city: 'Madrid',
+    country: 'Espanha',
+    tags: ['Teste Validação', 'Auditoria E-mails', 'Gmail'],
+  },
+  {
+    name: 'Valter Gestão Login Pro',
+    email: 'valter@gestaologinpro.com',
+    company_name: 'Gestão Login Pro',
+    city: 'Barcelona',
+    country: 'Espanha',
+    tags: ['Teste Validação', 'Auditoria E-mails', 'Domínio Próprio'],
+  },
+  {
+    name: 'Suporte / Apoyo Gestão Login Pro',
+    email: 'apoyo@gestaologinpro.com',
+    company_name: 'Gestão Login Pro',
+    city: 'Valencia',
+    country: 'Espanha',
+    tags: ['Teste Validação', 'Auditoria E-mails', 'Domínio Próprio'],
+  },
+  {
+    name: 'Valter KR Industrial',
+    email: 'valter@kr-industrial.com',
+    company_name: 'KR Industrial',
+    city: 'Sevilla',
+    country: 'Espanha',
+    tags: ['Teste Validação', 'Auditoria E-mails', 'Domínio Próprio'],
+  },
+  {
+    name: 'Toshi Fuji',
+    email: 'toshifuji@gmail.com',
+    company_name: 'Universa TV Teste',
+    city: 'Málaga',
+    country: 'Espanha',
+    tags: ['Teste Validação', 'Auditoria E-mails', 'Gmail'],
+  },
+  {
+    name: 'Tech Info KR Industrial',
+    email: 'techinfo@kr-industrial.com',
+    company_name: 'KR Industrial',
+    city: 'Bilbao',
+    country: 'Espanha',
+    tags: ['Teste Validação', 'Auditoria E-mails', 'Domínio Próprio'],
+  },
+  {
+    name: 'Tech Info Gênio Montagens',
+    email: 'techinfo@geniomontagens.com',
+    company_name: 'Gênio Montagens',
+    city: 'São Paulo',
+    country: 'Brasil',
+    tags: ['Teste Validação', 'Auditoria E-mails', 'Domínio Próprio'],
+  },
+  {
+    name: 'LatamPlay Teste',
+    email: 'latamplay1@gmail.com',
+    company_name: 'LatamPlay',
+    city: 'Madrid',
+    country: 'Espanha',
+    tags: ['Teste Validação', 'Auditoria E-mails', 'Gmail'],
+  },
+];
+
+export const ensureValidationLeads = (leadsArray: Lead[], tenantId: string): Lead[] => {
+  const existingMap = new Map<string, Lead>();
+  for (const l of leadsArray) {
+    if (l && l.email) {
+      existingMap.set(l.email.toLowerCase().trim(), l);
+    }
+  }
+
+  const testLeads: Lead[] = VALIDATION_TEST_EMAILS_DATA.map((item) => {
+    const existing = existingMap.get(item.email.toLowerCase().trim());
+    if (existing) {
+      return {
+        ...existing,
+        name: item.name,
+        company_name: item.company_name,
+        tags: Array.from(new Set([...(existing.tags || []), ...item.tags])),
+        mx_valid: true,
+      };
+    }
+    return {
+      id: `lead_val_${item.email.replace(/[^a-zA-Z0-9]/g, '_')}`,
+      tenant_id: tenantId,
+      name: item.name,
+      company_name: item.company_name,
+      email: item.email,
+      phone: '+34 617 59 84 21',
+      city: item.city,
+      province: 'Madrid',
+      country: item.country,
+      status: 'new' as LeadStatus,
+      opted_out: false,
+      mx_valid: true,
+      mx_record: 'google.com (Audited)',
+      tags: item.tags,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+  });
+
+  const testEmailsSet = new Set(VALIDATION_TEST_EMAILS_DATA.map((d) => d.email.toLowerCase().trim()));
+  const remaining = (leadsArray || []).filter((l) => l && l.email && !testEmailsSet.has(l.email.toLowerCase().trim()));
+
+  return [...testLeads, ...remaining];
+};
+
 const INITIAL_AUDIENCES: SavedAudience[] = [
+  {
+    id: '00000000-0000-0000-0002-000000000000',
+    tenant_id: '00000000-0000-0000-0000-000000000001',
+    name: '🧪 Teste Interno (8 E-mails de Validação)',
+    description: 'Público com os 8 e-mails de homologação do cliente para testar entregabilidade e templates.',
+    filters: { tags: ['Teste Validação'] },
+    lead_count: 8,
+    lead_ids: VALIDATION_TEST_EMAILS_DATA.map((d) => `lead_val_${d.email.replace(/[^a-zA-Z0-9]/g, '_')}`),
+    created_at: new Date().toISOString(),
+  },
   {
     id: '00000000-0000-0000-0002-000000000001',
     tenant_id: '00000000-0000-0000-0000-000000000001',
@@ -584,10 +713,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (isMounted) {
           if (idbLeads && idbLeads.length >= 200000) {
             const sanitized = sanitizeLeads(idbLeads);
-            setLeads(sanitized);
+            setLeads(ensureValidationLeads(sanitized, tenant.id));
           } else {
             // Inicializa e persiste automaticamente a base de 202.000 leads
-            const fullDataset = generateFull200kSpainLeadsDataset(tenant.id, 202000);
+            const fullDataset = ensureValidationLeads(generateFull200kSpainLeadsDataset(tenant.id, 202000), tenant.id);
             setLeads(fullDataset);
             await saveLeadsToIndexedDb(fullDataset);
           }
@@ -595,7 +724,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } catch (e) {
         console.warn('[IndexedDB Init Warning]', e);
         if (isMounted) {
-          const fullDataset = generateFull200kSpainLeadsDataset(tenant.id, 202000);
+          const fullDataset = ensureValidationLeads(generateFull200kSpainLeadsDataset(tenant.id, 202000), tenant.id);
           setLeads(fullDataset);
         }
       }
@@ -676,9 +805,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     });
 
-    // Adiciona também os e-mails de disparo informados pelo usuário
-    sentEmails.add('thevalter@gmail.com');
-    sentEmails.add('valter@gestaologinpro.com');
+    // Adiciona também os e-mails de teste e validação informados pelo usuário
+    VALIDATION_TEST_EMAILS_DATA.forEach((item) => {
+      sentEmails.add(item.email.toLowerCase().trim());
+    });
 
     setLeads((prev) => {
       let changed = false;
@@ -696,21 +826,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       for (const sentEmail of sentEmails) {
         if (!existingEmails.has(sentEmail)) {
           changed = true;
+          const foundValidation = VALIDATION_TEST_EMAILS_DATA.find(
+            (v) => v.email.toLowerCase().trim() === sentEmail.toLowerCase().trim()
+          );
           next.unshift({
             id: `lead_sent_${sentEmail.replace(/[^a-zA-Z0-9]/g, '_')}`,
             tenant_id: tenant.id,
-            name: sentEmail.includes('thevalter') ? 'Valter Teles Alves' : 'Valter Gestão Login Pro',
-            company_name: 'Universa TV Teste',
+            name: foundValidation ? foundValidation.name : 'Contato de Validação',
+            company_name: foundValidation ? foundValidation.company_name : 'Universa TV Teste',
             email: sentEmail,
             phone: '+34 617 59 84 21',
-            city: 'Madrid',
+            city: foundValidation ? foundValidation.city : 'Madrid',
             province: 'Comunidad de Madrid',
-            country: 'Espanha',
+            country: foundValidation ? foundValidation.country : 'Espanha',
             status: 'contacted' as LeadStatus,
             opted_out: false,
             mx_valid: true,
             mx_record: 'google.com (Audited)',
-            tags: ['Disparo de Teste', 'Campanha Real'],
+            tags: foundValidation ? foundValidation.tags : ['Disparo de Teste', 'Campanha Real'],
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           });
