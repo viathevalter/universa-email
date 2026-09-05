@@ -405,11 +405,20 @@ export const KanbanView: React.FC<KanbanViewProps> = ({ onNavigateToCampaigns })
                   </div>
                 ) : (
                   visibleLeads.map((lead) => {
-                    const phoneClean = (lead.phone || '').replace(/\D/g, '');
-                    const hasWhatsApp = phoneClean.length >= 8;
+                    const rawPhone = (lead.phone || '').replace(/\D/g, '');
+                    const isBr = (lead.country || 'Espanha').toLowerCase() === 'brasil';
+                    let formattedPhone = rawPhone;
+                    if (isBr && formattedPhone.length <= 11 && !formattedPhone.startsWith('55')) {
+                      formattedPhone = '55' + formattedPhone;
+                    } else if (!isBr && formattedPhone.length === 9 && !formattedPhone.startsWith('34')) {
+                      formattedPhone = '34' + formattedPhone;
+                    }
+                    const hasWhatsApp = formattedPhone.length >= 8;
                     const waUrl = hasWhatsApp
-                      ? `https://api.whatsapp.com/send?phone=${phoneClean}&text=${encodeURIComponent(
-                          `Olá ${lead.name || ''}, tudo bem? Sou da Universa TV.`
+                      ? `https://api.whatsapp.com/send/?phone=${formattedPhone}&text=${encodeURIComponent(
+                          isBr
+                            ? `Olá ${lead.name || ''}, tudo bem? Sou da Universa TV.`
+                            : `Hola ${lead.name || ''}, ¿qué tal? Te contacto de UniversaTV España.`
                         )}`
                       : null;
 
@@ -467,6 +476,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({ onNavigateToCampaigns })
                                   href={waUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
                                   title="Iniciar conversa no WhatsApp"
                                   className="text-emerald-500 hover:text-emerald-400 p-0.5"
                                 >

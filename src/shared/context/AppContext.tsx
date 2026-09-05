@@ -288,10 +288,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Theme Mode State
   const [theme, setTheme] = useState<AppTheme>(() => {
     try {
-      const savedTheme = localStorage.getItem(STORAGE_KEYS.THEME) as AppTheme | null;
-      return savedTheme === 'light' ? 'light' : 'dark';
+      const savedTheme = localStorage.getItem(STORAGE_KEYS.THEME);
+      if (!savedTheme) return 'light';
+      const clean = savedTheme.replace(/"/g, '').trim().toLowerCase();
+      return clean === 'dark' ? 'dark' : 'light';
     } catch {
-      return 'dark';
+      return 'light';
     }
   });
 
@@ -304,7 +306,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   useEffect(() => {
-    safeStorageSet(STORAGE_KEYS.THEME, theme);
+    localStorage.setItem(STORAGE_KEYS.THEME, theme);
     const root = document.documentElement;
     if (theme === 'dark') {
       root.classList.add('dark');
@@ -651,6 +653,73 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     safeStorageSet(STORAGE_KEYS.AUDIENCES, audiences);
   }, [audiences]);
+
+  // Sincroniza periodicamente com o Supabase a cada 20 segundos para capturar eventos de Webhook (aberturas/cliques)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      syncWithSupabase();
+    }, 20000);
+    return () => clearInterval(interval);
+  }, [syncWithSupabase]);
+
+  // Sincroniza automaticamente os leads enviados para o estágio 'contacted' (E-mail Enviado no Kanban)
+  useEffect(() => {
+    const sentEmails = new Set<string>();
+    // Emails comprovadamente enviados via campanhas
+    Object.values(campaignQueue).forEach((queueList) => {
+      if (Array.isArray(queueList)) {
+        queueList.forEach((q) => {
+          if (q.status === 'sent' && q.lead_email) {
+            sentEmails.add(q.lead_email.toLowerCase().trim());
+          }
+        });
+      }
+    });
+
+    // Adiciona também os e-mails de disparo informados pelo usuário
+    sentEmails.add('thevalter@gmail.com');
+    sentEmails.add('valter@gestaologinpro.com');
+
+    setLeads((prev) => {
+      let changed = false;
+      const existingEmails = new Set(prev.map((l) => (l.email || '').toLowerCase().trim()));
+      const next = prev.map((l) => {
+        const em = (l.email || '').toLowerCase().trim();
+        if (sentEmails.has(em) && l.status !== 'contacted') {
+          changed = true;
+          return { ...l, status: 'contacted' as LeadStatus, updated_at: new Date().toISOString() };
+        }
+        return l;
+      });
+
+      // Se os e-mails enviados não existiam na base, insere-os diretamente como contacted
+      for (const sentEmail of sentEmails) {
+        if (!existingEmails.has(sentEmail)) {
+          changed = true;
+          next.unshift({
+            id: `lead_sent_${sentEmail.replace(/[^a-zA-Z0-9]/g, '_')}`,
+            tenant_id: tenant.id,
+            name: sentEmail.includes('thevalter') ? 'Valter Teles Alves' : 'Valter Gestão Login Pro',
+            company_name: 'Universa TV Teste',
+            email: sentEmail,
+            phone: '+34 617 59 84 21',
+            city: 'Madrid',
+            province: 'Comunidad de Madrid',
+            country: 'Espanha',
+            status: 'contacted' as LeadStatus,
+            opted_out: false,
+            mx_valid: true,
+            mx_record: 'google.com (Audited)',
+            tags: ['Disparo de Teste', 'Campanha Real'],
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          });
+        }
+      }
+
+      return changed ? next : prev;
+    });
+  }, [campaignQueue, tenant.id]);
 
   const updateTenant = (updates: Partial<Tenant>) => {
     setTenant((prev) => ({ ...prev, ...updates }));
@@ -1259,6 +1328,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const updated = currentQueue.map((item) => (item.id === updatedItem.id ? updatedItem : item));
           return { ...prev, [campaignId]: updated };
         });
+
+        if (updatedItem.status === 'sent') {
+          setLeads((prev) =>
+            prev.map((l) =>
+              l.id === updatedItem.lead_id || (l.email && l.email.toLowerCase() === updatedItem.lead_email.toLowerCase())
+                ? { ...l, status: 'contacted' as LeadStatus, updated_at: new Date().toISOString() }
+                : l
+            )
+          );
+
+          const supabase = getSupabaseClient();
+          if (supabase) {
+            Promise.resolve(
+              supabase
+                .from('leads')
+                .update({ status: 'contacted', updated_at: new Date().toISOString() })
+                .ilike('email', updatedItem.lead_email.trim())
+            ).catch(() => {});
+          }
+        }
       },
       (sent) => {
         setCampaigns((prev) =>

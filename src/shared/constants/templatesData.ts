@@ -40,7 +40,7 @@ export function buildUniversaEmailHtml({
   isBrazil?: boolean;
 }): string {
   const cleanPhone = whatsappNumber.replace(/[^0-9]/g, '');
-  const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(whatsappMessage)}`;
+  const whatsappUrl = `https://api.whatsapp.com/send/?phone=${cleanPhone}&text=${encodeURIComponent(whatsappMessage)}`;
   const displayPhone = isBrazil ? '+55 (11) 99999-9999' : '+34 617 59 84 21';
   const optOutText = isBrazil
     ? 'Caso não deseje mais receber nossos comunicados, você pode se descadastrar a qualquer momento com um clique:'

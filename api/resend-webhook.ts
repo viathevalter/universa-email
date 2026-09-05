@@ -32,35 +32,61 @@ export default async function handler(req: any, res: any) {
     const recipient = Array.isArray(data?.to) ? data.to[0] : data?.to;
     const clickUrl = data?.click?.link;
 
-    // Conecta ao Supabase se configurado para atualizar fila ou estatísticas
+    // Conecta ao Supabase se configurado para atualizar fila e status do lead no Kanban
     const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
     const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
 
-    if (supabaseUrl && supabaseKey && emailId) {
+    if (supabaseUrl && supabaseKey) {
       const supabase = createClient(supabaseUrl, supabaseKey);
 
-      if (type === 'email.clicked') {
-        await supabase
-          .from('marketing_campaign_queues')
-          .update({
-            clicked_at: new Date().toISOString(),
-          })
-          .eq('resend_email_id', emailId);
-      } else if (type === 'email.opened') {
-        await supabase
-          .from('marketing_campaign_queues')
-          .update({
-            opened_at: new Date().toISOString(),
-          })
-          .eq('resend_email_id', emailId);
-      } else if (type === 'email.bounced') {
-        await supabase
-          .from('marketing_campaign_queues')
-          .update({
-            status: 'bounced',
-            error_message: 'Bounced via Resend Webhook',
-          })
-          .eq('resend_email_id', emailId);
+      // 1. Atualizar registro da fila se tiver emailId
+      if (emailId) {
+        if (type === 'email.clicked') {
+          await supabase
+            .from('marketing_campaign_queues')
+            .update({ clicked_at: new Date().toISOString() })
+            .eq('resend_email_id', emailId);
+        } else if (type === 'email.opened') {
+          await supabase
+            .from('marketing_campaign_queues')
+            .update({ opened_at: new Date().toISOString() })
+            .eq('resend_email_id', emailId);
+        } else if (type === 'email.bounced') {
+          await supabase
+            .from('marketing_campaign_queues')
+            .update({ status: 'bounced', error_message: 'Bounced via Resend Webhook' })
+            .eq('resend_email_id', emailId);
+        }
+      }
+
+      // 2. Atualizar estágio do Lead no CRM / Funil Kanban em tempo real
+      if (recipient) {
+        const cleanRecipient = recipient.toLowerCase().trim();
+
+        if (type === 'email.clicked') {
+          const isWhatsAppClick = clickUrl && (clickUrl.includes('whatsapp') || clickUrl.includes('wa.me'));
+          const targetStatus = isWhatsAppClick ? 'converted' : 'replied';
+
+          await supabase
+            .from('leads')
+            .update({ status: targetStatus, updated_at: new Date().toISOString() })
+            .ilike('email', cleanRecipient);
+        } else if (type === 'email.opened') {
+          await supabase
+            .from('leads')
+            .update({ status: 'replied', updated_at: new Date().toISOString() })
+            .ilike('email', cleanRecipient);
+        } else if (type === 'email.delivered' || type === 'email.sent') {
+          await supabase
+            .from('leads')
+            .update({ status: 'contacted', updated_at: new Date().toISOString() })
+            .ilike('email', cleanRecipient);
+        } else if (type === 'email.bounced') {
+          await supabase
+            .from('leads')
+            .update({ mx_valid: false, status: 'unqualified', updated_at: new Date().toISOString() })
+            .ilike('email', cleanRecipient);
+        }
       }
     }
 
