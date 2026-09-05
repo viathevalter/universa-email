@@ -1605,19 +1605,49 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const niche = targetAudience?.filters?.niche ? targetAudience.filters.niche[0] : '';
       const tags = targetAudience?.filters?.tags || [];
 
-      let matchingLeads = leads.filter((l) => {
+      // Coleta todos os e-mails já enviados ou em fila nas campanhas anteriores para garantir ZERO repetição
+      const alreadyTargetedEmails = new Set<string>();
+      Object.values(campaignQueue).forEach((q) => {
+        if (Array.isArray(q)) {
+          q.forEach((item) => {
+            if (item.lead_email) {
+              alreadyTargetedEmails.add(item.lead_email.toLowerCase().trim());
+            }
+          });
+        }
+      });
+
+      // Filtra os leads que pertencem ao público segmentado e não pediram opt-out
+      let audienceLeads = leads.filter((l) => {
         if (l.opted_out) return false;
         if (niche && l.target_niche === niche) return true;
         if (tags.length > 0 && l.tags && tags.some((t) => l.tags.includes(t))) return true;
         return false;
       });
 
-      if (matchingLeads.length === 0) {
-        matchingLeads = leads.filter((l) => !l.opted_out);
+      if (audienceLeads.length === 0) {
+        audienceLeads = leads.filter((l) => !l.opted_out);
       }
 
+      // Prioriza estritamente LEADS NOVOS E INÉDITOS (nunca contatados anteriormente)
+      const freshLeads = audienceLeads.filter((l) => {
+        if (l.status === 'contacted') return false;
+        if (alreadyTargetedEmails.has(l.email.toLowerCase().trim())) return false;
+        return true;
+      });
+
       const countNeeded = targetCampaign.total_recipients || 600;
-      const selected = matchingLeads.slice(0, countNeeded);
+
+      // Seleciona novos contatos do público. Se a base de inéditos for suficiente (cada público tem 22k-38k leads),
+      // pega estritamente inéditos. Se esgotar, completa com os demais.
+      let selected: Lead[] = [];
+      if (freshLeads.length >= countNeeded) {
+        selected = freshLeads.slice(0, countNeeded);
+      } else {
+        const remainingNeeded = countNeeded - freshLeads.length;
+        const fallbackLeads = audienceLeads.filter((l) => !freshLeads.includes(l));
+        selected = [...freshLeads, ...fallbackLeads.slice(0, remainingNeeded)];
+      }
 
       activeQueue = selected.map((lead) => ({
         id: `queue_${Date.now()}_${lead.id}`,
@@ -1657,13 +1687,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         });
 
         if (updatedItem.status === 'sent') {
-          setLeads((prev) =>
-            prev.map((l) =>
+          setLeads((prev) => {
+            const updated = prev.map((l) =>
               l.id === updatedItem.lead_id || (l.email && l.email.toLowerCase() === updatedItem.lead_email.toLowerCase())
                 ? { ...l, status: 'contacted' as LeadStatus, updated_at: new Date().toISOString() }
                 : l
-            )
-          );
+            );
+            safeStorageSet(STORAGE_KEYS.LEADS, updated);
+            return updated;
+          });
 
           const supabase = getSupabaseClient();
           if (supabase) {
