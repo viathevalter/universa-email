@@ -124,6 +124,21 @@ export const ProspectingView: React.FC = () => {
 
   const existingEmails = new Set(leads.map((l) => l.email.toLowerCase().trim()));
 
+  // Contagem dinâmica e resiliente de leads reais no CRM por missão
+  const getMissionCapturedCount = (mission: LeadProspectingMission): number => {
+    const realCount = leads.filter((l) => {
+      if (l.target_niche === mission.niche) return true;
+      if (mission.niche === 'laliga_es' && (l.tags?.some((t) => t.toLowerCase().includes('laliga') || t.toLowerCase().includes('futbol')) || l.sector?.toLowerCase().includes('futbol'))) return true;
+      if (mission.niche === 'cine_series_es' && (l.tags?.some((t) => t.toLowerCase().includes('cine') || t.toLowerCase().includes('series') || t.toLowerCase().includes('smart')) || l.sector?.toLowerCase().includes('streaming'))) return true;
+      if (mission.niche === 'brasileiros_es' && (l.tags?.some((t) => t.toLowerCase().includes('brasileiro')) || l.sector?.toLowerCase().includes('brasileiro'))) return true;
+      if (mission.niche === 'latinos_es' && (l.tags?.some((t) => t.toLowerCase().includes('latino')) || l.sector?.toLowerCase().includes('latino'))) return true;
+      if (mission.niche === 'motorsport_es' && (l.tags?.some((t) => t.toLowerCase().includes('f1') || t.toLowerCase().includes('motogp') || t.toLowerCase().includes('motor')))) return true;
+      if (mission.niche === 'brasileirao_br' && (l.country === 'Brasil' || l.tags?.some((t) => t.toLowerCase().includes('brasil')))) return true;
+      return false;
+    }).length;
+    return Math.max(mission.captured_count, realCount);
+  };
+
   // Global Goal calculation (Goal: 200,000 leads)
   const totalVerifiedGoal = 200000;
   const validMxProspectsCount = prospectingResults.filter((r) => r.mx_status === 'valid' && r.status !== 'imported').length;
@@ -1112,7 +1127,7 @@ export const ProspectingView: React.FC = () => {
 
                   <div className="mt-4 pt-3 border-t border-zinc-800/40 flex items-center justify-between gap-2">
                     <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-zinc-500'}`}>
-                      Capturados: <strong className={isLight ? 'text-slate-800' : 'text-zinc-200'}>{mission.captured_count.toLocaleString()}</strong>
+                      Capturados: <strong className={isLight ? 'text-slate-800' : 'text-zinc-200'}>{getMissionCapturedCount(mission).toLocaleString()}</strong>
                     </div>
 
                     <button
