@@ -723,6 +723,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
+  const campaignsRef = useRef<MarketingCampaign[]>(campaigns);
+  useEffect(() => {
+    campaignsRef.current = campaigns;
+  }, [campaigns]);
+
+  const updateCampaignsState = (updater: (prev: MarketingCampaign[]) => MarketingCampaign[]) => {
+    setCampaigns((prev) => {
+      const next = updater(prev);
+      campaignsRef.current = next;
+      safeStorageSet(STORAGE_KEYS.CAMPAIGNS, next);
+      return next;
+    });
+  };
+
   const [campaignQueue, setCampaignQueue] = useState<Record<string, MarketingCampaignQueue[]>>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.QUEUE);
@@ -1581,7 +1595,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const launchCampaign = async (campaignId: string) => {
-    const targetCampaign = campaigns.find((c) => c.id === campaignId);
+    const targetCampaign = campaignsRef.current.find((c) => c.id === campaignId);
     const targetTemplate = templates.find((t) => t.id === targetCampaign?.template_id);
     if (!targetCampaign || !targetTemplate) return;
 
@@ -1616,10 +1630,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         created_at: new Date().toISOString(),
       }));
 
-      setCampaignQueue((prev) => ({ ...prev, [campaignId]: activeQueue }));
+      setCampaignQueue((prev) => {
+        const updated = { ...prev, [campaignId]: activeQueue };
+        safeStorageSet(STORAGE_KEYS.QUEUE, updated);
+        return updated;
+      });
     }
 
-    setCampaigns((prev) =>
+    updateCampaignsState((prev) =>
       prev.map((c) => (c.id === campaignId ? { ...c, status: 'sending', updated_at: new Date().toISOString() } : c))
     );
 
@@ -1659,7 +1677,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       },
       (sent) => {
-        setCampaigns((prev) =>
+        updateCampaignsState((prev) =>
           prev.map((c) =>
             c.id === campaignId
               ? {
@@ -1675,7 +1693,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     );
 
-    setCampaigns((prev) =>
+    updateCampaignsState((prev) =>
       prev.map((c) =>
         c.id === campaignId
           ? {
@@ -1689,27 +1707,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const pauseCampaign = (campaignId: string) => {
-    setCampaigns((prev) =>
+    updateCampaignsState((prev) =>
       prev.map((c) => (c.id === campaignId ? { ...c, status: 'paused', updated_at: new Date().toISOString() } : c))
     );
   };
 
   const deleteCampaign = async (campaignId: string) => {
-    setCampaigns((prev) => prev.filter((c) => c.id !== campaignId));
+    updateCampaignsState((prev) => prev.filter((c) => c.id !== campaignId));
     setCampaignQueue((prev) => {
       const next = { ...prev };
       delete next[campaignId];
+      safeStorageSet(STORAGE_KEYS.QUEUE, next);
       return next;
     });
   };
 
   const batchCreateCampaigns = (newCampaigns: MarketingCampaign[]) => {
-    setCampaigns((prev) => {
+    updateCampaignsState((prev) => {
       const newIds = new Set(newCampaigns.map((c) => c.id));
       const remaining = prev.filter((c) => !newIds.has(c.id));
-      const full = [...newCampaigns, ...remaining];
-      safeStorageSet(STORAGE_KEYS.CAMPAIGNS, full);
-      return full;
+      return [...newCampaigns, ...remaining];
     });
   };
 
@@ -1733,14 +1750,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const checkAndTriggerScheduledCampaigns = async () => {
       if (isExecutingSchedulerRef.current) return;
 
+      const currentList = campaignsRef.current;
+
       // Se já houver alguma campanha rodando com status 'sending', aguarda terminar
-      const isAnySending = campaigns.some((c) => c.status === 'sending');
+      const isAnySending = currentList.some((c) => c.status === 'sending');
       if (isAnySending) return;
 
       const now = new Date();
 
-      // Procura a primeira campanha agendada cujo horário já chegou
-      const dueCampaign = campaigns.find((c) => {
+      // Procura a próxima campanha agendada na sequência cujo horário já chegou
+      const dueCampaign = currentList.find((c) => {
         if (c.status !== 'scheduled') return false;
 
         // 1. Checagem por timestamp ISO direto
@@ -1751,7 +1770,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
         }
 
-        // 2. Fallback inteligente para horário local (ex: campanhas de hoje "[... 11:40]")
+        // 2. Fallback para campanhas de hoje cujo horário já passou
         if (c.id.startsWith('camp_sab_') || c.title.includes('HOJE') || c.title.includes('Sáb')) {
           const match = c.title.match(/(\d{1,2}):(\d{2})/);
           if (match) {
@@ -1768,7 +1787,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
 
       if (dueCampaign) {
-        console.log(`[AutoScheduler] ⏱️ Horário atingido! Disparando automaticamente: ${dueCampaign.title} (${dueCampaign.id})`);
+        console.log(`[AutoScheduler] ⏱️ Horário atingido! Disparando sequência: ${dueCampaign.title} (${dueCampaign.id})`);
         isExecutingSchedulerRef.current = true;
         try {
           await launchCampaign(dueCampaign.id);
@@ -1780,12 +1799,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     };
 
-    const intervalId = setInterval(checkAndTriggerScheduledCampaigns, 4000);
-    // Checagem imediata ao montar
+    const intervalId = setInterval(checkAndTriggerScheduledCampaigns, 2500);
+    // Checagem imediata
     checkAndTriggerScheduledCampaigns();
 
     return () => clearInterval(intervalId);
-  }, [autoSchedulerEnabled, campaigns, launchCampaign]);
+  }, [autoSchedulerEnabled]);
 
   // Audiences
   const addAudience = async (audienceData: Omit<SavedAudience, 'id' | 'tenant_id' | 'created_at'>): Promise<SavedAudience> => {
