@@ -60,6 +60,7 @@ interface AppContextType {
   missions: LeadProspectingMission[];
   runMission: (missionId: string, location: string, count: number, onProgress?: (c: number, t: number) => void) => Promise<number>;
   isAutoMissionsActive: boolean;
+  activeAutoMissionId: string | null;
   activeAutoRegion: string;
   autoBatchesCount: number;
   autoStatusDetail: string;
@@ -541,12 +542,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Continuous Auto-Missions Loop
   const [isAutoMissionsActive, setIsAutoMissionsActive] = useState(false);
+  const [activeAutoMissionId, setActiveAutoMissionId] = useState<string | null>(null);
   const [activeAutoRegion, setActiveAutoRegion] = useState('Madrid');
   const [autoBatchesCount, setAutoBatchesCount] = useState(0);
   const [autoStatusDetail, setAutoStatusDetail] = useState<string>('Pronto para iniciar');
   const autoMissionsIntervalRef = useRef<any>(null);
   const autoMissionsActiveRef = useRef<boolean>(false);
   const autoDorkingActiveRef = useRef<boolean>(false);
+  const leadsRef = useRef<Lead[]>([]);
+
+  useEffect(() => {
+    leadsRef.current = leads;
+  }, [leads]);
 
   // Dork Queue State (Combina Espanha e Brasil)
   const [dorkQueue, setDorkQueue] = useState<DorkTargetJob[]>(() => {
@@ -1350,8 +1357,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       onProgress
     );
 
-    const existingEmails = new Set(leads.map((l) => l.email.toLowerCase().trim()));
+    const currentLeadsList = leadsRef.current.length > 0 ? leadsRef.current : leads;
+    const existingEmails = new Set(currentLeadsList.map((l) => l.email.toLowerCase().trim()));
     const unique = deduplicateProspects(results, existingEmails);
+    const existingFound = results.length - unique.length;
+    const newFound = unique.length;
+    setAutoStatusDetail(`Encontrados: ${results.length} contatos (${existingFound} já no CRM, ${newFound} novos adicionados).`);
 
     // AUTO-CONVERSÃO DIRETA EM LEADS NO CRM
     if (unique.length > 0) {
@@ -1431,17 +1442,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             const countryLabel = isBr ? 'Brasil' : 'Espanha';
             const regionLabel = `${city} (${countryLabel})`;
 
+            setActiveAutoMissionId(mission.id);
             setActiveAutoRegion(regionLabel);
             setAutoBatchesCount((prev) => prev + 1);
-            setAutoStatusDetail(`Pesquisando na web: ${mission.title} em ${city}...`);
+            setAutoStatusDetail(`📡 Pesquisando: ${mission.title} em ${city}...`);
 
             currentMissionIdx++;
             currentCityIdx++;
 
             const found = await runMission(mission.id, `${city}, ${countryLabel}`, 15);
-            setAutoStatusDetail(`Lote concluído: ${found} leads reais encontrados e salvos no CRM.`);
+            setAutoStatusDetail(`✅ Lote concluído: ${found} novos contatos qualificados e salvos no CRM.`);
 
-            // Pequena pausa de 1.5s entre lotes para respeitar rate limits e respirar
+            // Pequena pausa de 1.5s entre lotes para respirar
             if (autoMissionsActiveRef.current) {
               await new Promise((r) => setTimeout(r, 1500));
             }
@@ -1456,6 +1468,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } finally {
         autoMissionsActiveRef.current = false;
         setIsAutoMissionsActive(false);
+        setActiveAutoMissionId(null);
       }
     };
 
@@ -1465,6 +1478,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const stopAutoMissions = () => {
     autoMissionsActiveRef.current = false;
     setIsAutoMissionsActive(false);
+    setActiveAutoMissionId(null);
     setAutoStatusDetail('Piloto pausado');
     if (autoMissionsIntervalRef.current) {
       clearInterval(autoMissionsIntervalRef.current);
@@ -2168,6 +2182,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         missions,
         runMission,
         isAutoMissionsActive,
+        activeAutoMissionId,
         activeAutoRegion,
         autoBatchesCount,
         autoStatusDetail,

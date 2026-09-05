@@ -43,6 +43,7 @@ export const ProspectingView: React.FC = () => {
     missions,
     runMission,
     isAutoMissionsActive,
+    activeAutoMissionId,
     activeAutoRegion,
     autoBatchesCount,
     autoStatusDetail,
@@ -950,6 +951,55 @@ export const ProspectingView: React.FC = () => {
       {/* SECTION 1: 5 B2C MISSIONS CARDS */}
       {activeMode === 'missions' && (
         <div className="space-y-6">
+          {/* LIVE AUTO-PILOT RUNNING STATUS STRIP (Always visible right here above cards) */}
+          {isAutoMissionsActive && (
+            <div
+              className={`rounded-2xl p-4 border shadow-md transition-all ${
+                isLight
+                  ? 'border-emerald-300 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-100/60 text-emerald-950'
+                  : 'border-emerald-500/50 bg-gradient-to-r from-emerald-950/50 via-zinc-900 to-emerald-950/30 text-emerald-200'
+              }`}
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-start sm:items-center gap-3">
+                  <div className="relative flex h-4 w-4 shrink-0 mt-0.5 sm:mt-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-4 w-4 bg-emerald-500"></span>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                      <span className="font-extrabold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                        ⚡ Piloto Automático Ativo
+                      </span>
+                      <span className="rounded-full bg-emerald-600/20 px-2.5 py-0.5 font-bold text-[11px] text-emerald-800 dark:text-emerald-300 border border-emerald-500/30">
+                        Lote #{autoBatchesCount}
+                      </span>
+                      <span className="font-semibold text-slate-800 dark:text-zinc-200">
+                        Região: <strong>{activeAutoRegion}</strong>
+                      </span>
+                      <span className="text-[11px] text-slate-600 dark:text-zinc-400 font-medium">
+                        • Total no CRM: <strong>{leads.length.toLocaleString()}</strong> leads reais
+                      </span>
+                    </div>
+                    <p className="text-xs font-mono font-medium text-emerald-800 dark:text-emerald-300">
+                      {autoStatusDetail || 'Processando busca contínua com rotação de distritos e peñas...'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                  <button
+                    onClick={stopAutoMissions}
+                    className="flex items-center gap-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 px-3.5 py-2 text-xs font-bold text-white shadow-md transition-all cursor-pointer"
+                  >
+                    <Pause className="h-3.5 w-3.5 fill-current" />
+                    <span>Pausar Piloto</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Country Filter Pills */}
           <div className="flex flex-wrap items-center gap-2">
             <span className={`text-xs font-semibold mr-1 ${isLight ? 'text-slate-600' : 'text-zinc-400'}`}>Filtrar por Mercado:</span>
@@ -1078,12 +1128,15 @@ export const ProspectingView: React.FC = () => {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {displayedMissions.map((mission) => {
               const isSelected = selectedMission.id === mission.id;
+              const isCardActive = isAutoMissionsActive && activeAutoMissionId === mission.id;
               return (
                 <div
                   key={mission.id}
                   onClick={() => setSelectedMission(mission)}
                   className={`rounded-2xl border p-5 transition-all cursor-pointer flex flex-col justify-between ${
-                    isSelected
+                    isCardActive
+                      ? 'border-emerald-500 bg-emerald-950/20 ring-2 ring-emerald-500/60 shadow-lg shadow-emerald-500/20'
+                      : isSelected
                       ? isLight
                         ? 'border-indigo-400 bg-gradient-to-br from-indigo-50/80 to-purple-50/50 shadow-md ring-1 ring-indigo-200'
                         : 'border-indigo-500/60 bg-gradient-to-br from-indigo-950/30 to-zinc-900 shadow-md ring-1 ring-indigo-500/30'
@@ -1094,7 +1147,14 @@ export const ProspectingView: React.FC = () => {
                 >
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <div className="text-2xl">{mission.icon}</div>
+                      <div className="flex items-center gap-2">
+                        <div className="text-2xl">{mission.icon}</div>
+                        {isCardActive && (
+                          <span className="animate-pulse flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 border border-emerald-500/40">
+                            ⚡ Minerando agora
+                          </span>
+                        )}
+                      </div>
                       <span
                         className={`rounded-full px-2 py-0.5 text-[10px] font-bold border ${
                           isLight
@@ -1137,9 +1197,18 @@ export const ProspectingView: React.FC = () => {
                         e.stopPropagation();
                         handleExecuteMission(mission);
                       }}
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-md shadow-pink-500/20 hover:opacity-95 disabled:opacity-50 transition-all cursor-pointer"
+                      className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold text-white shadow-md transition-all cursor-pointer ${
+                        isCardActive
+                          ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/30'
+                          : 'bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-600 shadow-pink-500/20 hover:opacity-95 disabled:opacity-50'
+                      }`}
                     >
-                      {isSearching && selectedMission.id === mission.id ? (
+                      {isCardActive ? (
+                        <>
+                          <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                          <span>Minerando lote...</span>
+                        </>
+                      ) : isSearching && selectedMission.id === mission.id ? (
                         <>
                           <RefreshCw className="h-3.5 w-3.5 animate-spin" />
                           <span>Buscando ({searchProgress?.current}/{searchProgress?.total})</span>

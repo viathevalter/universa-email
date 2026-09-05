@@ -301,6 +301,114 @@ export function getEffectiveGeminiKey(apiKey?: string): string {
   return '';
 }
 
+export const SPANISH_MICRO_REGIONS: Record<string, string[]> = {
+  Madrid: ['Chamartín', 'Vallecas', 'Chamberí', 'Salamanca', 'Carabanchel', 'Getafe', 'Leganés', 'Alcorcón', 'Móstoles', 'Fuenlabrada', 'Alcalá de Henares', 'Alcobendas', 'Torrejón de Ardoz', 'Parla', 'Pozuelo de Alarcón', 'Boadilla del Monte', 'San Sebastián de los Reyes', 'Las Rozas', 'Majadahonda', 'Rivas-Vaciamadrid', 'Arganda del Rey', 'Colmenar Viejo', 'Pinto', 'Coslada'],
+  Barcelona: ['Eixample', 'Gràcia', 'Ciutat Vella', 'Sants-Montjuïc', 'Les Corts', 'Sarrià-Sant Gervasi', 'Horta-Guinardó', 'Badalona', 'Hospitalet de Llobregat', 'Sabadell', 'Terrassa', 'Santa Coloma de Gramenet', 'Mataró', 'Cornellà de Llobregat', 'Sant Cugat del Vallès', 'Manresa', 'Rubí', 'Vilanova i la Geltrú', 'Granollers', 'Viladecans', 'El Prat de Llobregat'],
+  Valencia: ['Ciutat Vella', 'Eixample', 'Campanar', 'Benimaclet', 'Torrent', 'Gandia', 'Paterna', 'Sagunto', 'Alzira', 'Mislata', 'Burjassot', 'Ontinyent', 'Aldaia', 'Manises', 'Xirivella', 'Alaquàs', 'Xàtiva', 'Sueca', 'Cullera'],
+  Sevilla: ['Casco Antiguo', 'Triana', 'Nervión', 'Macarena', 'Dos Hermanas', 'Alcalá de Guadaíra', 'Utrera', 'Mairena del Aljarafe', 'Écija', 'La Rinconada', 'Los Palacios y Villafranca', 'Coria del Río', 'Carmona', 'Camas', 'Lebrija'],
+  Málaga: ['Centro', 'Carretera de Cádiz', 'Teatinos', 'Marbella', 'Mijas', 'Fuengirola', 'Torremolinos', 'Benalmádena', 'Estepona', 'Antequera', 'Rincón de la Victoria', 'Ronda', 'Alhaurín de la Torre'],
+  Bilbao: ['Abando', 'Casco Viejo', 'Deusto', 'Barakaldo', 'Getxo', 'Portugalete', 'Santurtzi', 'Basauri', 'Leioa', 'Galdakao', 'Sestao', 'Durango'],
+  Zaragoza: ['Centro', 'Delicias', 'Actur', 'Casco Histórico', 'San José', 'Las Fuentes', 'Almozara', 'Oliver-Valdefierro', 'Torrero-La Paz', 'Utebo', 'Calatayud', 'Ejea de los Caballeros'],
+  Alicante: ['Centro', 'Playa de San Juan', 'San Blas', 'Elche', 'Torrevieja', 'Orihuela', 'Benidorm', 'Alcoy', 'San Vicente del Raspeig', 'Elda', 'Villena', 'Petrer', 'Santa Pola'],
+  'Toda España': ['Madrid', 'Barcelona', 'Valencia', 'Sevilla', 'Zaragoza', 'Málaga', 'Murcia', 'Palma de Mallorca', 'Las Palmas', 'Bilbao', 'Alicante', 'Córdoba', 'Valladolid', 'Vigo', 'Gijón', 'A Coruña', 'Granada', 'Vitoria-Gasteiz', 'Oviedo', 'Santander']
+};
+
+export const BRAZILIAN_MICRO_REGIONS: Record<string, string[]> = {
+  'São Paulo': ['Pinheiros', 'Moema', 'Tatuapé', 'Mooca', 'Santana', 'Itaquera', 'Morumbi', 'Lapa', 'Guarulhos', 'Campinas', 'São Bernardo do Campo', 'Santo André', 'Osasco', 'Santos', 'Ribeirão Preto', 'Sorocaba', 'São José dos Campos'],
+  'Rio de Janeiro': ['Copacabana', 'Tijuca', 'Barra da Tijuca', 'Botafogo', 'Flamengo', 'Méier', 'Campo Grande', 'Niterói', 'Duque de Caxias', 'Nova Iguaçu', 'São Gonçalo', 'Petrópolis', 'Volta Redonda', 'Macaé', 'Cabo Frio'],
+  'Belo Horizonte': ['Savassi', 'Lourdes', 'Pampulha', 'Buritis', 'Contagem', 'Betim', 'Nova Lima', 'Juiz de Fora', 'Uberlândia', 'Montes Claros'],
+  'Curitiba': ['Batel', 'Centro Cívico', 'Água Verde', 'Santa Felicidade', 'São José dos Pinhais', 'Londrina', 'Maringá', 'Ponta Grossa', 'Cascavel'],
+  'Porto Alegre': ['Moinhos de Vento', 'Menino Deus', 'Cidade Baixa', 'Canoas', 'Novo Hamburgo', 'Caxias do Sul', 'Pelotas', 'Santa Maria'],
+  'Salvador': ['Pituba', 'Barra', 'Rio Vermelho', 'Itaigara', 'Feira de Santana', 'Vitória da Conquista', 'Camaçari', 'Itabuna'],
+  'Brasília': ['Asa Sul', 'Asa Norte', 'Águas Claras', 'Taguatinga', 'Ceilândia', 'Guará', 'Sobradinho', 'Gama'],
+  'Campinas': ['Cambuí', 'Barão Geraldo', 'Taquaral', 'Sousas', 'Sumaré', 'Hortolândia', 'Americana', 'Indaiatuba']
+};
+
+export const LALIGA_CLUBS = [
+  'Real Madrid', 'FC Barcelona', 'Atlético de Madrid', 'Real Betis', 'Sevilla FC', 'Valencia CF',
+  'Athletic Club Bilbao', 'Real Sociedad', 'Villarreal CF', 'Celta de Vigo', 'RCD Mallorca',
+  'CA Osasuna', 'Rayo Vallecano', 'Getafe CF', 'Girona FC', 'UD Las Palmas', 'Deportivo Alavés',
+  'CD Leganés', 'Real Valladolid', 'RCD Espanyol', 'Sporting de Gijón', 'Real Oviedo', 'Racing de Santander'
+];
+
+export const BRASILEIRAO_CLUBS = [
+  'Flamengo', 'Corinthians', 'Palmeiras', 'São Paulo FC', 'Vasco da Gama', 'Grêmio', 'Internacional',
+  'Atlético Mineiro', 'Cruzeiro', 'Santos FC', 'Fluminense', 'Botafogo', 'Bahia', 'Fortaleza', 'Athletico Paranaense'
+];
+
+export function generateDynamicSearchQuery(niche: string | undefined, location: string): { query: string; displayTarget: string } {
+  const cleanCity = location.split(',')[0].trim();
+  
+  if (niche === 'laliga_es') {
+    const club = LALIGA_CLUBS[Math.floor(Math.random() * LALIGA_CLUBS.length)];
+    const regions = SPANISH_MICRO_REGIONS[cleanCity] || SPANISH_MICRO_REGIONS['Madrid'];
+    const subRegion = regions[Math.floor(Math.random() * regions.length)];
+    return {
+      query: `peña ${club} em ${subRegion} ou ${cleanCity} contacto email junta directiva presidente correo`,
+      displayTarget: `${club} (${subRegion}, ${cleanCity})`
+    };
+  }
+
+  if (niche === 'cine_series_es') {
+    const platforms = ['Smart TV LG Samsung', 'Fire TV Stick 4K', 'Android TV Box', 'Foro Cinefilos 4K', 'Kodi y Plex España', 'Comunidad Streaming España'];
+    const plat = platforms[Math.floor(Math.random() * platforms.length)];
+    const regions = SPANISH_MICRO_REGIONS[cleanCity] || SPANISH_MICRO_REGIONS['Madrid'];
+    const subRegion = regions[Math.floor(Math.random() * regions.length)];
+    return {
+      query: `${plat} "${subRegion}" OR "${cleanCity}" contacto email foro aficionado cine`,
+      displayTarget: `${plat} (${subRegion})`
+    };
+  }
+
+  if (niche === 'brasileiros_es') {
+    const types = ['comunidade brasileiros', 'associação brasileira', 'restaurante brasileiro', 'grupo brasileiros na espanha', 'igreja brasileira'];
+    const t = types[Math.floor(Math.random() * types.length)];
+    const regions = SPANISH_MICRO_REGIONS[cleanCity] || SPANISH_MICRO_REGIONS['Madrid'];
+    const subRegion = regions[Math.floor(Math.random() * regions.length)];
+    return {
+      query: `"${t}" em ${subRegion} ou ${cleanCity} contato email @gmail.com OR @hotmail.com`,
+      displayTarget: `${t} (${subRegion}, ${cleanCity})`
+    };
+  }
+
+  if (niche === 'latinos_es') {
+    const communities = ['colombianos en españa', 'venezolanos en españa', 'peruanos en españa', 'argentinos en españa futbol peña', 'asociacion hispanoamericana'];
+    const c = communities[Math.floor(Math.random() * communities.length)];
+    const regions = SPANISH_MICRO_REGIONS[cleanCity] || SPANISH_MICRO_REGIONS['Madrid'];
+    const subRegion = regions[Math.floor(Math.random() * regions.length)];
+    return {
+      query: `"${c}" ${subRegion} ou ${cleanCity} contacto email correo`,
+      displayTarget: `${c} (${subRegion})`
+    };
+  }
+
+  if (niche === 'motorsport_es') {
+    const motors = ['peña fernando alonso', 'club carlos sainz f1', 'fan club marc marquez motogp', 'motoclub moteros', 'foro formula 1 españa'];
+    const m = motors[Math.floor(Math.random() * motors.length)];
+    const regions = SPANISH_MICRO_REGIONS[cleanCity] || SPANISH_MICRO_REGIONS['Madrid'];
+    const subRegion = regions[Math.floor(Math.random() * regions.length)];
+    return {
+      query: `"${m}" ${subRegion} ou ${cleanCity} contacto email @gmail.com OR @hotmail.es`,
+      displayTarget: `${m} (${subRegion})`
+    };
+  }
+
+  if (niche === 'brasileirao_br') {
+    const club = BRASILEIRAO_CLUBS[Math.floor(Math.random() * BRASILEIRAO_CLUBS.length)];
+    const regions = BRAZILIAN_MICRO_REGIONS[cleanCity] || BRAZILIAN_MICRO_REGIONS['São Paulo'];
+    const subRegion = regions[Math.floor(Math.random() * regions.length)];
+    return {
+      query: `consulado ou torcida organizada ${club} em ${subRegion} ou ${cleanCity} contato email`,
+      displayTarget: `${club} (${subRegion}, ${cleanCity})`
+    };
+  }
+
+  return {
+    query: `${location} contato email publico`,
+    displayTarget: location
+  };
+}
+
 /**
  * Busca leads B2B e B2C usando Google Gemini com Grounded Search obrigatório e auditoria DoH em tempo real
  */
@@ -334,25 +442,27 @@ export async function searchB2BLeadsWithAI(
   const effectiveKey = getEffectiveGeminiKey(apiKey);
   if (effectiveKey) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 25000);
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
 
     try {
+      const dynamic = generateDynamicSearchQuery(niche, location);
       const randomSeed = Math.random().toString(36).substring(2, 6);
       const prompt = isB2C
-        ? `Você é um robô de busca e rastreamento de dados públicos na Espanha.
-Execute uma pesquisa no Google e na web indexada por perfis públicos, tópicos de fóruns, peñas esportivas e grupos na Espanha sobre "${keywords}" em "${location}" (variação aleatória seed: ${randomSeed}).
-Busque em diferentes distritos, provedores (@gmail.com, @hotmail.es, @outlook.es, @yahoo.es, @telefonica.net) e tópicos de comunidades de Smart TV, futebol, cine 4K e expatriados.
+        ? `Você é um robô de busca e rastreamento de dados públicos na web.
+Execute uma pesquisa no Google e na web viva por contatos públicos reais para a busca: "${dynamic.query}" (seed: ${randomSeed}).
+Local de foco: ${location} (${dynamic.displayTarget}).
+Busque em diferentes distritos, provedores (@gmail.com, @hotmail.es, @outlook.es, @yahoo.es, @hotmail.com) e tópicos de comunidades.
 Encontre até ${targetCount} contatos e pessoas reais ou menções públicas não repetidas.
 Extraia:
 - contact_name: Nome da pessoa ou responsável
-- company_name: Associação / Perfil / Referência (ex: "Peña Madridista La Gran Familia", "Perfil Instagram Aficionado LaLiga", "Comunidade Brasileiros Madrid")
-- role: Interesse (ex: "Torcedor LaLiga / Smart TV", "Cinéfilo 4K", "Expatriado na Espanha")
+- company_name: Associação / Perfil / Referência (ex: "Peña Madridista La Gran Familia", "Perfil Aficionado LaLiga", "Comunidade Brasileiros Madrid")
+- role: Cargo ou interesse (ex: "Presidente", "Tesorero", "Torcedor LaLiga", "Cinéfilo 4K", "Expatriado")
 - email: E-mail real indexado (@gmail.com, @hotmail.es, @yahoo.es, @outlook.es)
-- phone: Telefone com código +34 (Espanha) se encontrado
-- source_url: URL real da página, post do Instagram, grupo do Facebook ou site da peña onde o contato foi encontrado
-- city: Cidade na Espanha
-- province: Província espanhola
-- country: "Espanha"
+- phone: Telefone com código local se encontrado
+- source_url: URL real da página ou site onde o contato foi encontrado
+- city: Cidade
+- province: Província
+- country: "${location.toLowerCase().includes('brasil') ? 'Brasil' : 'Espanha'}"
 - confidence_score: de 85 a 98
 
 Retorne estritamente em JSON puro:
