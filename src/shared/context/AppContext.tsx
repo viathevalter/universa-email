@@ -506,13 +506,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const saved = localStorage.getItem(STORAGE_KEYS.MISSIONS);
       if (saved) {
         const parsed: LeadProspectingMission[] = JSON.parse(saved);
-        const hasBrazil = parsed.some((m) => m.country === 'Brasil');
-        if (hasBrazil) return parsed;
-        return [...parsed, ...BRAZIL_B2C_MISSIONS];
+        const isLegacyFake = parsed.some((m) => m.captured_count > 1000);
+        if (!isLegacyFake) {
+          const hasBrazil = parsed.some((m) => m.country === 'Brasil');
+          if (hasBrazil) return parsed;
+          return [...parsed, ...BRAZIL_B2C_MISSIONS];
+        }
       }
-      return [...SPAIN_B2C_MISSIONS, ...BRAZIL_B2C_MISSIONS];
+      const initial = [...SPAIN_B2C_MISSIONS, ...BRAZIL_B2C_MISSIONS].map((m) => ({
+        ...m,
+        captured_count: 0,
+        valid_mx_count: 0,
+      }));
+      safeStorageSet(STORAGE_KEYS.MISSIONS, initial);
+      return initial;
     } catch {
-      return [...SPAIN_B2C_MISSIONS, ...BRAZIL_B2C_MISSIONS];
+      return [...SPAIN_B2C_MISSIONS, ...BRAZIL_B2C_MISSIONS].map((m) => ({
+        ...m,
+        captured_count: 0,
+        valid_mx_count: 0,
+      }));
     }
   });
 
@@ -528,11 +541,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const saved = localStorage.getItem(STORAGE_KEYS.DORK_QUEUE);
       if (saved) {
         const parsed: DorkTargetJob[] = JSON.parse(saved);
-        const hasBrazil = parsed.some((d) => d.id.includes('_br') || d.city === 'São Paulo');
-        if (hasBrazil) return parsed;
-        return [...parsed, ...BRAZIL_DORK_QUEUE];
+        const isLegacyFake = parsed.some((d) => d.leads_found > 1000);
+        if (!isLegacyFake) {
+          const hasBrazil = parsed.some((d) => d.id.includes('_br') || d.city === 'São Paulo');
+          if (hasBrazil) return parsed;
+          return [...parsed, ...BRAZIL_DORK_QUEUE];
+        }
       }
-      return [...INITIAL_DORK_QUEUE, ...BRAZIL_DORK_QUEUE];
+      const initial = [...INITIAL_DORK_QUEUE, ...BRAZIL_DORK_QUEUE].map((d) => ({
+        ...d,
+        leads_found: 0,
+        status: 'queued' as const,
+      }));
+      safeStorageSet(STORAGE_KEYS.DORK_QUEUE, initial);
+      return initial;
     } catch {
       return [...INITIAL_DORK_QUEUE, ...BRAZIL_DORK_QUEUE];
     }
@@ -555,7 +577,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [prospectingResults, setProspectingResults] = useState<LeadProspectingResult[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.RESULTS);
-      return saved ? JSON.parse(saved) : [];
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const isLegacy = parsed.some((r: any) => r.id?.startsWith('pres_'));
+        if (!isLegacy) return parsed;
+      }
+      safeStorageSet(STORAGE_KEYS.RESULTS, []);
+      return [];
     } catch {
       return [];
     }
@@ -1116,7 +1144,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       await clearAllIndexedDb();
       const realOnly = leads.filter(
-        (l) => !l.id.startsWith('lead_es_202k_') && !l.id.startsWith('lead_sim_')
+        (l) => !l.id.startsWith('lead_es_202k_') && !l.id.startsWith('lead_sim_') && !l.id.startsWith('pres_')
       );
       const finalReal = ensureValidationLeads(realOnly, tenant.id);
       setLeads(finalReal);
@@ -1124,6 +1152,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       safeStorageSet(STORAGE_KEYS.LEADS, finalReal);
       safeStorageSet(STORAGE_KEYS.CONTACTED_EMAILS, []);
       contactedEmailsRef.current = new Set();
+
+      // Zera contadores de todas as missões para 0
+      const resetMissions = [...SPAIN_B2C_MISSIONS, ...BRAZIL_B2C_MISSIONS].map((m) => ({
+        ...m,
+        captured_count: 0,
+        valid_mx_count: 0,
+      }));
+      setMissions(resetMissions);
+      safeStorageSet(STORAGE_KEYS.MISSIONS, resetMissions);
+
+      // Zera contadores dos alvos de dork para 0
+      const resetDorks = [...INITIAL_DORK_QUEUE, ...BRAZIL_DORK_QUEUE].map((d) => ({
+        ...d,
+        leads_found: 0,
+        status: 'queued' as const,
+        last_run_at: undefined,
+      }));
+      setDorkQueue(resetDorks);
+      safeStorageSet(STORAGE_KEYS.DORK_QUEUE, resetDorks);
+
+      // Zera staging e jobs anteriores
+      setProspectingJobs([]);
+      setProspectingResults([]);
+      safeStorageSet(STORAGE_KEYS.JOBS, []);
+      safeStorageSet(STORAGE_KEYS.RESULTS, []);
+
       return finalReal.length;
     } catch (e) {
       console.error('[Purge Error]', e);

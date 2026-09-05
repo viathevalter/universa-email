@@ -38,7 +38,7 @@ export const ProspectingView: React.FC = () => {
   const {
     tenant,
     leads,
-    restoreFull202kDatabase,
+    purgeSyntheticLeads,
     missions,
     runMission,
     isAutoMissionsActive,
@@ -62,9 +62,8 @@ export const ProspectingView: React.FC = () => {
 
   const isLight = theme === 'light';
 
-  // Restore 202k State
+  // Purge State
   const [isRestoring, setIsRestoring] = useState(false);
-  const [restoreProgress, setRestoreProgress] = useState(0);
 
   // Active view mode
   const [activeMode, setActiveMode] = useState<'missions' | 'dorks' | 'custom'>('missions');
@@ -464,19 +463,23 @@ export const ProspectingView: React.FC = () => {
     setSelectedIds([]);
   };
 
-  const handleRestore202k = async () => {
+  const handlePurgeAll = async () => {
+    if (
+      !confirm(
+        'Deseja zerar todos os contadores da Máquina de Leads, limpar a área de staging e deixar tudo zerado para iniciarmos do zero?'
+      )
+    ) {
+      return;
+    }
     setIsRestoring(true);
     try {
-      const count = await restoreFull202kDatabase(202000, (p) => setRestoreProgress(p));
-      try {
-        confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
-      } catch {}
+      await purgeSyntheticLeads();
       setNotification({
         type: 'success',
-        message: `Base completa de ${count.toLocaleString()} leads carregada e persistida no IndexedDB com sucesso!`,
+        message: 'Máquina de Leads e contadores zerados com sucesso! Pronto para capturar do zero.',
       });
     } catch (e) {
-      setNotification({ type: 'error', message: 'Erro ao carregar base de leads.' });
+      setNotification({ type: 'error', message: 'Erro ao zerar dados.' });
     } finally {
       setIsRestoring(false);
     }
@@ -554,13 +557,13 @@ export const ProspectingView: React.FC = () => {
             {/* Quick Action Modals Triggers */}
             <div className="flex flex-col gap-2">
               <button
-                onClick={handleRestore202k}
+                onClick={handlePurgeAll}
                 disabled={isRestoring}
-                className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-indigo-600 p-2.5 text-xs font-bold text-white shadow-lg shadow-orange-500/20 hover:opacity-95 transition-all cursor-pointer"
-                title="Carregar / Restaurar base completa de 202.000 leads segmentados da Espanha"
+                className="flex items-center justify-center gap-2 rounded-xl border border-rose-500/40 bg-rose-500/10 hover:bg-rose-500/20 p-2.5 text-xs font-bold text-rose-400 shadow-sm transition-all cursor-pointer"
+                title="Zerar todos os contadores das missões, limpar staging e iniciar do zero"
               >
-                <Sparkles className="h-4 w-4" />
-                <span>{isRestoring ? `Carregando 202k (${restoreProgress}%)...` : '⚡ Carregar 202.000 Leads'}</span>
+                <Trash2 className="h-4 w-4 text-rose-400" />
+                <span>{isRestoring ? 'Zerando...' : '🗑️ Zerar Contadores & Staging (Do Zero)'}</span>
               </button>
 
               <button
