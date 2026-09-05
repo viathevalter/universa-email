@@ -229,15 +229,26 @@ export async function processCampaignQueueBatch(
   onItemUpdated: (updatedItem: MarketingCampaignQueue) => void,
   onProgress?: (sent: number, total: number) => void
 ): Promise<{ sent: number; failed: number }> {
-  let sentCount = 0;
-  let failedCount = 0;
+  let sentCount = queueItems.filter((it) => it.status === 'sent').length;
+  let failedCount = queueItems.filter((it) => it.status === 'failed').length;
   const total = queueItems.length;
+
+  // Notifica progresso inicial se a campanha foi retomada após queda/reinicio
+  if (onProgress && sentCount > 0) {
+    onProgress(sentCount, total);
+  }
 
   // Respeita taxa segura de envio (Ex: 2 envios por segundo = 500ms delay)
   const delayMs = Math.max(250, Math.floor(1000 / (campaign.rate_limit_per_second || 2)));
 
   for (let i = 0; i < queueItems.length; i++) {
     const item = queueItems[i];
+
+    // Se este item já foi enviado anteriormente (ex: navegador reiniciou após 36 envios), PULA com segurança!
+    if (item.status === 'sent') {
+      continue;
+    }
+
     const lead = leadsMap.get(item.lead_id);
 
     if (!lead || lead.opted_out) {
@@ -288,7 +299,7 @@ export async function processCampaignQueueBatch(
     onItemUpdated(updated);
 
     if (onProgress) {
-      onProgress(i + 1, total);
+      onProgress(sentCount, total);
     }
 
     // Intervalo de rate-limit

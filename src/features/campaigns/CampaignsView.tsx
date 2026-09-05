@@ -1650,13 +1650,23 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                       )}
 
                       {camp.status === 'sending' && (
-                        <button
-                          onClick={() => pauseCampaign(camp.id)}
-                          className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-xl border border-yellow-500/30 text-yellow-500 hover:bg-yellow-500/10 text-xs font-bold cursor-pointer"
-                        >
-                          <Pause className="h-3.5 w-3.5" />
-                          <span>Pausar</span>
-                        </button>
+                        <div className="w-full flex items-center gap-1.5">
+                          <button
+                            onClick={() => pauseCampaign(camp.id)}
+                            className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-xl border border-yellow-500/30 text-yellow-500 hover:bg-yellow-500/10 text-xs font-bold cursor-pointer"
+                          >
+                            <Pause className="h-3.5 w-3.5" />
+                            <span>Pausar</span>
+                          </button>
+                          <button
+                            onClick={() => launchCampaign(camp.id)}
+                            className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-xl bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-500 border border-yellow-500/30 text-xs font-bold cursor-pointer"
+                            title="Forçar continuidade dos envios caso o navegador tenha sido reiniciado"
+                          >
+                            <Play className="h-3.5 w-3.5 fill-current" />
+                            <span>Continuar</span>
+                          </button>
+                        </div>
                       )}
 
                       {camp.status === 'paused' && (

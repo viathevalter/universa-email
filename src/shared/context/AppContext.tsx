@@ -1784,9 +1784,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       const currentList = campaignsRef.current;
 
-      // Se já houver alguma campanha rodando com status 'sending', aguarda terminar
-      const isAnySending = currentList.some((c) => c.status === 'sending');
-      if (isAnySending) return;
+      // 1. Prioridade Máxima: se houver campanha que estava em 'sending' quando o navegador reiniciou,
+      // retoma os disparos automaticamente a partir de onde parou (ex: do envio 37 em diante)!
+      const interruptedCampaign = currentList.find((c) => c.status === 'sending');
+      if (interruptedCampaign) {
+        console.log(`[AutoScheduler] 🔄 Retomando envios da campanha interrompida: ${interruptedCampaign.title} (${interruptedCampaign.id})`);
+        isExecutingSchedulerRef.current = true;
+        try {
+          await launchCampaign(interruptedCampaign.id);
+        } catch (err) {
+          console.error('[AutoScheduler] Erro ao retomar campanha interrompida:', err);
+        } finally {
+          isExecutingSchedulerRef.current = false;
+        }
+        return;
+      }
 
       const now = new Date();
 
