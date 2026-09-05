@@ -23,10 +23,17 @@ import {
   RotateCcw,
   Monitor,
   Smartphone,
+  Calendar,
+  Clock,
+  Wand2,
+  ArrowRight,
+  TrendingUp,
+  Layers,
+  Zap,
 } from 'lucide-react';
 import { useApp, VERIFIED_SENDERS, VALIDATION_TEST_EMAILS_DATA } from '../../shared/context/AppContext';
 import { sendEmailViaResend, interpolateEmailVariables } from '../../shared/services/resendService';
-import type { MarketingTemplate, SavedAudience, Lead, LeadStatus } from '../../types';
+import type { MarketingTemplate, MarketingCampaign, SavedAudience, Lead, LeadStatus } from '../../types';
 import confetti from 'canvas-confetti';
 
 interface CampaignsViewProps {
@@ -252,6 +259,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
     leads,
     audiences,
     createCampaign,
+    batchCreateCampaigns,
     launchCampaign,
     pauseCampaign,
     deleteCampaign,
@@ -352,6 +360,132 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
   // Cronograma de Disparos Filtro por Dia
   const [campaignDayFilter, setCampaignDayFilter] = useState<'all' | 'sab' | 'dom' | 'seg'>('all');
   const [isLaunchingBatch, setIsLaunchingBatch] = useState(false);
+
+  // =========================================================================
+  // ASSISTENTE DE CRONOGRAMA PASSO A PASSO (SCHEDULE WIZARD)
+  // =========================================================================
+  const [isScheduleWizardOpen, setIsScheduleWizardOpen] = useState(false);
+  const [scheduleWizardStep, setScheduleWizardStep] = useState<1 | 2 | 3 | 4>(1);
+
+  // Passo 1: Período e Dias
+  const [wizardDaysPreset, setWizardDaysPreset] = useState<'3days' | '7days'>('3days');
+  const [wizardDaysConfig, setWizardDaysConfig] = useState([
+    { dayKey: 'sab', label: 'Hoje (Sábado)', dateStr: '05/09', time: '11:40', volume: 4200 },
+    { dayKey: 'dom', label: 'Amanhã (Domingo)', dateStr: '06/09', time: '12:00', volume: 4900 },
+    { dayKey: 'seg', label: 'Segunda-feira', dateStr: '07/09', time: '10:00', volume: 5950 },
+  ]);
+
+  // Passo 2: Volume & Aquecimento
+  const [wizardStartVolume, setWizardStartVolume] = useState<number>(4200);
+  const [wizardDailyIncrease, setWizardDailyIncrease] = useState<number>(700);
+
+  // Passo 3: Templates & Remetente
+  const [wizardSenderId, setWizardSenderId] = useState<string>('carlos_es');
+  const [wizardSelectedTemplateIds, setWizardSelectedTemplateIds] = useState<string[]>([
+    'tmpl_laliga_futbol_es',
+    'tmpl_real_madrid_es',
+    'tmpl_fc_barcelona_es',
+    'tmpl_formula1_motogp_es',
+    'tmpl_cine_series_es',
+    'tmpl_canales_latinos_eu',
+    'tmpl_multidispositivo_premium_es',
+  ]);
+
+  const toggleWizardTemplate = (tmplId: string) => {
+    if (wizardSelectedTemplateIds.includes(tmplId)) {
+      if (wizardSelectedTemplateIds.length <= 1) return;
+      setWizardSelectedTemplateIds(wizardSelectedTemplateIds.filter((id) => id !== tmplId));
+    } else {
+      setWizardSelectedTemplateIds([...wizardSelectedTemplateIds, tmplId]);
+    }
+  };
+
+  const handleUpdateVolumeSettings = (newStart: number, newIncrease: number) => {
+    setWizardStartVolume(newStart);
+    setWizardDailyIncrease(newIncrease);
+    setWizardDaysConfig((prev) =>
+      prev.map((day, idx) => ({
+        ...day,
+        volume: newStart + newIncrease * idx,
+      }))
+    );
+  };
+
+  const handleUpdateDayConfig = (idx: number, field: 'time' | 'volume', value: any) => {
+    setWizardDaysConfig((prev) => {
+      const next = [...prev];
+      next[idx] = { ...next[idx], [field]: value };
+      return next;
+    });
+  };
+
+  const handleApplyDaysPreset = (preset: '3days' | '7days') => {
+    setWizardDaysPreset(preset);
+    if (preset === '3days') {
+      setWizardDaysConfig([
+        { dayKey: 'sab', label: 'Hoje (Sábado)', dateStr: '05/09', time: '11:40', volume: wizardStartVolume },
+        { dayKey: 'dom', label: 'Amanhã (Domingo)', dateStr: '06/09', time: '12:00', volume: wizardStartVolume + wizardDailyIncrease },
+        { dayKey: 'seg', label: 'Segunda-feira', dateStr: '07/09', time: '10:00', volume: wizardStartVolume + wizardDailyIncrease * 2 },
+      ]);
+    } else if (preset === '7days') {
+      setWizardDaysConfig([
+        { dayKey: 'sab', label: 'Hoje (Sáb)', dateStr: '05/09', time: '11:40', volume: wizardStartVolume },
+        { dayKey: 'dom', label: 'Dom 06/09', dateStr: '06/09', time: '12:00', volume: wizardStartVolume + wizardDailyIncrease },
+        { dayKey: 'seg', label: 'Seg 07/09', dateStr: '07/09', time: '10:00', volume: wizardStartVolume + wizardDailyIncrease * 2 },
+        { dayKey: 'ter', label: 'Ter 08/09', dateStr: '08/09', time: '10:00', volume: wizardStartVolume + wizardDailyIncrease * 3 },
+        { dayKey: 'qua', label: 'Qua 09/09', dateStr: '09/09', time: '10:00', volume: wizardStartVolume + wizardDailyIncrease * 4 },
+        { dayKey: 'qui', label: 'Qui 10/09', dateStr: '10/09', time: '10:00', volume: wizardStartVolume + wizardDailyIncrease * 5 },
+        { dayKey: 'sex', label: 'Sex 11/09', dateStr: '11/09', time: '10:00', volume: wizardStartVolume + wizardDailyIncrease * 6 },
+      ]);
+    }
+  };
+
+  const handleGenerateSchedule = () => {
+    const chosenTemplates = templates.filter((t) => wizardSelectedTemplateIds.includes(t.id));
+    if (chosenTemplates.length === 0) return;
+
+    const senderObj = VERIFIED_SENDERS.find((s) => s.id === wizardSenderId) || VERIFIED_SENDERS[0];
+    const newGeneratedCampaigns: MarketingCampaign[] = [];
+
+    wizardDaysConfig.forEach((day) => {
+      const perTemplateVolume = Math.max(50, Math.round(day.volume / chosenTemplates.length));
+
+      chosenTemplates.forEach((tmpl, idx) => {
+        const campId = `camp_${day.dayKey}_${Date.now()}_t${idx + 1}`;
+        newGeneratedCampaigns.push({
+          id: campId,
+          tenant_id: tenant.id,
+          template_id: tmpl.id,
+          title: `[${day.label} ${day.time}] ${tmpl.title.replace(/\[.*?\]\s*/g, '')} (${perTemplateVolume} envios)`,
+          subject: tmpl.subject,
+          sender_name: senderObj.name,
+          sender_email: senderObj.email,
+          reply_to: senderObj.reply_to,
+          target_audience_id: tmpl.category ? `aud_${tmpl.category}` : undefined,
+          status: 'scheduled',
+          scheduled_at: `${new Date().toISOString().split('T')[0]}T${day.time}:00.000Z`,
+          total_recipients: perTemplateVolume,
+          sent_count: 0,
+          delivered_count: 0,
+          opened_count: 0,
+          clicked_count: 0,
+          bounced_count: 0,
+          failed_count: 0,
+          rate_limit_per_second: 2,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+      });
+    });
+
+    batchCreateCampaigns(newGeneratedCampaigns);
+    setIsScheduleWizardOpen(false);
+    confetti({ particleCount: 90, spread: 70, origin: { y: 0.5 } });
+    setNotification({
+      type: 'success',
+      message: `Cronograma com ${newGeneratedCampaigns.length} campanhas gerado e agendado com sucesso!`,
+    });
+  };
 
   const handleLaunchTodayBatch = async () => {
     const todayList = campaigns.filter((c) => (c.id.startsWith('camp_sab_') || c.title.includes('HOJE') || c.title.includes('Sáb')) && c.status !== 'completed');
@@ -1104,6 +1238,22 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
         <div className="flex items-center gap-2.5">
           {activeSubTab === 'campaigns' && (
             <>
+              <button
+                onClick={() => {
+                  setScheduleWizardStep(1);
+                  setIsScheduleWizardOpen(true);
+                }}
+                className={`flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-xs font-bold transition-all cursor-pointer border shadow-sm ${
+                  isLight
+                    ? 'bg-blue-50 border-blue-300 text-blue-800 hover:bg-blue-100'
+                    : 'bg-blue-500/10 border-blue-500/30 text-blue-400 hover:bg-blue-500/20'
+                }`}
+                title="Assistente passo a passo para gerar e programar cronograma em lote"
+              >
+                <Wand2 className="h-4 w-4 text-blue-500" />
+                <span>⚡ Assistente de Cronograma</span>
+              </button>
+
               <button
                 onClick={() => {
                   setTestLogs([]);
@@ -3094,6 +3244,526 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                     </>
                   )}
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: ASSISTENTE DE CRONOGRAMA PASSO A PASSO (SCHEDULE WIZARD)           */}
+      {/* ========================================================================= */}
+      {isScheduleWizardOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 overflow-y-auto">
+          <div
+            className={`rounded-2xl border w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden my-auto ${
+              isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-zinc-900 border-zinc-800 text-white'
+            }`}
+          >
+            {/* Modal Header */}
+            <div className={`p-5 border-b flex items-center justify-between shrink-0 ${isLight ? 'border-slate-200 bg-slate-50/50' : 'border-zinc-800 bg-zinc-950/40'}`}>
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-500">
+                  <Wand2 className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base flex items-center gap-2">
+                    <span>Assistente de Cronograma de Campanhas</span>
+                    <span className="text-[10px] uppercase tracking-wider bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded-full border border-blue-500/20 font-mono">
+                      Espanha & Aquecimento
+                    </span>
+                  </h3>
+                  <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
+                    Gere e programe automaticamente a esteira de envios dividida entre os templates e adequada à equipe
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsScheduleWizardOpen(false)}
+                className={`p-2 rounded-xl transition-colors cursor-pointer ${
+                  isLight ? 'hover:bg-slate-200 text-slate-500' : 'hover:bg-zinc-800 text-zinc-400'
+                }`}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Stepper Navigation Bar */}
+            <div className={`px-6 py-3 border-b grid grid-cols-4 gap-2 text-xs font-semibold shrink-0 ${isLight ? 'border-slate-200 bg-slate-100/50' : 'border-zinc-800 bg-zinc-950/20'}`}>
+              {[
+                { step: 1, title: '1. Período & Dias', icon: Calendar },
+                { step: 2, title: '2. Volume & Aquecimento', icon: TrendingUp },
+                { step: 3, title: '3. Templates & Remetente', icon: Layers },
+                { step: 4, title: '4. Revisão & Gerar', icon: Zap },
+              ].map((s) => {
+                const Icon = s.icon;
+                const isActive = scheduleWizardStep === s.step;
+                const isPassed = scheduleWizardStep > s.step;
+                return (
+                  <button
+                    key={s.step}
+                    onClick={() => setScheduleWizardStep(s.step as any)}
+                    className={`flex items-center gap-2 py-1.5 px-3 rounded-xl transition-all text-left cursor-pointer ${
+                      isActive
+                        ? 'bg-blue-500 text-white shadow-sm'
+                        : isPassed
+                        ? isLight ? 'text-blue-700 bg-blue-50' : 'text-blue-400 bg-blue-500/10'
+                        : isLight ? 'text-slate-400 hover:text-slate-600' : 'text-zinc-500 hover:text-zinc-300'
+                    }`}
+                  >
+                    <Icon className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{s.title}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto flex-1 space-y-6">
+              {/* PASSO 1: PERÍODO & DIAS */}
+              {scheduleWizardStep === 1 && (
+                <div className="space-y-6">
+                  <div>
+                    <h4 className="text-sm font-bold mb-1">Qual período você deseja programar?</h4>
+                    <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
+                      Selecione um modelo pré-definido ou personalize os dias e horários recomendados para a Espanha.
+                    </p>
+                  </div>
+
+                  {/* Presets Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div
+                      onClick={() => handleApplyDaysPreset('3days')}
+                      className={`p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                        wizardDaysPreset === '3days'
+                          ? 'border-blue-500 bg-blue-500/5 shadow-sm'
+                          : isLight ? 'border-slate-200 hover:border-slate-300' : 'border-zinc-800 hover:border-zinc-700'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2 font-bold text-sm">
+                          <span>📅 3 Dias (Fim de Semana + Segunda)</span>
+                        </div>
+                        <span className="text-[10px] bg-emerald-500/10 text-emerald-500 font-bold px-2 py-0.5 rounded-full border border-emerald-500/20">
+                          Recomendado
+                        </span>
+                      </div>
+                      <p className={`text-xs mb-3 ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
+                        Hoje (Sáb 11:40), Amanhã (Dom 12:00) e Segunda (10:00). Ideal para iniciar o teste de atendimento com a equipe de 3 pessoas.
+                      </p>
+                      <div className="text-[11px] font-medium text-blue-500">
+                        Total: {wizardDaysConfig.length === 3 ? wizardDaysConfig.reduce((a, b) => a + b.volume, 0).toLocaleString('pt-BR') : '15.050'} e-mails distribuídos
+                      </div>
+                    </div>
+
+                    <div
+                      onClick={() => handleApplyDaysPreset('7days')}
+                      className={`p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                        wizardDaysPreset === '7days'
+                          ? 'border-blue-500 bg-blue-500/5 shadow-sm'
+                          : isLight ? 'border-slate-200 hover:border-slate-300' : 'border-zinc-800 hover:border-zinc-700'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2 font-bold text-sm">
+                          <span>🗓️ 7 Dias (Semana Completa)</span>
+                        </div>
+                        <span className="text-[10px] bg-blue-500/10 text-blue-500 font-bold px-2 py-0.5 rounded-full border border-blue-500/20">
+                          Aquecimento Gradual
+                        </span>
+                      </div>
+                      <p className={`text-xs mb-3 ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
+                        Programação de Sábado a Sexta-feira com aumento diário controlado para aquecer o domínio e manter o WhatsApp sempre ativo.
+                      </p>
+                      <div className="text-[11px] font-medium text-blue-500">
+                        7 dias de envios contínuos com horários estratégicos
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Tabela de Dias & Horários Editáveis */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h5 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                        Configuração Detalhada dos Dias e Horários de Envio
+                      </h5>
+                      <span className="text-[11px] text-slate-400">
+                        Fuso Horário: Madrid / Espanha (CET)
+                      </span>
+                    </div>
+
+                    <div className={`rounded-xl border overflow-hidden ${isLight ? 'border-slate-200 bg-slate-50' : 'border-zinc-800 bg-zinc-950/50'}`}>
+                      <table className="w-full text-xs text-left">
+                        <thead className={`border-b text-[11px] font-bold ${isLight ? 'border-slate-200 bg-slate-100 text-slate-600' : 'border-zinc-800 bg-zinc-900 text-zinc-400'}`}>
+                          <tr>
+                            <th className="p-3">Dia / Data</th>
+                            <th className="p-3">Horário de Disparo</th>
+                            <th className="p-3 text-right">Volume do Dia</th>
+                            <th className="p-3 text-right">Média por Template</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-800/20">
+                          {wizardDaysConfig.map((day, idx) => (
+                            <tr key={day.dayKey} className="hover:bg-blue-500/5 transition-colors">
+                              <td className="p-3 font-semibold flex items-center gap-2">
+                                <span className="h-6 w-6 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center font-mono text-[10px] font-bold">
+                                  {idx + 1}
+                                </span>
+                                <span>{day.label}</span>
+                                <span className="text-slate-400 text-[11px]">({day.dateStr})</span>
+                              </td>
+                              <td className="p-3">
+                                <div className="flex items-center gap-2">
+                                  <Clock className="h-3.5 w-3.5 text-slate-400" />
+                                  <input
+                                    type="time"
+                                    value={day.time}
+                                    onChange={(e) => handleUpdateDayConfig(idx, 'time', e.target.value)}
+                                    className={`rounded-lg border px-2 py-1 text-xs font-mono font-medium focus:outline-none focus:border-blue-500 ${
+                                      isLight ? 'border-slate-300 bg-white' : 'border-zinc-700 bg-zinc-800'
+                                    }`}
+                                  />
+                                </div>
+                              </td>
+                              <td className="p-3 text-right font-mono font-semibold">
+                                <input
+                                  type="number"
+                                  step="100"
+                                  min="500"
+                                  value={day.volume}
+                                  onChange={(e) => handleUpdateDayConfig(idx, 'volume', Number(e.target.value))}
+                                  className={`w-24 text-right rounded-lg border px-2 py-1 text-xs font-mono font-medium focus:outline-none focus:border-blue-500 ${
+                                    isLight ? 'border-slate-300 bg-white' : 'border-zinc-700 bg-zinc-800'
+                                  }`}
+                                />
+                              </td>
+                              <td className="p-3 text-right text-slate-400 font-mono">
+                                ~{Math.round(day.volume / (wizardSelectedTemplateIds.length || 7)).toLocaleString('pt-BR')} envios
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* PASSO 2: VOLUME & AQUECIMENTO */}
+              {scheduleWizardStep === 2 && (
+                <div className="space-y-6">
+                  <div>
+                    <h4 className="text-sm font-bold mb-1">Volume Diário e Curva de Aquecimento (Warmup)</h4>
+                    <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
+                      Para manter alta entregabilidade na caixa de entrada (inbox) e proteger a reputação do subdomínio <code className="font-mono text-blue-500">mail.universatv.com</code>.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Volume Inicial */}
+                    <div className={`p-4 rounded-xl border space-y-3 ${isLight ? 'border-slate-200 bg-slate-50' : 'border-zinc-800 bg-zinc-950/50'}`}>
+                      <label className="block text-xs font-bold">
+                        Volume Inicial do 1º Dia (Hoje)
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="number"
+                          step="100"
+                          min="1000"
+                          max="10000"
+                          value={wizardStartVolume}
+                          onChange={(e) => handleUpdateVolumeSettings(Number(e.target.value), wizardDailyIncrease)}
+                          className={`w-full rounded-xl border px-3 py-2 text-sm font-mono font-bold focus:outline-none focus:border-blue-500 ${
+                            isLight ? 'border-slate-300 bg-white' : 'border-zinc-700 bg-zinc-800'
+                          }`}
+                        />
+                        <span className="text-xs text-slate-400 shrink-0">e-mails</span>
+                      </div>
+                      <div className="flex items-center gap-2 pt-1">
+                        {[3500, 4200, 5000].map((vol) => (
+                          <button
+                            key={vol}
+                            type="button"
+                            onClick={() => handleUpdateVolumeSettings(vol, wizardDailyIncrease)}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-mono font-semibold border cursor-pointer transition-colors ${
+                              wizardStartVolume === vol
+                                ? 'bg-blue-500 text-white border-blue-500'
+                                : isLight ? 'bg-white border-slate-300 hover:bg-slate-100' : 'bg-zinc-800 border-zinc-700 hover:bg-zinc-700'
+                            }`}
+                          >
+                            {vol.toLocaleString('pt-BR')}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Incremento Diário */}
+                    <div className={`p-4 rounded-xl border space-y-3 ${isLight ? 'border-slate-200 bg-slate-50' : 'border-zinc-800 bg-zinc-950/50'}`}>
+                      <label className="block text-xs font-bold">
+                        Aumento Diário de Aquecimento (+ por dia)
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="number"
+                          step="100"
+                          min="0"
+                          max="2000"
+                          value={wizardDailyIncrease}
+                          onChange={(e) => handleUpdateVolumeSettings(wizardStartVolume, Number(e.target.value))}
+                          className={`w-full rounded-xl border px-3 py-2 text-sm font-mono font-bold focus:outline-none focus:border-blue-500 ${
+                            isLight ? 'border-slate-300 bg-white' : 'border-zinc-700 bg-zinc-800'
+                          }`}
+                        />
+                        <span className="text-xs text-slate-400 shrink-0">e-mails/dia</span>
+                      </div>
+                      <div className="flex items-center gap-2 pt-1">
+                        {[0, 500, 700, 1000].map((inc) => (
+                          <button
+                            key={inc}
+                            type="button"
+                            onClick={() => handleUpdateVolumeSettings(wizardStartVolume, inc)}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-mono font-semibold border cursor-pointer transition-colors ${
+                              wizardDailyIncrease === inc
+                                ? 'bg-blue-500 text-white border-blue-500'
+                                : isLight ? 'bg-white border-slate-300 hover:bg-slate-100' : 'bg-zinc-800 border-zinc-700 hover:bg-zinc-700'
+                            }`}
+                          >
+                            +{inc.toLocaleString('pt-BR')}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card Informativo: Capacidade de Atendimento da Equipe */}
+                  <div className={`p-4 rounded-xl border ${isLight ? 'border-emerald-200 bg-emerald-50/50 text-emerald-900' : 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300'}`}>
+                    <div className="flex items-start gap-3">
+                      <Users className="h-5 w-5 text-emerald-500 mt-0.5 shrink-0" />
+                      <div className="space-y-1">
+                        <div className="font-bold text-xs">Dimensionamento para a Equipe de 3 Atendentes WhatsApp:</div>
+                        <p className="text-[11px] leading-relaxed opacity-90">
+                          Com <strong>4.200 e-mails no primeiro dia</strong> divididos entre 7 templates (~600 e-mails por template), estimamos entre <strong>30 a 50 contatos iniciados no WhatsApp</strong>. Isso resulta em uma média de <strong>10 a 16 clientes por atendente</strong> ao longo do expediente, permitindo responder na hora, liberar testes IPTV rapidamente e evitar leads abandonados.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* PASSO 3: TEMPLATES & REMETENTE */}
+              {scheduleWizardStep === 3 && (
+                <div className="space-y-6">
+                  <div>
+                    <h4 className="text-sm font-bold mb-1">Selecione o Remetente e os Templates Ativos</h4>
+                    <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
+                      O volume diário de cada dia será dividido igualmente entre os templates selecionados. Cada template possui sua chamada WhatsApp e frase exclusiva de rastreamento.
+                    </p>
+                  </div>
+
+                  {/* Remetente Selector */}
+                  <div className="space-y-2">
+                    <label className="block text-xs font-bold">Remetente Verificado da Campanha:</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {VERIFIED_SENDERS.map((s) => (
+                        <div
+                          key={s.id}
+                          onClick={() => setWizardSenderId(s.id)}
+                          className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
+                            wizardSenderId === s.id
+                              ? 'border-blue-500 bg-blue-500/5'
+                              : isLight ? 'border-slate-200 hover:border-slate-300' : 'border-zinc-800 hover:border-zinc-700'
+                          }`}
+                        >
+                          <div>
+                            <div className="font-bold text-xs">{s.name}</div>
+                            <div className="text-[11px] font-mono text-slate-400">{s.email}</div>
+                          </div>
+                          {s.id === 'carlos_es' && (
+                            <span className="text-[10px] bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded font-bold border border-emerald-500/20">
+                              Espanha (Ideal)
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Templates List with Checkboxes */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-bold">
+                        Templates para o Cronograma ({wizardSelectedTemplateIds.length} selecionados):
+                      </label>
+                      <span className="text-[11px] text-slate-400">
+                        Exclusão recomendada: Template 8 (Brasil / Jackson)
+                      </span>
+                    </div>
+
+                    <div className={`rounded-xl border divide-y overflow-hidden ${isLight ? 'border-slate-200 divide-slate-100' : 'border-zinc-800 divide-zinc-800/40'}`}>
+                      {templates.map((tmpl) => {
+                        const isSelected = wizardSelectedTemplateIds.includes(tmpl.id);
+                        const isBrazil = tmpl.id.includes('brasil') || tmpl.title.includes('Brasil');
+
+                        return (
+                          <div
+                            key={tmpl.id}
+                            onClick={() => toggleWizardTemplate(tmpl.id)}
+                            className={`p-3.5 flex items-center justify-between gap-3 transition-colors cursor-pointer ${
+                              isSelected
+                                ? isLight ? 'bg-blue-50/40' : 'bg-blue-500/5'
+                                : isLight ? 'hover:bg-slate-50 opacity-60' : 'hover:bg-zinc-800/40 opacity-50'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => toggleWizardTemplate(tmpl.id)}
+                                className="h-4 w-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                              />
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-xs truncate">{tmpl.title}</span>
+                                  {isBrazil ? (
+                                    <span className="text-[10px] bg-amber-500/10 text-amber-500 px-1.5 py-0.2 rounded border border-amber-500/20 font-bold">
+                                      Brasil (Opcional)
+                                    </span>
+                                  ) : (
+                                    <span className="text-[10px] bg-blue-500/10 text-blue-500 px-1.5 py-0.2 rounded border border-blue-500/20 font-bold">
+                                      Espanha B2C
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-[11px] text-slate-400 truncate mt-0.5">
+                                  Assunto: {tmpl.subject}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="shrink-0 text-right">
+                              <span className="text-[11px] font-mono text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 font-semibold">
+                                WhatsApp Ref ativa
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* PASSO 4: REVISÃO & GERAR CRONOGRAMA */}
+              {scheduleWizardStep === 4 && (
+                <div className="space-y-6">
+                  <div>
+                    <h4 className="text-sm font-bold mb-1">Revisão do Cronograma Completo</h4>
+                    <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-zinc-400'}`}>
+                      Confira o resumo das campanhas que serão geradas e agendadas na plataforma. Você poderá disparar cada lote ou agendá-las individualmente.
+                    </p>
+                  </div>
+
+                  {/* Resumo Métricas */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className={`p-3 rounded-xl border ${isLight ? 'border-slate-200 bg-slate-50' : 'border-zinc-800 bg-zinc-950/40'}`}>
+                      <div className="text-[11px] text-slate-400">Total de Dias</div>
+                      <div className="text-lg font-bold font-mono text-blue-500">{wizardDaysConfig.length} dias</div>
+                    </div>
+                    <div className={`p-3 rounded-xl border ${isLight ? 'border-slate-200 bg-slate-50' : 'border-zinc-800 bg-zinc-950/40'}`}>
+                      <div className="text-[11px] text-slate-400">Campanhas Geradas</div>
+                      <div className="text-lg font-bold font-mono text-blue-500">
+                        {wizardDaysConfig.length * wizardSelectedTemplateIds.length} campanhas
+                      </div>
+                    </div>
+                    <div className={`p-3 rounded-xl border ${isLight ? 'border-slate-200 bg-slate-50' : 'border-zinc-800 bg-zinc-950/40'}`}>
+                      <div className="text-[11px] text-slate-400">Volume Total do Ciclo</div>
+                      <div className="text-lg font-bold font-mono text-emerald-500">
+                        {wizardDaysConfig.reduce((a, b) => a + b.volume, 0).toLocaleString('pt-BR')} envios
+                      </div>
+                    </div>
+                    <div className={`p-3 rounded-xl border ${isLight ? 'border-slate-200 bg-slate-50' : 'border-zinc-800 bg-zinc-950/40'}`}>
+                      <div className="text-[11px] text-slate-400">Remetente</div>
+                      <div className="text-xs font-bold truncate mt-1">
+                        {VERIFIED_SENDERS.find((s) => s.id === wizardSenderId)?.name || 'Carlos Ventas'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Grade de Campanhas por Dia */}
+                  <div className="space-y-4 max-h-64 overflow-y-auto pr-1">
+                    {wizardDaysConfig.map((day) => {
+                      const perTmpl = Math.max(50, Math.round(day.volume / wizardSelectedTemplateIds.length));
+                      return (
+                        <div
+                          key={day.dayKey}
+                          className={`p-3.5 rounded-xl border ${isLight ? 'border-slate-200 bg-slate-50' : 'border-zinc-800 bg-zinc-950/60'}`}
+                        >
+                          <div className="flex items-center justify-between pb-2 mb-2 border-b border-zinc-800/10 dark:border-zinc-800">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-xs">{day.label} ({day.dateStr})</span>
+                              <span className="text-[11px] text-blue-500 font-mono font-medium">às {day.time}</span>
+                            </div>
+                            <div className="text-xs font-mono font-bold text-emerald-500">
+                              {day.volume.toLocaleString('pt-BR')} e-mails ({wizardSelectedTemplateIds.length} templates × {perTmpl})
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                            {templates
+                              .filter((t) => wizardSelectedTemplateIds.includes(t.id))
+                              .map((t) => (
+                                <div key={t.id} className="flex items-center justify-between gap-2 text-slate-400 py-0.5">
+                                  <span className="truncate">• {t.title.replace(/\[.*?\]\s*/g, '')}</span>
+                                  <span className="font-mono text-[11px] shrink-0">{perTmpl}</span>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer Controls */}
+            <div className={`p-4 border-t flex items-center justify-between shrink-0 ${isLight ? 'border-slate-200 bg-slate-50' : 'border-zinc-800 bg-zinc-950/60'}`}>
+              <div className="text-xs text-slate-400 font-medium">
+                Passo {scheduleWizardStep} de 4
+              </div>
+
+              <div className="flex items-center gap-2.5">
+                {scheduleWizardStep > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setScheduleWizardStep((scheduleWizardStep - 1) as any)}
+                    className={`px-4 py-2 rounded-xl border text-xs font-semibold cursor-pointer transition-colors ${
+                      isLight ? 'border-slate-300 hover:bg-slate-100 text-slate-700' : 'border-zinc-700 hover:bg-zinc-800 text-slate-300'
+                    }`}
+                  >
+                    Voltar
+                  </button>
+                )}
+
+                {scheduleWizardStep < 4 ? (
+                  <button
+                    type="button"
+                    onClick={() => setScheduleWizardStep((scheduleWizardStep + 1) as any)}
+                    className="flex items-center gap-2 px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-600/20 cursor-pointer transition-all"
+                  >
+                    <span>Próximo Passo</span>
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleGenerateSchedule}
+                    className="flex items-center gap-2 px-6 py-2 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-slate-950 text-xs font-bold shadow-lg shadow-yellow-500/20 cursor-pointer transition-all animate-pulse hover:animate-none"
+                  >
+                    <Wand2 className="h-4 w-4" />
+                    <span>⚡ Gerar e Programar Cronograma Agora</span>
+                  </button>
+                )}
               </div>
             </div>
           </div>

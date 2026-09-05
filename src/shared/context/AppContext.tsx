@@ -93,6 +93,7 @@ interface AppContextType {
   campaigns: MarketingCampaign[];
   campaignQueue: Record<string, MarketingCampaignQueue[]>;
   createCampaign: (campaign: Omit<MarketingCampaign, 'id' | 'tenant_id' | 'created_at' | 'updated_at' | 'sent_count' | 'delivered_count' | 'opened_count' | 'clicked_count' | 'bounced_count' | 'failed_count'>, targetLeadIds: string[]) => Promise<MarketingCampaign>;
+  batchCreateCampaigns: (newCampaigns: MarketingCampaign[]) => void;
   launchCampaign: (campaignId: string) => Promise<void>;
   pauseCampaign: (campaignId: string) => void;
   deleteCampaign: (campaignId: string) => Promise<void>;
@@ -1698,6 +1699,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
+  const batchCreateCampaigns = (newCampaigns: MarketingCampaign[]) => {
+    setCampaigns((prev) => {
+      const newIds = new Set(newCampaigns.map((c) => c.id));
+      const remaining = prev.filter((c) => !newIds.has(c.id));
+      const full = [...newCampaigns, ...remaining];
+      safeStorageSet(STORAGE_KEYS.CAMPAIGNS, full);
+      return full;
+    });
+  };
+
   // Audiences
   const addAudience = async (audienceData: Omit<SavedAudience, 'id' | 'tenant_id' | 'created_at'>): Promise<SavedAudience> => {
     const generateUUID = () => {
@@ -1805,6 +1816,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         campaigns,
         campaignQueue,
         createCampaign,
+        batchCreateCampaigns,
         launchCampaign,
         pauseCampaign,
         deleteCampaign,
