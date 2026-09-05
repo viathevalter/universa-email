@@ -23,6 +23,7 @@ import {
   searchB2BLeadsWithAI,
   executeDorkTargetJob,
   deduplicateProspects,
+  getEffectiveGeminiKey,
 } from '../services/geminiService';
 import {
   saveLeadsToIndexedDb,
@@ -180,7 +181,7 @@ const DEFAULT_TENANT: Tenant = {
   resend_api_key: import.meta.env.VITE_RESEND_API_KEY || '',
   marketing_sender_email: 'carlos_ventas@mail.universatv.com',
   sender_name: 'Carlos Ventas - Universa TV España',
-  gemini_api_key: import.meta.env.VITE_GEMINI_API_KEY || '',
+  gemini_api_key: getEffectiveGeminiKey(),
   whatsapp_support_number: '+34 617 59 84 21',
   created_at: new Date().toISOString(),
 };
@@ -1418,38 +1419,43 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const BRAZILIAN_CITIES_ROTATION = ['São Paulo', 'Rio de Janeiro', 'Belo Horizonte', 'Curitiba', 'Porto Alegre', 'Salvador', 'Brasília', 'Campinas'];
 
     const loop = async () => {
-      while (autoMissionsActiveRef.current) {
-        try {
-          const allMissions = missions.length > 0 ? missions : [...SPAIN_B2C_MISSIONS, ...BRAZIL_B2C_MISSIONS];
-          const mission = allMissions[currentMissionIdx % allMissions.length];
-          const isBr = mission.country === 'Brasil';
-          const city = isBr
-            ? BRAZILIAN_CITIES_ROTATION[currentCityIdx % BRAZILIAN_CITIES_ROTATION.length]
-            : SPANISH_CITIES_ROTATION[currentCityIdx % SPANISH_CITIES_ROTATION.length];
-          const countryLabel = isBr ? 'Brasil' : 'Espanha';
-          const regionLabel = `${city} (${countryLabel})`;
+      try {
+        while (autoMissionsActiveRef.current) {
+          try {
+            const allMissions = missions.length > 0 ? missions : [...SPAIN_B2C_MISSIONS, ...BRAZIL_B2C_MISSIONS];
+            const mission = allMissions[currentMissionIdx % allMissions.length];
+            const isBr = mission.country === 'Brasil';
+            const city = isBr
+              ? BRAZILIAN_CITIES_ROTATION[currentCityIdx % BRAZILIAN_CITIES_ROTATION.length]
+              : SPANISH_CITIES_ROTATION[currentCityIdx % SPANISH_CITIES_ROTATION.length];
+            const countryLabel = isBr ? 'Brasil' : 'Espanha';
+            const regionLabel = `${city} (${countryLabel})`;
 
-          setActiveAutoRegion(regionLabel);
-          setAutoBatchesCount((prev) => prev + 1);
-          setAutoStatusDetail(`Pesquisando na web: ${mission.title} em ${city}...`);
+            setActiveAutoRegion(regionLabel);
+            setAutoBatchesCount((prev) => prev + 1);
+            setAutoStatusDetail(`Pesquisando na web: ${mission.title} em ${city}...`);
 
-          currentMissionIdx++;
-          currentCityIdx++;
+            currentMissionIdx++;
+            currentCityIdx++;
 
-          const found = await runMission(mission.id, `${city}, ${countryLabel}`, 15);
-          setAutoStatusDetail(`Lote concluído: ${found} leads reais encontrados e salvos no CRM.`);
+            const found = await runMission(mission.id, `${city}, ${countryLabel}`, 15);
+            setAutoStatusDetail(`Lote concluído: ${found} leads reais encontrados e salvos no CRM.`);
 
-          // Pequena pausa de 1.5s entre lotes para respeitar rate limits e respirar
-          if (autoMissionsActiveRef.current) {
-            await new Promise((r) => setTimeout(r, 1500));
-          }
-        } catch (e: any) {
-          console.warn('[Auto-Missions Loop Error]', e);
-          setAutoStatusDetail(`Aguardando próximo lote (tentando novamente em 3s)...`);
-          if (autoMissionsActiveRef.current) {
-            await new Promise((r) => setTimeout(r, 3000));
+            // Pequena pausa de 1.5s entre lotes para respeitar rate limits e respirar
+            if (autoMissionsActiveRef.current) {
+              await new Promise((r) => setTimeout(r, 1500));
+            }
+          } catch (e: any) {
+            console.warn('[Auto-Missions Loop Error]', e);
+            setAutoStatusDetail(`Aguardando próximo lote (tentando novamente em 3s)...`);
+            if (autoMissionsActiveRef.current) {
+              await new Promise((r) => setTimeout(r, 3000));
+            }
           }
         }
+      } finally {
+        autoMissionsActiveRef.current = false;
+        setIsAutoMissionsActive(false);
       }
     };
 

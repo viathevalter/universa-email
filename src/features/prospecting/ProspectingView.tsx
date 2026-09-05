@@ -128,12 +128,12 @@ export const ProspectingView: React.FC = () => {
   const getMissionCapturedCount = (mission: LeadProspectingMission): number => {
     const realCount = leads.filter((l) => {
       if (l.target_niche === mission.niche) return true;
-      if (mission.niche === 'laliga_es' && (l.tags?.some((t) => t.toLowerCase().includes('laliga') || t.toLowerCase().includes('futbol')) || l.sector?.toLowerCase().includes('futbol'))) return true;
-      if (mission.niche === 'cine_series_es' && (l.tags?.some((t) => t.toLowerCase().includes('cine') || t.toLowerCase().includes('series') || t.toLowerCase().includes('smart')) || l.sector?.toLowerCase().includes('streaming'))) return true;
-      if (mission.niche === 'brasileiros_es' && (l.tags?.some((t) => t.toLowerCase().includes('brasileiro')) || l.sector?.toLowerCase().includes('brasileiro'))) return true;
-      if (mission.niche === 'latinos_es' && (l.tags?.some((t) => t.toLowerCase().includes('latino')) || l.sector?.toLowerCase().includes('latino'))) return true;
-      if (mission.niche === 'motorsport_es' && (l.tags?.some((t) => t.toLowerCase().includes('f1') || t.toLowerCase().includes('motogp') || t.toLowerCase().includes('motor')))) return true;
-      if (mission.niche === 'brasileirao_br' && (l.country === 'Brasil' || l.tags?.some((t) => t.toLowerCase().includes('brasil')))) return true;
+      if (mission.niche === 'laliga_es' && (l.tags?.some((t) => t.toLowerCase().includes('laliga') || t.toLowerCase().includes('peña')) || l.target_niche === 'laliga_es')) return true;
+      if (mission.niche === 'cine_series_es' && (l.tags?.some((t) => t.toLowerCase().includes('cine') || t.toLowerCase().includes('series') || t.toLowerCase().includes('smart tv')) || l.target_niche === 'cine_series_es')) return true;
+      if (mission.niche === 'brasileiros_es' && (l.tags?.some((t) => t.toLowerCase().includes('brasileiro na espanha')) || l.target_niche === 'brasileiros_es')) return true;
+      if (mission.niche === 'latinos_es' && (l.tags?.some((t) => t.toLowerCase().includes('latino na espanha')) || l.target_niche === 'latinos_es')) return true;
+      if (mission.niche === 'motorsport_es' && (l.tags?.some((t) => t.toLowerCase().includes('f1') || t.toLowerCase().includes('motogp') || t.toLowerCase().includes('motorsport')) || l.target_niche === 'motorsport_es')) return true;
+      if (mission.niche === 'brasileirao_br' && (l.tags?.some((t) => t.toLowerCase().includes('brasileirão') || t.toLowerCase().includes('premiere')) || l.target_niche === 'brasileirao_br')) return true;
       return false;
     }).length;
     return Math.max(mission.captured_count, realCount);
