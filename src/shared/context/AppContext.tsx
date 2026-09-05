@@ -1310,28 +1310,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const BRAZILIAN_CITIES_ROTATION = ['São Paulo', 'Rio de Janeiro', 'Belo Horizonte', 'Curitiba', 'Porto Alegre', 'Salvador', 'Brasília', 'Campinas'];
 
+    let isRunning = false;
     const processNextMission = async () => {
-      const mission = missions[currentMissionIdx % missions.length];
-      const isBr = mission.country === 'Brasil';
-      const city = isBr
-        ? BRAZILIAN_CITIES_ROTATION[currentCityIdx % BRAZILIAN_CITIES_ROTATION.length]
-        : SPANISH_CITIES_ROTATION[currentCityIdx % SPANISH_CITIES_ROTATION.length];
-      const countryLabel = isBr ? 'Brasil' : 'Espanha';
-      setActiveAutoRegion(`${city} (${countryLabel})`);
-      setAutoBatchesCount((prev) => prev + 1);
-
-      currentMissionIdx++;
-      currentCityIdx++;
-
+      if (isRunning) return;
+      isRunning = true;
       try {
-        await runMission(mission.id, `${city}, ${countryLabel}`, 20);
+        const mission = missions[currentMissionIdx % missions.length];
+        const isBr = mission.country === 'Brasil';
+        const city = isBr
+          ? BRAZILIAN_CITIES_ROTATION[currentCityIdx % BRAZILIAN_CITIES_ROTATION.length]
+          : SPANISH_CITIES_ROTATION[currentCityIdx % SPANISH_CITIES_ROTATION.length];
+        const countryLabel = isBr ? 'Brasil' : 'Espanha';
+        setActiveAutoRegion(`${city} (${countryLabel})`);
+        setAutoBatchesCount((prev) => prev + 1);
+
+        currentMissionIdx++;
+        currentCityIdx++;
+
+        await runMission(mission.id, `${city}, ${countryLabel}`, 25);
       } catch (e) {
         console.warn('[Auto-Missions Loop Error]', e);
+      } finally {
+        isRunning = false;
       }
     };
 
     processNextMission();
-    autoMissionsIntervalRef.current = setInterval(processNextMission, 8000);
+    autoMissionsIntervalRef.current = setInterval(processNextMission, 3500);
   };
 
   const stopAutoMissions = () => {
@@ -1448,13 +1453,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     processNext();
-    autoDorkingIntervalRef.current = setInterval(processNext, 10000);
+    autoDorkingIntervalRef.current = setInterval(processNext, 4000);
   };
 
   const stopAutoDorking = () => {
     setIsAutoDorkingActive(false);
     if (autoDorkingIntervalRef.current) {
-      clearInterval(autoMissionsIntervalRef.current);
+      clearInterval(autoDorkingIntervalRef.current);
       autoDorkingIntervalRef.current = null;
     }
   };

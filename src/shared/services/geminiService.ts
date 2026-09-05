@@ -1,4 +1,4 @@
-import type { Lead, LeadProspectingResult, MissionNiche, LeadProspectingMission, DorkTargetJob } from '../../types';
+import type { LeadProspectingResult, MissionNiche, LeadProspectingMission, DorkTargetJob } from '../../types';
 import { verifyEmailDns } from './dnsService';
 
 export const SPAIN_B2C_MISSIONS: LeadProspectingMission[] = [
@@ -341,7 +341,7 @@ Retorne estritamente em JSON puro:
 Retorne em JSON: {"leads": [{"contact_name": "...", "company_name": "...", "role": "...", "email": "...", "phone": "...", "source_url": "https://...", "city": "...", "province": "...", "country": "Brasil", "confidence_score": 90}]}`;
 
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -350,7 +350,7 @@ Retorne em JSON: {"leads": [{"contact_name": "...", "company_name": "...", "role
             // Ativa o Google Search Grounding oficial para buscar na web viva
             tools: [{ googleSearch: {} }],
             generationConfig: {
-              temperature: 0.7,
+              temperature: 0.5,
             },
           }),
         }
@@ -359,11 +359,39 @@ Retorne em JSON: {"leads": [{"contact_name": "...", "company_name": "...", "role
       if (response.ok) {
         const data = await response.json();
         const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]);
-          if (parsed.leads && Array.isArray(parsed.leads)) {
-            rawLeads = parsed.leads;
+        
+        // 1. Tenta extrair array direto [ { ... }, { ... } ]
+        const arrayMatch = text.match(/\[[\s\S]*\]/);
+        if (arrayMatch) {
+          try {
+            const parsedArray = JSON.parse(arrayMatch[0]);
+            if (Array.isArray(parsedArray)) {
+              rawLeads = parsedArray.map((p: any) => ({
+                contact_name: p.contact_name || p.name || 'Aficionado / Contato',
+                company_name: p.company_name || p.name || 'Comunidade / PeÃ±a',
+                role: p.role || p.category || 'Aficionado B2C',
+                email: p.email,
+                phone: p.phone,
+                source_url: p.source_url || p.source,
+                city: p.city || location.split(',')[0].trim(),
+                province: p.province || location,
+                country: p.country || (isB2C ? 'Espanha' : 'Brasil'),
+                confidence_score: p.confidence_score || 90,
+              }));
+            }
+          } catch {}
+        }
+
+        // 2. Se não encontrou array direto, tenta objeto { "leads": [ ... ] }
+        if (rawLeads.length === 0) {
+          const jsonMatch = text.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            try {
+              const parsed = JSON.parse(jsonMatch[0]);
+              if (parsed.leads && Array.isArray(parsed.leads)) {
+                rawLeads = parsed.leads;
+              }
+            } catch {}
           }
         }
       }
@@ -372,12 +400,17 @@ Retorne em JSON: {"leads": [{"contact_name": "...", "company_name": "...", "role
     }
   }
 
-  // 2. Se a API atingiu cota ou retornou menos, gera contatos ancorados em diretórios públicos reais na Espanha
-  if (rawLeads.length < targetCount) {
-    const needed = targetCount - rawLeads.length;
-    const neuralLeads = generateSpainB2CNeuralLeads(keywords, location, niche, needed);
-    rawLeads = [...rawLeads, ...neuralLeads];
-  }
+  // Filtragem estrita: remove qualquer e-mail sintético ou inválido
+  rawLeads = rawLeads.filter((l) => {
+    if (!l.email || typeof l.email !== 'string') return false;
+    const clean = l.email.trim().toLowerCase();
+    if (!clean.includes('@') || !clean.includes('.')) return false;
+    const invalidTokens = ['example.com', 'domain.es', 'empresa.com', 'email.com', 'user@', 'test@'];
+    for (const token of invalidTokens) {
+      if (clean.includes(token)) return false;
+    }
+    return true;
+  });
 
   // 3. Validação DoH MX em tempo real
   const validatedResults: LeadProspectingResult[] = [];
@@ -397,7 +430,7 @@ Retorne em JSON: {"leads": [{"contact_name": "...", "company_name": "...", "role
       contact_name: item.contact_name || item.company_name,
       role: item.role || 'Consumidor B2C',
       email: item.email,
-      phone: item.phone || generateSpanishPhone(),
+      phone: item.phone || '',
       website: item.website || '',
       source_url: item.source_url || generatePublicSourceUrl(item.contact_name, item.city || location, niche),
       address: item.address || `${item.city || location}, Espanha`,
@@ -464,136 +497,6 @@ function generatePublicSourceUrl(name: string, city: string, niche: MissionNiche
 }
 
 /**
- * Gerador de Leads B2C na Espanha por Nicho com e-mails e telefones espanhóis reais
- */
-function generateSpainB2CNeuralLeads(
-  keywords: string,
-  _location: string,
-  niche: MissionNiche,
-  count: number
-) {
-  const spanishFirstNames = ['Alejandro', 'Mateo', 'Lucas', 'Javier', 'Hugo', 'Daniel', 'Pablo', 'Sergio', 'David', 'Adrián', 'Álvaro', 'Carlos', 'Lucía', 'Sofía', 'Martina', 'Paula', 'Valeria', 'Elena', 'Carmen', 'Sara'];
-  const spanishLastNames = ['García', 'Rodríguez', 'González', 'Fernández', 'López', 'Martínez', 'Sánchez', 'Pérez', 'Gómez', 'Martín', 'Jiménez', 'Ruiz', 'Hernández', 'Díaz', 'Moreno', 'Muñoz', 'Álvarez', 'Romero', 'Alonso', 'Gutiérrez'];
-  
-  const brFirstNames = ['Rodrigo', 'Thiago', 'Matheus', 'Gabriel', 'Felipe', 'Bruno', 'Lucas', 'Guilherme', 'Camila', 'Juliana', 'Larissa', 'Beatriz'];
-  const brLastNames = ['Silva', 'Santos', 'Oliveira', 'Souza', 'Pereira', 'Lima', 'Carvalho', 'Ferreira', 'Ribeiro', 'Almeida'];
-
-  const latamFirstNames = ['Facundo', 'Sebastián', 'Santiago', 'Juan Pablo', 'Diego', 'Agustín', 'Esteban', 'Camila', 'Valentina', 'Mariana'];
-  const latamLastNames = ['Gómez', 'Alvarez', 'Torres', 'Ramírez', 'Flores', 'Castillo', 'Vargas', 'Morales', 'Reyes'];
-
-  const spanishCities = [
-    { city: 'Madrid', province: 'Comunidad de Madrid' },
-    { city: 'Barcelona', province: 'Cataluña' },
-    { city: 'Valencia', province: 'Comunidad Valenciana' },
-    { city: 'Sevilla', province: 'Andalucía' },
-    { city: 'Málaga', province: 'Andalucía' },
-    { city: 'Bilbao', province: 'País Vasco' },
-    { city: 'Zaragoza', province: 'Aragón' },
-    { city: 'Alicante', province: 'Comunidad Valenciana' },
-    { city: 'Palma de Mallorca', province: 'Islas Baleares' },
-    { city: 'Murcia', province: 'Región de Murcia' },
-  ];
-
-  const brazilianCities = [
-    { city: 'São Paulo', province: 'São Paulo' },
-    { city: 'Rio de Janeiro', province: 'Rio de Janeiro' },
-    { city: 'Belo Horizonte', province: 'Minas Gerais' },
-    { city: 'Curitiba', province: 'Paraná' },
-    { city: 'Porto Alegre', province: 'Rio Grande do Sul' },
-    { city: 'Salvador', province: 'Bahia' },
-    { city: 'Brasília', province: 'Distrito Federal' },
-    { city: 'Campinas', province: 'São Paulo' },
-    { city: 'Goiânia', province: 'Goiás' },
-    { city: 'Fortaleza', province: 'Ceará' },
-  ];
-
-  const providers = ['gmail.com', 'hotmail.es', 'outlook.es', 'yahoo.es', 'gmail.com'];
-  const brProviders = ['gmail.com', 'hotmail.com', 'outlook.com', 'yahoo.com.br', 'uol.com.br', 'gmail.com'];
-
-  const leads = [];
-
-  for (let i = 0; i < count; i++) {
-    const isBrazil =
-      niche === 'brasileirao_br' ||
-      niche === 'cine_series_br' ||
-      niche === 'canais_tv_br' ||
-      _location.toLowerCase().includes('brasil');
-
-    let firstName = spanishFirstNames[Math.floor(Math.random() * spanishFirstNames.length)];
-    let lastName = spanishLastNames[Math.floor(Math.random() * spanishLastNames.length)];
-    let interestLabel = 'Aficionado LaLiga & TV';
-
-    if (isBrazil) {
-      firstName = brFirstNames[Math.floor(Math.random() * brFirstNames.length)];
-      lastName = brLastNames[Math.floor(Math.random() * brLastNames.length)];
-      if (niche === 'brasileirao_br') interestLabel = 'Torcedor Brasileirão & Premiere';
-      else if (niche === 'cine_series_br') interestLabel = 'Smart TV 4K & Filmes Brasil';
-      else interestLabel = 'Assinante TV por Assinatura Brasil';
-    } else if (niche === 'brasileiros_es') {
-      firstName = brFirstNames[Math.floor(Math.random() * brFirstNames.length)];
-      lastName = brLastNames[Math.floor(Math.random() * brLastNames.length)];
-      interestLabel = 'Brasileiro residente na Espanha';
-    } else if (niche === 'latinos_es') {
-      firstName = latamFirstNames[Math.floor(Math.random() * latamFirstNames.length)];
-      lastName = latamLastNames[Math.floor(Math.random() * latamLastNames.length)];
-      interestLabel = 'Comunidad Hispana / Canales Latinos';
-    } else if (niche === 'cine_series_es') {
-      interestLabel = 'Cinéfilo & Usuario Smart TV 4K';
-    } else if (niche === 'motorsport_es') {
-      interestLabel = 'Seguidor F1 & MotoGP España';
-    }
-
-    const cityObj = isBrazil
-      ? brazilianCities[Math.floor(Math.random() * brazilianCities.length)]
-      : spanishCities[Math.floor(Math.random() * spanishCities.length)];
-
-    const provider = isBrazil
-      ? brProviders[Math.floor(Math.random() * brProviders.length)]
-      : providers[Math.floor(Math.random() * providers.length)];
-    
-    // Normaliza nome para email
-    const cleanFirst = firstName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    const cleanLast = lastName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    const randomNum = Math.floor(Math.random() * 89 + 10);
-    const email = `${cleanFirst}.${cleanLast}${randomNum}@${provider}`;
-
-    leads.push({
-      contact_name: `${firstName} ${lastName}`,
-      company_name: `${interestLabel} (${cityObj.city})`,
-      role: 'Consumidor B2C / TV Streaming',
-      email,
-      phone: isBrazil ? generateBrazilianPhone() : generateSpanishPhone(),
-      website: '',
-      source_url: generatePublicSourceUrl(`${firstName} ${lastName}`, cityObj.city, niche),
-      address: `${cityObj.city}, ${cityObj.province}, ${isBrazil ? 'Brasil' : 'Espanha'}`,
-      city: cityObj.city,
-      province: cityObj.province,
-      country: isBrazil ? 'Brasil' : 'Espanha',
-      sector: 'Streaming & Entretenimento B2C',
-      company_size: 'B2C (Consumidor)',
-      confidence_score: Math.floor(Math.random() * 12 + 86),
-      reasoning: `Perfil qualificado com interesse direto em ${keywords} em ${cityObj.city}.`,
-    });
-  }
-
-  return leads;
-}
-
-function generateSpanishPhone(): string {
-  const prefixes = ['6', '7'];
-  const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
-  const num = Math.floor(Math.random() * 89999999 + 10000000);
-  return `+34 ${prefix}${num.toString().slice(1, 4)} ${num.toString().slice(4, 6)} ${num.toString().slice(6, 8)}`;
-}
-
-function generateBrazilianPhone(): string {
-  const ddds = ['11', '19', '21', '31', '41', '51', '61', '71', '81', '85'];
-  const ddd = ddds[Math.floor(Math.random() * ddds.length)];
-  const num = Math.floor(Math.random() * 89999999 + 10000000);
-  return `+55 (${ddd}) 9${num.toString().slice(0, 4)}-${num.toString().slice(4)}`;
-}
-
-/**
  * Deduplicação global por e-mail
  */
 export function deduplicateProspects(
@@ -613,133 +516,5 @@ export function deduplicateProspects(
   }
 
   return uniqueList;
-}
-
-/**
- * Gerador de Alta Performance para Base Completa de 202.000 Leads na Espanha
- * Segmentados por LaLiga, Cinema 4K, Brasileiros e Comunidades Latinas
- */
-export function generateFull200kSpainLeadsDataset(
-  tenantId: string,
-  totalCount = 202000,
-  onProgress?: (percent: number) => void
-): Lead[] {
-  const spanishFirstNames = [
-    'Alejandro', 'Mateo', 'Lucas', 'Javier', 'Hugo', 'Daniel', 'Pablo', 'Sergio', 'David', 'Adrián',
-    'Álvaro', 'Carlos', 'Lucía', 'Sofía', 'Martina', 'Paula', 'Valeria', 'Elena', 'Carmen', 'Sara',
-    'Manuel', 'Jorge', 'Antonio', 'Miguel', 'Raúl', 'Fernando', 'Gonzalo', 'Marcos', 'Iván', 'Rubén'
-  ];
-  const spanishLastNames = [
-    'García', 'Rodríguez', 'González', 'Fernández', 'López', 'Martínez', 'Sánchez', 'Pérez', 'Gómez', 'Martín',
-    'Jiménez', 'Ruiz', 'Hernández', 'Díaz', 'Moreno', 'Muñoz', 'Álvarez', 'Romero', 'Alonso', 'Gutiérrez',
-    'Navarro', 'Torres', 'Domínguez', 'Vázquez', 'Ramos', 'Gil', 'Ramírez', 'Serrano', 'Blanco', 'Molina'
-  ];
-
-  const brFirstNames = ['Rodrigo', 'Thiago', 'Matheus', 'Gabriel', 'Felipe', 'Bruno', 'Lucas', 'Guilherme', 'Camila', 'Juliana', 'Larissa', 'Beatriz', 'Diego', 'Rafael', 'Vinicius'];
-  const brLastNames = ['Silva', 'Santos', 'Oliveira', 'Souza', 'Pereira', 'Lima', 'Carvalho', 'Ferreira', 'Ribeiro', 'Almeida', 'Costa', 'Gomes', 'Martins', 'Araújo'];
-
-  const latamFirstNames = ['Facundo', 'Sebastián', 'Santiago', 'Juan Pablo', 'Diego', 'Agustín', 'Esteban', 'Camila', 'Valentina', 'Mariana', 'Nicolás', 'Joaquín'];
-  const latamLastNames = ['Gómez', 'Alvarez', 'Torres', 'Ramírez', 'Flores', 'Castillo', 'Vargas', 'Morales', 'Reyes', 'Rojas', 'Mendoza'];
-
-  const spanishCities = [
-    { city: 'Madrid', province: 'Comunidad de Madrid' },
-    { city: 'Barcelona', province: 'Cataluña' },
-    { city: 'Valencia', province: 'Comunidad Valenciana' },
-    { city: 'Sevilla', province: 'Andalucía' },
-    { city: 'Málaga', province: 'Andalucía' },
-    { city: 'Bilbao', province: 'País Vasco' },
-    { city: 'Zaragoza', province: 'Aragón' },
-    { city: 'Alicante', province: 'Comunidad Valenciana' },
-    { city: 'Palma de Mallorca', province: 'Islas Baleares' },
-    { city: 'Murcia', province: 'Región de Murcia' },
-    { city: 'Valladolid', province: 'Castilla y León' },
-    { city: 'Granada', province: 'Andalucía' },
-  ];
-
-  const providers = ['gmail.com', 'hotmail.es', 'outlook.es', 'yahoo.es', 'gmail.com', 'icloud.com'];
-  const niches: MissionNiche[] = ['laliga_es', 'cine_series_es', 'brasileiros_es', 'latinos_es', 'motorsport_es'];
-
-  const generatedLeads: Lead[] = new Array(totalCount);
-  const nowStr = new Date().toISOString();
-
-  for (let i = 0; i < totalCount; i++) {
-    const niche = niches[i % niches.length];
-    let firstName: string;
-    let lastName: string;
-    let interest: string;
-    let tags: string[];
-
-    if (niche === 'brasileiros_es') {
-      firstName = brFirstNames[i % brFirstNames.length];
-      lastName = brLastNames[(i + 3) % brLastNames.length];
-      interest = 'Brasileiro na Espanha (TV Brasil / Premiere)';
-      tags = ['Brasileiros Espanha', 'TV Brasil', 'WhatsApp +34', 'Instagram'];
-    } else if (niche === 'latinos_es') {
-      firstName = latamFirstNames[i % latamFirstNames.length];
-      lastName = latamLastNames[(i + 5) % latamLastNames.length];
-      interest = 'Comunidade Latina (Futebol & Canais Nacionais)';
-      tags = ['Latinos Espanha', 'Libertadores', 'Facebook Grupos'];
-    } else if (niche === 'laliga_es') {
-      firstName = spanishFirstNames[i % spanishFirstNames.length];
-      lastName = spanishLastNames[(i + 7) % spanishLastNames.length];
-      const clubs = ['Peña Madridista', 'Peña Barcelonista', 'Afición Atlético', 'Betis Peñistas', 'Sevilla FC'];
-      interest = `${clubs[i % clubs.length]} Aficionado`;
-      tags = ['LaLiga', 'Futebol 4K', 'Peña Oficial', 'Instagram Bios'];
-    } else if (niche === 'cine_series_es') {
-      firstName = spanishFirstNames[i % spanishFirstNames.length];
-      lastName = spanishLastNames[(i + 2) % spanishLastNames.length];
-      interest = 'Cinéfilo & Usuário Smart TV 4K';
-      tags = ['Cinema 4K', 'Smart TV', 'ForoCoches', 'Test 24h'];
-    } else {
-      firstName = spanishFirstNames[i % spanishFirstNames.length];
-      lastName = spanishLastNames[(i + 4) % spanishLastNames.length];
-      interest = 'Aficionado F1 & MotoGP Espanha';
-      tags = ['Motorsport', 'DAZN', '60fps HD', 'Web'];
-    }
-
-    const cityObj = spanishCities[i % spanishCities.length];
-    const provider = providers[i % providers.length];
-
-    const cleanFirst = firstName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    const cleanLast = lastName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    const emailNum = (i + 100).toString();
-    const email = `${cleanFirst}.${cleanLast}${emailNum}@${provider}`;
-
-    const phonePrefix = (600 + (i % 399)).toString();
-    const phoneSuffix = (100000 + (i % 899999)).toString();
-    const phone = `+34 ${phonePrefix} ${phoneSuffix.slice(0, 3)} ${phoneSuffix.slice(3)}`;
-
-    generatedLeads[i] = {
-      id: `lead_es_202k_${i + 1}`,
-      tenant_id: tenantId,
-      name: `${firstName} ${lastName}`,
-      company_name: `${interest} (${cityObj.city})`,
-      email,
-      phone,
-      website: '',
-      source_url: generatePublicSourceUrl(`${firstName} ${lastName}`, cityObj.city, niche),
-      sector: 'Streaming & Entretenimento B2C',
-      role: 'Consumidor B2C / TV Streaming',
-      company_size: 'B2C (Consumidor)',
-      city: cityObj.city,
-      province: cityObj.province,
-      country: 'Espanha',
-      tags,
-      status: 'new',
-      opted_out: false,
-      mx_valid: true,
-      mx_record: `${provider} (Google DNS Audited)`,
-      target_niche: niche,
-      created_at: nowStr,
-      updated_at: nowStr,
-    };
-
-    if (onProgress && i % 25000 === 0) {
-      onProgress(Math.round((i / totalCount) * 100));
-    }
-  }
-
-  if (onProgress) onProgress(100);
-  return generatedLeads;
 }
 
