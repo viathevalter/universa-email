@@ -1192,42 +1192,77 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return purgeSyntheticLeads();
   };
 
-  const batchImportLeads = async (
-    rawLeads: Array<Omit<Lead, 'id' | 'tenant_id' | 'created_at' | 'updated_at'>>
-  ): Promise<number> => {
-    const existingEmails = new Set(leads.map((l) => l.email.toLowerCase().trim()));
-    const leadsToAdd: Lead[] = [];
+  const batchImportLeads = useCallback(
+    async (
+      rawLeads: Array<Omit<Lead, 'id' | 'tenant_id' | 'created_at' | 'updated_at'>>
+    ): Promise<number> => {
+      const existingEmails = new Set(leads.map((l) => l.email.toLowerCase().trim()));
+      const leadsToAdd: Lead[] = [];
 
-    for (const raw of rawLeads) {
-      const email = (raw.email || '').toLowerCase().trim();
-      if (!email || existingEmails.has(email)) continue;
+      const generateUUID = (): string => {
+        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+          return crypto.randomUUID();
+        }
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+          const r = (Math.random() * 16) | 0;
+          const v = c === 'x' ? r : (r & 0x3) | 0x8;
+          return v.toString(16);
+        });
+      };
 
-      existingEmails.add(email);
-      leadsToAdd.push({
-        ...raw,
-        id: `lead_${Date.now()}_${Math.random().toString(36).substr(2, 7)}`,
-        tenant_id: tenant.id,
-        mx_valid: raw.mx_valid !== undefined ? raw.mx_valid : true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      });
-    }
+      for (const raw of rawLeads) {
+        const email = (raw.email || '').toLowerCase().trim();
+        if (!email || existingEmails.has(email)) continue;
 
-    if (leadsToAdd.length > 0) {
-      setLeads((prev) => [...leadsToAdd, ...prev]);
+        existingEmails.add(email);
+        leadsToAdd.push({
+          ...raw,
+          id: generateUUID(),
+          tenant_id: tenant.id,
+          name: raw.name || raw.company_name || email.split('@')[0],
+          company_name: raw.company_name || raw.name || 'Consumidor B2C',
+          status: raw.status || 'new',
+          opted_out: raw.opted_out || false,
+          country: raw.country || 'Espanha',
+          city: raw.city || 'Madrid',
+          province: raw.province || 'Espanha',
+          tags: raw.tags && raw.tags.length > 0 ? raw.tags : ['B2C'],
+          mx_valid: raw.mx_valid !== undefined ? raw.mx_valid : true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+      }
 
-      const supabase = getSupabaseClient();
-      if (supabase) {
-        // Inserção em chunks para alta performance
-        const chunkSize = 100;
-        for (let i = 0; i < leadsToAdd.length; i += chunkSize) {
-          const chunk = leadsToAdd.slice(i, i + chunkSize);
-          supabase.from('leads').insert(chunk).then();
+      if (leadsToAdd.length > 0) {
+        setLeads((prev) => {
+          const next = [...leadsToAdd, ...prev];
+          saveLeadsToIndexedDb(next).catch((err) => console.warn('[IndexedDB save error]', err));
+          return next;
+        });
+
+        const supabase = getSupabaseClient();
+        if (supabase) {
+          // Inserção em chunks para alta performance com UUID válido e company_name garantido
+          const chunkSize = 100;
+          for (let i = 0; i < leadsToAdd.length; i += chunkSize) {
+            const chunk = leadsToAdd.slice(i, i + chunkSize);
+            supabase
+              .from('leads')
+              .insert(chunk)
+              .then(({ error }) => {
+                if (error) {
+                  console.error('[Supabase batchImportLeads Error]', error);
+                } else {
+                  console.log(`[Supabase] ${chunk.length} leads persistidos com sucesso.`);
+                }
+              });
+          }
         }
       }
-    }
-    return leadsToAdd.length;
-  };
+      return leadsToAdd.length;
+    },
+    [leads, tenant.id]
+  );
 
   const toggleOptOut = async (leadId: string) => {
     const lead = leads.find((l) => l.id === leadId);
@@ -1308,13 +1343,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // AUTO-CONVERSÃO DIRETA EM LEADS NO CRM
     if (unique.length > 0) {
       const leadsToCreate: Array<Omit<Lead, 'id' | 'tenant_id' | 'created_at' | 'updated_at'>> = unique.map((p) => ({
-        name: p.contact_name || p.company_name,
-        company_name: p.company_name,
+        name: p.contact_name || p.company_name || p.email.split('@')[0],
+        company_name: p.company_name || p.contact_name || (mission.niche ? mission.niche : 'Comunidade / Aficionado'),
         email: p.email,
         phone: p.phone,
         website: p.website,
         source_url: p.source_url,
-        sector: p.sector || 'Streaming & Esportes',
+        sector: p.sector || (mission.niche ? mission.niche : 'Streaming'),
         role: p.role || 'Consumidor B2C',
         company_size: p.company_size || 'B2C (Consumidor)',
         city: p.city || location.split(',')[0].trim() || 'Madrid',
@@ -1330,6 +1365,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await batchImportLeads(leadsToCreate);
     }
 
+    const importedResults: LeadProspectingResult[] = unique.map((u) => ({
+      ...u,
+      status: 'imported' as const,
+    }));
+
     const completedJob: LeadProspectingJob = {
       ...newJob,
       processed_count: results.length,
@@ -1337,7 +1377,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       status: 'completed',
     };
 
-    await addProspectingJob(completedJob, unique);
+    await addProspectingJob(completedJob, importedResults);
 
     setMissions((prev) =>
       prev.map((m) =>
@@ -1420,8 +1460,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // AUTO-CONVERSÃO DIRETA EM LEADS NO CRM
     if (unique.length > 0) {
       const leadsToCreate: Array<Omit<Lead, 'id' | 'tenant_id' | 'created_at' | 'updated_at'>> = unique.map((p) => ({
-        name: p.contact_name || p.company_name,
-        company_name: p.company_name,
+        name: p.contact_name || p.company_name || p.email.split('@')[0],
+        company_name: p.company_name || p.contact_name || (target.niche ? target.niche : 'Social Dork'),
         email: p.email,
         phone: p.phone,
         website: p.website,
@@ -1442,6 +1482,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await batchImportLeads(leadsToCreate);
     }
 
+    const importedResults: LeadProspectingResult[] = unique.map((u) => ({
+      ...u,
+      status: 'imported' as const,
+    }));
+
     const jobId = `job_dork_${targetId}_${Date.now()}`;
     const completedJob: LeadProspectingJob = {
       id: jobId,
@@ -1456,7 +1501,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       created_at: new Date().toISOString(),
     };
 
-    await addProspectingJob(completedJob, unique);
+    await addProspectingJob(completedJob, importedResults);
 
     setDorkQueue((prev) =>
       prev.map((d) =>
@@ -1551,8 +1596,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (selected.length === 0) return 0;
 
     const leadsToCreate: Array<Omit<Lead, 'id' | 'tenant_id' | 'created_at' | 'updated_at'>> = selected.map((p) => ({
-      name: p.contact_name || p.company_name,
-      company_name: p.company_name,
+      name: p.contact_name || p.company_name || p.email.split('@')[0],
+      company_name: p.company_name || p.contact_name || (p.target_niche ? p.target_niche : 'Consumidor B2C'),
       email: p.email,
       phone: p.phone,
       website: p.website,
@@ -1586,6 +1631,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       .map((r) => r.id);
     return await importProspectsToLeads(validIds);
   };
+
+  // Salvaguarda Contínua de Persistência: Converte automaticamente qualquer prospect novo em Lead do CRM
+  useEffect(() => {
+    const unimported = prospectingResults.filter((r) => r.status !== 'imported' && r.email);
+    if (unimported.length > 0 && !isLoadingDb) {
+      const unimportedIds = unimported.map((r) => r.id);
+      importProspectsToLeads(unimportedIds).catch(console.warn);
+    }
+  }, [prospectingResults, isLoadingDb]);
 
   const clearStaging = () => {
     setProspectingResults([]);

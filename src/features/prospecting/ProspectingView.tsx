@@ -38,6 +38,7 @@ export const ProspectingView: React.FC = () => {
   const {
     tenant,
     leads,
+    batchImportLeads,
     purgeSyntheticLeads,
     missions,
     runMission,
@@ -116,7 +117,7 @@ export const ProspectingView: React.FC = () => {
 
   // Staging selection state
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [filterStatus, setFilterStatus] = useState<'all' | 'raw' | 'imported' | 'valid_mx'>('raw');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'raw' | 'imported' | 'valid_mx'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
 
@@ -231,6 +232,33 @@ export const ProspectingView: React.FC = () => {
 
     const uniqueResults = deduplicateProspects(newResults, existingEmails);
 
+    // AUTO-CONVERSÃO DIRETA EM LEADS NO CRM
+    if (uniqueResults.length > 0) {
+      const leadsToCreate = uniqueResults.map((p) => ({
+        name: p.contact_name || p.company_name || p.email.split('@')[0],
+        company_name: p.company_name || p.contact_name || pasteNicheTag || 'Consumidor B2C',
+        email: p.email,
+        phone: p.phone,
+        website: p.website,
+        source_url: p.source_url,
+        sector: p.sector || pasteNicheTag || 'Streaming & Esportes',
+        role: p.role || 'Consumidor B2C',
+        company_size: p.company_size || 'B2C (Consumidor)',
+        city: p.city || 'Madrid',
+        province: p.province || 'Espanha',
+        country: p.country || 'Espanha',
+        tags: ['Raspagem Direta', pasteNicheTag].filter(Boolean),
+        status: 'new' as const,
+        opted_out: false,
+        mx_valid: p.mx_status === 'valid',
+        mx_record: p.mx_host,
+        target_niche: pasteNicheTag,
+      }));
+      await batchImportLeads(leadsToCreate);
+    }
+
+    const importedResults = uniqueResults.map((r) => ({ ...r, status: 'imported' as const }));
+
     const completedJob: LeadProspectingJob = {
       id: jobId,
       tenant_id: tenant.id,
@@ -244,7 +272,7 @@ export const ProspectingView: React.FC = () => {
       created_at: new Date().toISOString(),
     };
 
-    await addProspectingJob(completedJob, uniqueResults);
+    await addProspectingJob(completedJob, importedResults);
 
     setIsParsingPaste(false);
     setPasteProgress(null);
@@ -401,6 +429,33 @@ export const ProspectingView: React.FC = () => {
 
       const uniqueResults = deduplicateProspects(results, existingEmails);
 
+      // AUTO-CONVERSÃO DIRETA EM LEADS NO CRM
+      if (uniqueResults.length > 0) {
+        const leadsToCreate = uniqueResults.map((p) => ({
+          name: p.contact_name || p.company_name || p.email.split('@')[0],
+          company_name: p.company_name || p.contact_name || sector || 'Consumidor B2C',
+          email: p.email,
+          phone: p.phone,
+          website: p.website,
+          source_url: p.source_url,
+          sector: p.sector || sector || 'Streaming & Esportes',
+          role: p.role || 'Consumidor B2C',
+          company_size: p.company_size || 'B2C (Consumidor)',
+          city: p.city || location.split(',')[0].trim() || 'Madrid',
+          province: p.province || 'Espanha',
+          country: p.country || 'Espanha',
+          tags: ['Custom Search', sector].filter(Boolean),
+          status: 'new' as const,
+          opted_out: false,
+          mx_valid: p.mx_status === 'valid',
+          mx_record: p.mx_host,
+          target_niche: sector,
+        }));
+        await batchImportLeads(leadsToCreate);
+      }
+
+      const importedResults = uniqueResults.map((r) => ({ ...r, status: 'imported' as const }));
+
       const completedJob: LeadProspectingJob = {
         ...newJob,
         processed_count: results.length,
@@ -408,7 +463,7 @@ export const ProspectingView: React.FC = () => {
         status: 'completed',
       };
 
-      await addProspectingJob(completedJob, uniqueResults);
+      await addProspectingJob(completedJob, importedResults);
       setNotification({
         type: 'success',
         message: `Busca concluída! ${uniqueResults.length} novos leads qualificados e validados via DNS/MX.`,
@@ -1526,8 +1581,9 @@ export const ProspectingView: React.FC = () => {
                           {/* Ações */}
                           <td className="p-4 text-right">
                             {item.status === 'imported' ? (
-                              <span className={`rounded px-2 py-1 text-[10px] font-medium ${isLight ? 'bg-slate-100 text-slate-500' : 'bg-zinc-800 text-zinc-400'}`}>
-                                No CRM
+                              <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                <CheckCircle className="h-3 w-3 text-emerald-500" />
+                                Salvo no CRM
                               </span>
                             ) : (
                               <div className="flex items-center justify-end gap-1.5">
