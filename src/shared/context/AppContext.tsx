@@ -61,6 +61,7 @@ interface AppContextType {
   isAutoMissionsActive: boolean;
   activeAutoRegion: string;
   autoBatchesCount: number;
+  autoStatusDetail: string;
   startAutoMissions: () => void;
   stopAutoMissions: () => void;
   
@@ -470,6 +471,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const saved = localStorage.getItem(STORAGE_KEYS.TENANT);
       if (!saved) return DEFAULT_TENANT;
       const parsed = JSON.parse(saved);
+      const effectiveGemini = (parsed.gemini_api_key && parsed.gemini_api_key.trim().length > 10)
+        ? parsed.gemini_api_key
+        : DEFAULT_TENANT.gemini_api_key;
+
       if (
         !parsed.marketing_sender_email ||
         parsed.marketing_sender_email.includes('@universaemail.com') ||
@@ -480,9 +485,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           marketing_sender_email: 'carlos_ventas@mail.universatv.com',
           sender_name: 'Carlos Ventas - Universa TV España',
           resend_api_key: parsed.resend_api_key || DEFAULT_TENANT.resend_api_key,
+          gemini_api_key: effectiveGemini,
         };
       }
-      return parsed;
+      return {
+        ...parsed,
+        gemini_api_key: effectiveGemini,
+      };
     } catch {
       return DEFAULT_TENANT;
     }
@@ -533,7 +542,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isAutoMissionsActive, setIsAutoMissionsActive] = useState(false);
   const [activeAutoRegion, setActiveAutoRegion] = useState('Madrid');
   const [autoBatchesCount, setAutoBatchesCount] = useState(0);
+  const [autoStatusDetail, setAutoStatusDetail] = useState<string>('Pronto para iniciar');
   const autoMissionsIntervalRef = useRef<any>(null);
+  const autoMissionsActiveRef = useRef<boolean>(false);
+  const autoDorkingActiveRef = useRef<boolean>(false);
 
   // Dork Queue State (Combina Espanha e Brasil)
   const [dorkQueue, setDorkQueue] = useState<DorkTargetJob[]>(() => {
@@ -1396,7 +1408,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Auto-Missions Continuous Loop with Automatic Region Rotation
   const startAutoMissions = () => {
-    if (isAutoMissionsActive) return;
+    if (autoMissionsActiveRef.current) return;
+    autoMissionsActiveRef.current = true;
     setIsAutoMissionsActive(true);
 
     let currentMissionIdx = 0;
@@ -1404,37 +1417,49 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const BRAZILIAN_CITIES_ROTATION = ['São Paulo', 'Rio de Janeiro', 'Belo Horizonte', 'Curitiba', 'Porto Alegre', 'Salvador', 'Brasília', 'Campinas'];
 
-    let isRunning = false;
-    const processNextMission = async () => {
-      if (isRunning) return;
-      isRunning = true;
-      try {
-        const mission = missions[currentMissionIdx % missions.length];
-        const isBr = mission.country === 'Brasil';
-        const city = isBr
-          ? BRAZILIAN_CITIES_ROTATION[currentCityIdx % BRAZILIAN_CITIES_ROTATION.length]
-          : SPANISH_CITIES_ROTATION[currentCityIdx % SPANISH_CITIES_ROTATION.length];
-        const countryLabel = isBr ? 'Brasil' : 'Espanha';
-        setActiveAutoRegion(`${city} (${countryLabel})`);
-        setAutoBatchesCount((prev) => prev + 1);
+    const loop = async () => {
+      while (autoMissionsActiveRef.current) {
+        try {
+          const allMissions = missions.length > 0 ? missions : [...SPAIN_B2C_MISSIONS, ...BRAZIL_B2C_MISSIONS];
+          const mission = allMissions[currentMissionIdx % allMissions.length];
+          const isBr = mission.country === 'Brasil';
+          const city = isBr
+            ? BRAZILIAN_CITIES_ROTATION[currentCityIdx % BRAZILIAN_CITIES_ROTATION.length]
+            : SPANISH_CITIES_ROTATION[currentCityIdx % SPANISH_CITIES_ROTATION.length];
+          const countryLabel = isBr ? 'Brasil' : 'Espanha';
+          const regionLabel = `${city} (${countryLabel})`;
 
-        currentMissionIdx++;
-        currentCityIdx++;
+          setActiveAutoRegion(regionLabel);
+          setAutoBatchesCount((prev) => prev + 1);
+          setAutoStatusDetail(`Pesquisando na web: ${mission.title} em ${city}...`);
 
-        await runMission(mission.id, `${city}, ${countryLabel}`, 25);
-      } catch (e) {
-        console.warn('[Auto-Missions Loop Error]', e);
-      } finally {
-        isRunning = false;
+          currentMissionIdx++;
+          currentCityIdx++;
+
+          const found = await runMission(mission.id, `${city}, ${countryLabel}`, 15);
+          setAutoStatusDetail(`Lote concluído: ${found} leads reais encontrados e salvos no CRM.`);
+
+          // Pequena pausa de 1.5s entre lotes para respeitar rate limits e respirar
+          if (autoMissionsActiveRef.current) {
+            await new Promise((r) => setTimeout(r, 1500));
+          }
+        } catch (e: any) {
+          console.warn('[Auto-Missions Loop Error]', e);
+          setAutoStatusDetail(`Aguardando próximo lote (tentando novamente em 3s)...`);
+          if (autoMissionsActiveRef.current) {
+            await new Promise((r) => setTimeout(r, 3000));
+          }
+        }
       }
     };
 
-    processNextMission();
-    autoMissionsIntervalRef.current = setInterval(processNextMission, 3500);
+    loop();
   };
 
   const stopAutoMissions = () => {
+    autoMissionsActiveRef.current = false;
     setIsAutoMissionsActive(false);
+    setAutoStatusDetail('Piloto pausado');
     if (autoMissionsIntervalRef.current) {
       clearInterval(autoMissionsIntervalRef.current);
       autoMissionsIntervalRef.current = null;
@@ -1535,27 +1560,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Continuous Auto-Dorking Engine Loop
   const startAutoDorking = () => {
-    if (isAutoDorkingActive) return;
+    if (autoDorkingActiveRef.current) return;
+    autoDorkingActiveRef.current = true;
     setIsAutoDorkingActive(true);
 
     let currentIndex = 0;
-    const processNext = async () => {
-      if (dorkQueue.length === 0) return;
-      const target = dorkQueue[currentIndex % dorkQueue.length];
-      currentIndex++;
+    const loop = async () => {
+      while (autoDorkingActiveRef.current) {
+        if (dorkQueue.length === 0) {
+          await new Promise((r) => setTimeout(r, 2000));
+          continue;
+        }
+        const target = dorkQueue[currentIndex % dorkQueue.length];
+        currentIndex++;
 
-      try {
-        await runDorkTarget(target.id);
-      } catch (e) {
-        console.warn('[Auto-Dorking Loop Target Fail]', e);
+        try {
+          await runDorkTarget(target.id);
+        } catch (e) {
+          console.warn('[Auto-Dorking Loop Target Fail]', e);
+        }
+
+        if (autoDorkingActiveRef.current) {
+          await new Promise((r) => setTimeout(r, 2000));
+        }
       }
     };
 
-    processNext();
-    autoDorkingIntervalRef.current = setInterval(processNext, 4000);
+    loop();
   };
 
   const stopAutoDorking = () => {
+    autoDorkingActiveRef.current = false;
     setIsAutoDorkingActive(false);
     if (autoDorkingIntervalRef.current) {
       clearInterval(autoDorkingIntervalRef.current);
@@ -2129,6 +2164,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         isAutoMissionsActive,
         activeAutoRegion,
         autoBatchesCount,
+        autoStatusDetail,
         startAutoMissions,
         stopAutoMissions,
         prospectingJobs,

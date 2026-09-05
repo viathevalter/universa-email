@@ -45,6 +45,7 @@ export const ProspectingView: React.FC = () => {
     isAutoMissionsActive,
     activeAutoRegion,
     autoBatchesCount,
+    autoStatusDetail,
     startAutoMissions,
     stopAutoMissions,
     dorkQueue,
@@ -739,25 +740,36 @@ export const ProspectingView: React.FC = () => {
       {/* LIVE AUTO-PILOT RUNNING STATUS STRIP */}
       {isAutoMissionsActive && (
         <div
-          className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl p-4 border animate-pulse ${
+          className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl p-4 border shadow-sm transition-all ${
             isLight
               ? 'border-emerald-200 bg-emerald-50 text-emerald-900 shadow-xs'
               : 'border-emerald-500/40 bg-emerald-950/30 text-emerald-300'
           }`}
         >
           <div className="flex items-center gap-3">
-            <div className="h-3 w-3 rounded-full bg-emerald-500 animate-ping" />
-            <div className="text-xs">
-              <span className="font-bold">🟢 Piloto Automático Ativo: </span>
-              <span>
-                Varrendo província de <strong className="underline">{activeAutoRegion}</strong> • Lote #{autoBatchesCount} • Total no Staging: {prospectingResults.length} leads
-              </span>
+            <div className="h-3 w-3 rounded-full bg-emerald-500 animate-ping shrink-0" />
+            <div className="text-xs space-y-0.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-bold text-emerald-700 dark:text-emerald-400">🟢 Piloto Automático Ativo</span>
+                <span className="rounded bg-emerald-600/15 px-2 py-0.5 font-semibold text-[10px] text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+                  Lote #{autoBatchesCount}
+                </span>
+                <span className="font-medium text-slate-700 dark:text-zinc-300">
+                  Região atual: <strong>{activeAutoRegion}</strong>
+                </span>
+                <span className="text-[11px] text-slate-500 dark:text-zinc-400">
+                  • Total CRM: <strong>{leads.length.toLocaleString()}</strong> leads
+                </span>
+              </div>
+              <div className="text-[11px] font-mono text-emerald-800 dark:text-emerald-300/90">
+                {autoStatusDetail || 'Processando busca na web ao vivo com Google Search...'}
+              </div>
             </div>
           </div>
 
           <button
             onClick={stopAutoMissions}
-            className="self-start sm:self-auto rounded-lg bg-emerald-600 px-3 py-1 text-xs font-bold text-white hover:bg-emerald-700 cursor-pointer"
+            className="self-start sm:self-auto rounded-lg bg-emerald-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 transition-all cursor-pointer shadow-xs"
           >
             ⏸️ Pausar Piloto
           </button>

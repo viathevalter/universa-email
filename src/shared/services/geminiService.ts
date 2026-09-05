@@ -315,7 +315,11 @@ export async function searchB2BLeadsWithAI(
   const isB2C = Boolean(niche || keywords.includes('futbol') || keywords.includes('series') || keywords.includes('españa') || keywords.includes('brasileiros'));
 
   // 1. Tenta consulta ao Gemini com Grounded Search (Web Real do Google)
-  if (apiKey && apiKey.trim().length > 10) {
+  const effectiveKey = (apiKey && apiKey.trim().length > 10) ? apiKey.trim() : (import.meta.env.VITE_GEMINI_API_KEY || '');
+  if (effectiveKey) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
+
     try {
       const randomSeed = Math.random().toString(36).substring(2, 6);
       const prompt = isB2C
@@ -341,10 +345,11 @@ Retorne estritamente em JSON puro:
 Retorne em JSON: {"leads": [{"contact_name": "...", "company_name": "...", "role": "...", "email": "...", "phone": "...", "source_url": "https://...", "city": "...", "province": "...", "country": "Brasil", "confidence_score": 90}]}`;
 
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${effectiveKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
             // Ativa o Google Search Grounding oficial para buscar na web viva
@@ -356,19 +361,25 @@ Retorne em JSON: {"leads": [{"contact_name": "...", "company_name": "...", "role
         }
       );
 
+      clearTimeout(timeoutId);
+
       if (response.ok) {
         const data = await response.json();
         const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
         
-        // 1. Tenta extrair array direto [ { ... }, { ... } ]
-        const arrayMatch = text.match(/\[[\s\S]*\]/);
+        // 1. Tenta extrair bloco de código markdown ```json ... ```
+        const codeBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+        const jsonTarget = codeBlockMatch ? codeBlockMatch[1] : text;
+
+        // 2. Tenta extrair array direto [ { ... }, { ... } ]
+        const arrayMatch = jsonTarget.match(/\[[\s\S]*\]/);
         if (arrayMatch) {
           try {
             const parsedArray = JSON.parse(arrayMatch[0]);
             if (Array.isArray(parsedArray)) {
               rawLeads = parsedArray.map((p: any) => ({
                 contact_name: p.contact_name || p.name || 'Aficionado / Contato',
-                company_name: p.company_name || p.name || 'Comunidade / PeÃ±a',
+                company_name: p.company_name || p.name || 'Comunidade / Peña',
                 role: p.role || p.category || 'Aficionado B2C',
                 email: p.email,
                 phone: p.phone,
@@ -382,9 +393,9 @@ Retorne em JSON: {"leads": [{"contact_name": "...", "company_name": "...", "role
           } catch {}
         }
 
-        // 2. Se não encontrou array direto, tenta objeto { "leads": [ ... ] }
+        // 3. Se não encontrou array direto, tenta objeto { "leads": [ ... ] }
         if (rawLeads.length === 0) {
-          const jsonMatch = text.match(/\{[\s\S]*\}/);
+          const jsonMatch = jsonTarget.match(/\{[\s\S]*\}/);
           if (jsonMatch) {
             try {
               const parsed = JSON.parse(jsonMatch[0]);
@@ -394,8 +405,58 @@ Retorne em JSON: {"leads": [{"contact_name": "...", "company_name": "...", "role
             } catch {}
           }
         }
+
+        // 4. Extrator Heurístico Resiliente: se o Gemini respondeu em texto/markdown com e-mails reais
+        if (rawLeads.length === 0 && text.includes('@')) {
+          const emailRegex = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g;
+          const matched = text.match(emailRegex) || [];
+          const emails: string[] = Array.from(new Set(matched));
+          const lines = text.split('\n');
+
+          for (const email of emails) {
+            const cleanEmail = email.toLowerCase().trim();
+            if (cleanEmail.includes('example.com') || cleanEmail.includes('domain.es') || cleanEmail.includes('email.com')) continue;
+
+            const lineIdx = lines.findIndex((l: string) => l.includes(email));
+            let name = 'Aficionado / Contato';
+            let company = isB2C ? 'Comunidade / Peña' : 'Empresa Local';
+            let phone = '';
+
+            if (lineIdx !== -1) {
+              for (let j = Math.max(0, lineIdx - 6); j <= lineIdx; j++) {
+                const line = lines[j].trim();
+                const headerMatch = line.match(/^#{1,4}\s*(?:\d+\.\s*)?(.+)/);
+                if (headerMatch) {
+                  company = headerMatch[1].replace(/[*_#]/g, '').trim();
+                  name = company;
+                } else if (line.toLowerCase().includes('peña') || line.toLowerCase().includes('club') || line.toLowerCase().includes('comunidad') || line.toLowerCase().includes('grupo')) {
+                  company = line.replace(/[*_#\-:]/g, '').trim();
+                  name = company;
+                }
+              }
+              for (let j = lineIdx; j <= Math.min(lines.length - 1, lineIdx + 4); j++) {
+                const line = lines[j].trim();
+                const phoneMatch = line.match(/(?:\+34|(?<!\d))(\d{2,3}[\s.-]?\d{2,3}[\s.-]?\d{2,4})(?!\d)/);
+                if (phoneMatch && !phone) phone = phoneMatch[0];
+              }
+            }
+
+            rawLeads.push({
+              contact_name: name,
+              company_name: company,
+              role: isB2C ? 'Torcedor / Consumidor B2C' : 'Decisor B2B',
+              email: cleanEmail,
+              phone,
+              city: location.split(',')[0].trim(),
+              province: location,
+              country: isB2C ? 'Espanha' : 'Brasil',
+              confidence_score: 90,
+            });
+          }
+        }
       }
     } catch (e) {
+      clearTimeout(timeoutId);
       console.warn('[Gemini Grounded Search Attempt]', e);
     }
   }
