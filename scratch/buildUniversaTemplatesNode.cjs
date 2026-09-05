@@ -80,7 +80,7 @@ function buildUniversaEmailHtml({
 
       <!-- Cabeçalho com Logomarca Oficial da UniversaTV -->
       <div class="email-header" style="padding: 24px 24px 18px 24px; text-align: center; border-bottom: 1px solid #f1f5f9; background-color: #ffffff;">
-        <img src="/logo_universa_preto_horizontal.png" alt="UNIVERSATV ENTERTAINMENT" style="max-height: 46px; width: auto; max-width: 220px; display: block; margin: 0 auto; border: 0;" />
+        <img src="https://universa-email.vercel.app/logo_universa_preto_horizontal.png" alt="UNIVERSATV ENTERTAINMENT" style="max-height: 46px; width: auto; max-width: 220px; display: block; margin: 0 auto; border: 0;" />
         <div style="margin-top: 10px;">
           <span style="display: inline-block; background-color: #fff7ed; color: #ea580c; border: 1px solid #fed7aa; padding: 4px 12px; border-radius: 9999px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;">
             ${badgeText}

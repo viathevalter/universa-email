@@ -100,6 +100,17 @@ export async function sendEmailViaResend(payload: SendEmailPayload): Promise<Sen
     }
   }
 
+  // Garante que qualquer imagem com caminho relativo (ex: /logo.png) seja convertida para URL pública absoluta HTTPS
+  const normalizedHtml = (html || '')
+    .replace(
+      /src=["']\/logo_universa_preto_horizontal\.png["']/g,
+      'src="https://universa-email.vercel.app/logo_universa_preto_horizontal.png"'
+    )
+    .replace(
+      /src=["']\/(.+?\.(?:png|jpg|jpeg|gif|webp|svg))["']/gi,
+      'src="https://universa-email.vercel.app/$1"'
+    );
+
   try {
     let response;
     // Tenta primeiro através da API serverless /api/send-email para evitar CORS no browser
@@ -114,7 +125,7 @@ export async function sendEmailViaResend(payload: SendEmailPayload): Promise<Sen
           from: from.includes('<') ? from : `Comercial <${from}>`,
           to: [to.trim()],
           subject: subject,
-          html: html,
+          html: normalizedHtml,
           reply_to: replyTo || undefined,
         }),
       });
@@ -130,7 +141,7 @@ export async function sendEmailViaResend(payload: SendEmailPayload): Promise<Sen
           from: from.includes('<') ? from : `Comercial <${from}>`,
           to: [to.trim()],
           subject: subject,
-          html: html,
+          html: normalizedHtml,
           reply_to: replyTo || undefined,
         }),
       });

@@ -36,11 +36,22 @@ export default async function handler(req: any, res: any) {
       });
     }
 
+    // Garante que qualquer imagem com caminho relativo (ex: /logo.png) seja convertida para URL pública absoluta HTTPS
+    const normalizedHtml = (html || '')
+      .replace(
+        /src=["']\/logo_universa_preto_horizontal\.png["']/g,
+        'src="https://universa-email.vercel.app/logo_universa_preto_horizontal.png"'
+      )
+      .replace(
+        /src=["']\/(.+?\.(?:png|jpg|jpeg|gif|webp|svg))["']/gi,
+        'src="https://universa-email.vercel.app/$1"'
+      );
+
     const resendPayload: Record<string, any> = {
       from: from.includes('<') ? from : `Comercial <${from}>`,
       to: Array.isArray(to) ? to : [to],
       subject,
-      html,
+      html: normalizedHtml,
     };
 
     if (reply_to) {
