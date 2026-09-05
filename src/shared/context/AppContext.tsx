@@ -23,7 +23,6 @@ import {
   searchB2BLeadsWithAI,
   executeDorkTargetJob,
   deduplicateProspects,
-  generateFull200kSpainLeadsDataset,
 } from '../services/geminiService';
 import {
   saveLeadsToIndexedDb,
@@ -49,6 +48,7 @@ interface AppContextType {
   deleteLead: (id: string) => Promise<void>;
   deleteMultipleLeads: (ids: string[]) => Promise<void>;
   batchImportLeads: (leads: Array<Omit<Lead, 'id' | 'tenant_id' | 'created_at' | 'updated_at'>>) => Promise<number>;
+  purgeSyntheticLeads: () => Promise<number>;
   restoreFull202kDatabase: (count?: number, onProgress?: (p: number) => void) => Promise<number>;
   toggleOptOut: (leadId: string) => Promise<void>;
   verifyLeadMx: (leadId: string) => Promise<void>;
@@ -875,28 +875,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, []);
 
-  // IndexedDB Initial Load (Garante que a base completa de 202.000 leads esteja sempre carregada)
+  // IndexedDB Initial Load: Carrega apenas LEADS REAIS (limpa automaticamente a base simulada)
   useEffect(() => {
     let isMounted = true;
     (async () => {
       try {
         const idbLeads = await getLeadsFromIndexedDb();
         if (isMounted) {
-          if (idbLeads && idbLeads.length >= 200000) {
-            const sanitized = sanitizeLeads(idbLeads);
-            setLeads(ensureValidationLeads(sanitized, tenant.id));
+          if (idbLeads && idbLeads.length > 0) {
+            // Filtra e remove qualquer lead sintético gerado anteriormente
+            const genuineOnly = idbLeads.filter(
+              (l) => !l.id.startsWith('lead_es_202k_') && !l.id.startsWith('lead_sim_')
+            );
+            const finalLeads = ensureValidationLeads(genuineOnly, tenant.id);
+            setLeads(finalLeads);
+            await saveLeadsToIndexedDb(finalLeads);
           } else {
-            // Inicializa e persiste automaticamente a base de 202.000 leads
-            const fullDataset = ensureValidationLeads(generateFull200kSpainLeadsDataset(tenant.id, 202000), tenant.id);
-            setLeads(fullDataset);
-            await saveLeadsToIndexedDb(fullDataset);
+            const initialReal = ensureValidationLeads([], tenant.id);
+            setLeads(initialReal);
+            await saveLeadsToIndexedDb(initialReal);
           }
         }
       } catch (e) {
         console.warn('[IndexedDB Init Warning]', e);
         if (isMounted) {
-          const fullDataset = ensureValidationLeads(generateFull200kSpainLeadsDataset(tenant.id, 202000), tenant.id);
-          setLeads(fullDataset);
+          setLeads(ensureValidationLeads([], tenant.id));
         }
       }
     })();
@@ -1109,14 +1112,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await clearAllIndexedDb();
   };
 
+  const purgeSyntheticLeads = async (): Promise<number> => {
+    try {
+      await clearAllIndexedDb();
+      const realOnly = leads.filter(
+        (l) => !l.id.startsWith('lead_es_202k_') && !l.id.startsWith('lead_sim_')
+      );
+      const finalReal = ensureValidationLeads(realOnly, tenant.id);
+      setLeads(finalReal);
+      await saveLeadsToIndexedDb(finalReal);
+      safeStorageSet(STORAGE_KEYS.LEADS, finalReal);
+      safeStorageSet(STORAGE_KEYS.CONTACTED_EMAILS, []);
+      contactedEmailsRef.current = new Set();
+      return finalReal.length;
+    } catch (e) {
+      console.error('[Purge Error]', e);
+      return 0;
+    }
+  };
+
   const restoreFull202kDatabase = async (
-    count = 202000,
-    onProgress?: (p: number) => void
+    _count = 202000,
+    _onProgress?: (p: number) => void
   ): Promise<number> => {
-    const dataset = generateFull200kSpainLeadsDataset(tenant.id, count, onProgress);
-    setLeads(dataset);
-    await saveLeadsToIndexedDb(dataset);
-    return dataset.length;
+    return purgeSyntheticLeads();
   };
 
   const batchImportLeads = async (
@@ -1987,6 +2006,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteMultipleLeads,
         clearAllLeads,
         batchImportLeads,
+        purgeSyntheticLeads,
         restoreFull202kDatabase,
         toggleOptOut,
         verifyLeadMx,

@@ -26,7 +26,6 @@ import {
   Check,
   Send,
   X,
-  Sparkles,
 } from 'lucide-react';
 import { useApp } from '../../shared/context/AppContext';
 import type { Lead, LeadStatus, CompanySize, CRMStage } from '../../types';
@@ -113,7 +112,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ onNavigateToCampaigns }) =
     deleteLead,
     deleteMultipleLeads,
     batchImportLeads,
-    restoreFull202kDatabase,
+    purgeSyntheticLeads,
     verifyAllPendingMx,
     audiences,
     addAudience,
@@ -124,9 +123,8 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ onNavigateToCampaigns }) =
 
   const isLight = theme === 'light';
 
-  // Restore 202k state
+  // State
   const [isRestoring, setIsRestoring] = useState(false);
-  const [restoreProgress, setRestoreProgress] = useState(0);
 
   // View mode
   const [viewMode, setViewMode] = useState<'table' | 'kanban'>('table');
@@ -486,18 +484,20 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ onNavigateToCampaigns }) =
     });
   };
 
-  // Restore 202k Database Handler
-  const handleRestore202k = async () => {
+  // Purge Synthetic Leads Handler
+  const handlePurgeSynthetic = async () => {
+    if (!confirm('Deseja realmente apagar todos os cadastros e e-mails simulados? Apenas seus e-mails reais de teste e clientes autênticos serão mantidos.')) {
+      return;
+    }
     setIsRestoring(true);
     try {
-      const count = await restoreFull202kDatabase(202000, (p) => setRestoreProgress(p));
-      confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+      const remainingCount = await purgeSyntheticLeads();
       setNotification({
         type: 'success',
-        message: `Base de ${count.toLocaleString()} leads carregada e salva com sucesso no IndexedDB!`,
+        message: `Base simulada removida com sucesso! Restam ${remainingCount} contatos reais verificados.`,
       });
     } catch (e) {
-      setNotification({ type: 'error', message: 'Erro ao carregar base de leads.' });
+      setNotification({ type: 'error', message: 'Erro ao remover base simulada.' });
     } finally {
       setIsRestoring(false);
     }
@@ -645,13 +645,13 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ onNavigateToCampaigns }) =
 
         <div className="flex flex-wrap items-center gap-2">
           <button
-            onClick={handleRestore202k}
+            onClick={handlePurgeSynthetic}
             disabled={isRestoring}
-            className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-indigo-600 p-2.5 text-xs font-bold text-white shadow-lg shadow-orange-500/20 hover:opacity-95 transition-all cursor-pointer"
-            title="Carregar / Restaurar base completa de 202.000 leads segmentados da Espanha"
+            className="flex items-center gap-1.5 rounded-xl border border-rose-500/40 bg-rose-500/10 hover:bg-rose-500/20 p-2.5 text-xs font-bold text-rose-400 shadow-sm transition-all cursor-pointer"
+            title="Apagar todos os cadastros e e-mails simulados e restaurar apenas e-mails reais verificados"
           >
-            <Sparkles className="h-4 w-4" />
-            <span>{isRestoring ? `Carregando 202k (${restoreProgress}%)...` : '⚡ Carregar 202.000 Leads'}</span>
+            <Trash2 className="h-4 w-4 text-rose-400" />
+            <span>{isRestoring ? 'Removendo...' : '🗑️ Limpar Leads Simulados'}</span>
           </button>
 
           <button
