@@ -349,6 +349,28 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
     resendId?: string;
   }>>([]);
 
+  // Cronograma de Disparos Filtro por Dia
+  const [campaignDayFilter, setCampaignDayFilter] = useState<'all' | 'sab' | 'dom' | 'seg'>('all');
+  const [isLaunchingBatch, setIsLaunchingBatch] = useState(false);
+
+  const handleLaunchTodayBatch = async () => {
+    const todayList = campaigns.filter((c) => (c.id.startsWith('camp_sab_') || c.title.includes('HOJE') || c.title.includes('Sáb')) && c.status !== 'completed');
+    if (todayList.length === 0) return;
+    setIsLaunchingBatch(true);
+    for (const c of todayList) {
+      await launchCampaign(c.id);
+    }
+    setIsLaunchingBatch(false);
+  };
+
+  const displayedCampaigns = useMemo(() => {
+    if (campaignDayFilter === 'all') return campaigns;
+    if (campaignDayFilter === 'sab') return campaigns.filter((c) => c.id.startsWith('camp_sab_') || c.title.includes('Sáb') || c.title.includes('HOJE'));
+    if (campaignDayFilter === 'dom') return campaigns.filter((c) => c.id.startsWith('camp_dom_') || c.title.includes('Dom') || c.title.includes('AMANHÃ'));
+    if (campaignDayFilter === 'seg') return campaigns.filter((c) => c.id.startsWith('camp_seg_') || c.title.includes('Seg') || c.title.includes('SEGUNDA'));
+    return campaigns;
+  }, [campaigns, campaignDayFilter]);
+
   const handleExecuteTestCampaign = async () => {
     if (templates.length === 0) return;
     setIsExecutingTest(true);
@@ -1209,7 +1231,98 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
       {/* ========================================================================= */}
       {activeSubTab === 'campaigns' && (
         <div className="space-y-4">
-          {campaigns.length === 0 ? (
+          {/* Cronograma Bar: Filtros por Dia e Botão de Ação Rápida */}
+          <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl border bg-yellow-500/5 border-yellow-500/20">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs font-bold mr-1 text-yellow-500 flex items-center gap-1">
+                📅 Cronograma:
+              </span>
+
+              <button
+                onClick={() => setCampaignDayFilter('all')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  campaignDayFilter === 'all'
+                    ? 'bg-yellow-500 text-slate-950 shadow-sm'
+                    : isLight
+                    ? 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+                    : 'bg-zinc-800 text-slate-300 hover:bg-zinc-700 border border-zinc-700'
+                }`}
+              >
+                Todas ({campaigns.length})
+              </button>
+
+              <button
+                onClick={() => setCampaignDayFilter('sab')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                  campaignDayFilter === 'sab'
+                    ? 'bg-amber-500 text-slate-950 shadow-sm'
+                    : isLight
+                    ? 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+                    : 'bg-zinc-800 text-slate-300 hover:bg-zinc-700 border border-zinc-700'
+                }`}
+              >
+                <span>🔥 Hoje - Sáb (4.200)</span>
+                <span className="text-[10px] opacity-75 font-mono">
+                  ({campaigns.filter((c) => c.id.startsWith('camp_sab_') || c.title.includes('Sáb') || c.title.includes('HOJE')).length})
+                </span>
+              </button>
+
+              <button
+                onClick={() => setCampaignDayFilter('dom')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                  campaignDayFilter === 'dom'
+                    ? 'bg-amber-500 text-slate-950 shadow-sm'
+                    : isLight
+                    ? 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+                    : 'bg-zinc-800 text-slate-300 hover:bg-zinc-700 border border-zinc-700'
+                }`}
+              >
+                <span>⭐ Dom 06/09 (4.900)</span>
+                <span className="text-[10px] opacity-75 font-mono">
+                  ({campaigns.filter((c) => c.id.startsWith('camp_dom_') || c.title.includes('Dom') || c.title.includes('AMANHÃ')).length})
+                </span>
+              </button>
+
+              <button
+                onClick={() => setCampaignDayFilter('seg')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                  campaignDayFilter === 'seg'
+                    ? 'bg-amber-500 text-slate-950 shadow-sm'
+                    : isLight
+                    ? 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+                    : 'bg-zinc-800 text-slate-300 hover:bg-zinc-700 border border-zinc-700'
+                }`}
+              >
+                <span>💼 Seg 07/09 (5.950)</span>
+                <span className="text-[10px] opacity-75 font-mono">
+                  ({campaigns.filter((c) => c.id.startsWith('camp_seg_') || c.title.includes('Seg') || c.title.includes('SEGUNDA')).length})
+                </span>
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                disabled={isLaunchingBatch}
+                onClick={handleLaunchTodayBatch}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-bold text-xs shadow-sm cursor-pointer disabled:opacity-50"
+                title="Disparar em sequência as 7 campanhas programadas para hoje"
+              >
+                {isLaunchingBatch ? (
+                  <>
+                    <div className="h-3.5 w-3.5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                    <span>Disparando Lote de Hoje...</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-3.5 w-3.5 fill-current" />
+                    <span>🚀 Disparar Lote de Hoje (4.200 envios)</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {displayedCampaigns.length === 0 ? (
             <div
               className={`rounded-2xl border p-12 text-center space-y-4 ${
                 isLight ? 'border-slate-200 bg-white' : 'border-zinc-800 bg-zinc-950/40'
@@ -1220,23 +1333,16 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
               </div>
               <div className="space-y-1">
                 <h3 className={`font-bold text-base ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
-                  Nenhuma campanha criada ainda
+                  Nenhuma campanha encontrada neste filtro
                 </h3>
                 <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                  Crie sua primeira campanha para disparar ofertas e testes IPTV para os seus leads.
+                  Selecione "Todas" ou crie uma nova campanha personalizada.
                 </p>
               </div>
-              <button
-                onClick={() => handleOpenWizard()}
-                className="inline-flex items-center gap-2 rounded-xl bg-yellow-500 hover:bg-yellow-400 px-4 py-2 text-xs font-bold text-slate-950 shadow-md cursor-pointer"
-              >
-                <Plus className="h-4 w-4" />
-                <span>+ Criar Primeira Campanha</span>
-              </button>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {campaigns.map((camp) => {
+              {displayedCampaigns.map((camp) => {
                 const total = camp.total_recipients || 1;
                 const sent = camp.sent_count || 0;
                 const pct = Math.min(100, Math.round((sent / total) * 100));
@@ -1245,7 +1351,20 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                   label: 'Rascunho',
                   bg: 'bg-slate-500/10 text-slate-400 border-slate-500/20',
                 };
-                if (camp.status === 'sending') {
+                if (camp.status === 'scheduled') {
+                  let scheduleLabel = 'Agendada';
+                  if (camp.id.startsWith('camp_sab_') || camp.title.includes('HOJE') || camp.title.includes('Sáb')) {
+                    scheduleLabel = '📅 Hoje às 11:40';
+                  } else if (camp.id.startsWith('camp_dom_') || camp.title.includes('DOM') || camp.title.includes('Dom')) {
+                    scheduleLabel = '📅 Dom 06/09 às 12:00';
+                  } else if (camp.id.startsWith('camp_seg_') || camp.title.includes('SEG') || camp.title.includes('Seg')) {
+                    scheduleLabel = '📅 Seg 07/09 às 10:00';
+                  }
+                  statusBadge = {
+                    label: scheduleLabel,
+                    bg: 'bg-purple-500/15 text-purple-400 border-purple-500/30 font-semibold',
+                  };
+                } else if (camp.status === 'sending') {
                   statusBadge = {
                     label: 'Em Disparo',
                     bg: 'bg-amber-500/10 text-amber-500 border-amber-500/20 animate-pulse',
@@ -1279,7 +1398,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
 
                       <button
                         onClick={() => deleteCampaign(camp.id)}
-                        className="text-slate-400 hover:text-rose-500 transition-colors p-1"
+                        className="text-slate-400 hover:text-rose-500 transition-colors p-1 cursor-pointer"
                         title="Excluir campanha"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -1300,7 +1419,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                       </div>
                     </div>
 
-                    {/* Progress Bar matching screenshot */}
+                    {/* Progress Bar */}
                     <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-zinc-800/80">
                       <div className="flex justify-between text-[11px]">
                         <span className="text-slate-400">Progresso</span>
@@ -1334,13 +1453,13 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
 
                     {/* Bottom Action Controls */}
                     <div className="pt-2 flex items-center justify-between gap-2">
-                      {camp.status === 'draft' && (
+                      {(camp.status === 'draft' || camp.status === 'scheduled') && (
                         <button
                           onClick={() => launchCampaign(camp.id)}
-                          className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-slate-950 text-xs font-bold shadow-xs cursor-pointer"
+                          className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-slate-950 text-xs font-bold shadow-xs cursor-pointer transition-all"
                         >
                           <Play className="h-3.5 w-3.5 fill-current" />
-                          <span>Iniciar Disparo</span>
+                          <span>{camp.status === 'scheduled' ? 'Disparar Agora' : 'Iniciar Disparo'}</span>
                         </button>
                       )}
 

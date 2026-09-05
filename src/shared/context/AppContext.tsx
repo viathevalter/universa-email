@@ -393,6 +393,16 @@ const INITIAL_AUDIENCES: SavedAudience[] = [
     lead_ids: [],
     created_at: new Date().toISOString(),
   },
+  {
+    id: '00000000-0000-0000-0002-000000000007',
+    tenant_id: '00000000-0000-0000-0000-000000000001',
+    name: '📺 Usuários Smart TV & Multidispositivo',
+    description: 'Famílias e usuários residenciais na Espanha para acesso multidispositivo em Smart TV, Fire Stick e tablets.',
+    filters: { niche: ['custom_b2c'], sector: ['Streaming & Entretenimento'], country: ['Espanha'], tags: ['Smart TV', 'Multidispositivo'] },
+    lead_count: 30000,
+    lead_ids: [],
+    created_at: new Date().toISOString(),
+  },
 ];
 
 const SPANISH_CITIES_ROTATION = [
@@ -569,13 +579,142 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   });
 
+  const GENERATE_SCHEDULED_CAMPAIGNS = (tenantId = '00000000-0000-0000-0000-000000000001'): MarketingCampaign[] => {
+  const SPANISH_TEMPLATES_CONFIG = [
+    {
+      templateId: 'tmpl_laliga_futbol_es',
+      audienceId: '00000000-0000-0000-0002-000000000001',
+      name: '⚽ LaLiga & Champions 4K',
+      subject: '⚽ ¿Ver todo el fútbol y Champions en 4K sin pagar 120€/mes? (Prueba 24h gratis)',
+      niche: 'laliga_es',
+    },
+    {
+      templateId: 'tmpl_real_madrid_es',
+      audienceId: '00000000-0000-0000-0002-000000000002',
+      name: '👑 Real Madrid CF',
+      subject: '⚪ ¿Dónde ver al Real Madrid en directo y en 4K sin cortes? Prueba 24 Horas Gratis',
+      niche: 'real_madrid',
+    },
+    {
+      templateId: 'tmpl_fc_barcelona_es',
+      audienceId: '00000000-0000-0000-0002-000000000003',
+      name: '🔵🔴 FC Barcelona Culés',
+      subject: '🔵🔴 Vive cada partido del Barça en máxima calidad 4K (Test 24 Horas Gratis)',
+      niche: 'barcelona',
+    },
+    {
+      templateId: 'tmpl_formula1_motogp_es',
+      audienceId: '00000000-0000-0000-0002-000000000004',
+      name: '🏎️ Fórmula 1 & MotoGP',
+      subject: '🏎️ Toda la temporada de Fórmula 1 y MotoGP en directo (Prueba 24 Horas Gratis)',
+      niche: 'motorsport_es',
+    },
+    {
+      templateId: 'tmpl_cine_series_es',
+      audienceId: '00000000-0000-0000-0002-000000000005',
+      name: '🎬 Cinema & Séries On Demand',
+      subject: '🎬 Todos los estrenos de cine y series en una sola app (Tu prueba de 24h gratis)',
+      niche: 'cine_series_es',
+    },
+    {
+      templateId: 'tmpl_canales_latinos_eu',
+      audienceId: '00000000-0000-0000-0002-000000000006',
+      name: '🌎 Canais Latinos na Europa',
+      subject: '🌎 Los canales de tu país en directo desde España (Pide tu prueba gratis 24h)',
+      niche: 'latinos_es',
+    },
+    {
+      templateId: 'tmpl_multidispositivo_premium_es',
+      audienceId: '00000000-0000-0000-0002-000000000007',
+      name: '📺 Multidispositivo Smart TV',
+      subject: '📺 +5.000 Canales y Cine para toda tu familia en tu Smart TV (Prueba 24h gratis)',
+      niche: 'custom_b2c',
+    },
+  ];
+
+  const DAYS_SCHEDULE = [
+    {
+      dayLabel: 'HOJE (Sáb 05/09)',
+      dayKey: 'sab',
+      timeLabel: '11:40',
+      scheduledAt: '2026-09-05T09:40:00.000Z',
+      recipientsPerCampaign: 600,
+    },
+    {
+      dayLabel: 'AMANHÃ (Dom 06/09)',
+      dayKey: 'dom',
+      timeLabel: '12:00',
+      scheduledAt: '2026-09-06T10:00:00.000Z',
+      recipientsPerCampaign: 700,
+    },
+    {
+      dayLabel: 'SEGUNDA (07/09)',
+      dayKey: 'seg',
+      timeLabel: '10:00',
+      scheduledAt: '2026-09-07T08:00:00.000Z',
+      recipientsPerCampaign: 850,
+    },
+  ];
+
+  const list: MarketingCampaign[] = [];
+
+  for (const day of DAYS_SCHEDULE) {
+    for (let idx = 0; idx < SPANISH_TEMPLATES_CONFIG.length; idx++) {
+      const cfg = SPANISH_TEMPLATES_CONFIG[idx];
+      const campId = `camp_${day.dayKey}_t${idx + 1}_${cfg.niche}`;
+
+      list.push({
+        id: campId,
+        tenant_id: tenantId,
+        template_id: cfg.templateId,
+        title: `[${day.dayLabel} ${day.timeLabel}] ${cfg.name} (${day.recipientsPerCampaign} envios)`,
+        subject: cfg.subject,
+        sender_name: 'Carlos Ventas - Universa TV España',
+        sender_email: 'carlos_ventas@mail.universatv.com',
+        reply_to: 'carlos_ventas@mail.universatv.com',
+        target_audience_id: cfg.audienceId,
+        status: 'scheduled',
+        scheduled_at: day.scheduledAt,
+        total_recipients: day.recipientsPerCampaign,
+        sent_count: 0,
+        delivered_count: 0,
+        opened_count: 0,
+        clicked_count: 0,
+        bounced_count: 0,
+        failed_count: 0,
+        rate_limit_per_second: 2,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+    }
+  }
+
+  return list;
+};
+
   // Campaigns & Queues
   const [campaigns, setCampaigns] = useState<MarketingCampaign[]>(() => {
+    const defaultScheduled = GENERATE_SCHEDULED_CAMPAIGNS(DEFAULT_TENANT.id);
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.CAMPAIGNS);
-      return saved ? JSON.parse(saved) : [];
+      if (saved) {
+        const parsed: MarketingCampaign[] = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const scheduledIds = new Set(defaultScheduled.map((s) => s.id));
+          const userCustom = parsed.filter((c) => !scheduledIds.has(c.id));
+          const mergedScheduled = defaultScheduled.map((s) => {
+            const existing = parsed.find((p) => p.id === s.id);
+            return existing || s;
+          });
+          const full = [...mergedScheduled, ...userCustom];
+          safeStorageSet(STORAGE_KEYS.CAMPAIGNS, full);
+          return full;
+        }
+      }
+      safeStorageSet(STORAGE_KEYS.CAMPAIGNS, defaultScheduled);
+      return defaultScheduled;
     } catch {
-      return [];
+      return defaultScheduled;
     }
   });
 
@@ -1439,9 +1578,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const launchCampaign = async (campaignId: string) => {
     const targetCampaign = campaigns.find((c) => c.id === campaignId);
     const targetTemplate = templates.find((t) => t.id === targetCampaign?.template_id);
-    const queue = campaignQueue[campaignId] || [];
-
     if (!targetCampaign || !targetTemplate) return;
+
+    let activeQueue = campaignQueue[campaignId] || [];
+    if (activeQueue.length === 0) {
+      const targetAudience = audiences.find((a) => a.id === targetCampaign.target_audience_id);
+      const niche = targetAudience?.filters?.niche ? targetAudience.filters.niche[0] : '';
+      const tags = targetAudience?.filters?.tags || [];
+
+      let matchingLeads = leads.filter((l) => {
+        if (l.opted_out) return false;
+        if (niche && l.target_niche === niche) return true;
+        if (tags.length > 0 && l.tags && tags.some((t) => l.tags.includes(t))) return true;
+        return false;
+      });
+
+      if (matchingLeads.length === 0) {
+        matchingLeads = leads.filter((l) => !l.opted_out);
+      }
+
+      const countNeeded = targetCampaign.total_recipients || 600;
+      const selected = matchingLeads.slice(0, countNeeded);
+
+      activeQueue = selected.map((lead) => ({
+        id: `queue_${Date.now()}_${lead.id}`,
+        campaign_id: campaignId,
+        lead_id: lead.id,
+        lead_name: lead.name,
+        lead_email: lead.email,
+        company_name: lead.company_name,
+        status: 'pending',
+        created_at: new Date().toISOString(),
+      }));
+
+      setCampaignQueue((prev) => ({ ...prev, [campaignId]: activeQueue }));
+    }
 
     setCampaigns((prev) =>
       prev.map((c) => (c.id === campaignId ? { ...c, status: 'sending', updated_at: new Date().toISOString() } : c))
@@ -1452,7 +1623,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await processCampaignQueueBatch(
       targetCampaign,
       targetTemplate.html_content,
-      queue,
+      activeQueue,
       leadsMap,
       tenant.resend_api_key || '',
       (updatedItem) => {
