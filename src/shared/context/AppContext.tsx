@@ -107,6 +107,10 @@ interface AppContextType {
   isSupabaseConnected: boolean;
   isLoadingDb: boolean;
   syncWithSupabase: () => Promise<void>;
+
+  // Auto-Scheduler
+  autoSchedulerEnabled: boolean;
+  setAutoSchedulerEnabled: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const STORAGE_KEYS = {
@@ -1709,6 +1713,80 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
+  // =========================================================================
+  // AUTO-SCHEDULER ENGINE (MOTOR DE DISPARO AUTOMÁTICO DE CRONOGRAMA)
+  // =========================================================================
+  const [autoSchedulerEnabled, setAutoSchedulerEnabled] = useState<boolean>(() => {
+    const saved = localStorage.getItem('saas_auto_scheduler_enabled');
+    return saved !== null ? saved === 'true' : true;
+  });
+
+  const isExecutingSchedulerRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    localStorage.setItem('saas_auto_scheduler_enabled', String(autoSchedulerEnabled));
+  }, [autoSchedulerEnabled]);
+
+  useEffect(() => {
+    if (!autoSchedulerEnabled) return;
+
+    const checkAndTriggerScheduledCampaigns = async () => {
+      if (isExecutingSchedulerRef.current) return;
+
+      // Se já houver alguma campanha rodando com status 'sending', aguarda terminar
+      const isAnySending = campaigns.some((c) => c.status === 'sending');
+      if (isAnySending) return;
+
+      const now = new Date();
+
+      // Procura a primeira campanha agendada cujo horário já chegou
+      const dueCampaign = campaigns.find((c) => {
+        if (c.status !== 'scheduled') return false;
+
+        // 1. Checagem por timestamp ISO direto
+        if (c.scheduled_at) {
+          const schedTime = new Date(c.scheduled_at).getTime();
+          if (!isNaN(schedTime) && schedTime <= now.getTime()) {
+            return true;
+          }
+        }
+
+        // 2. Fallback inteligente para horário local (ex: campanhas de hoje "[... 11:40]")
+        if (c.id.startsWith('camp_sab_') || c.title.includes('HOJE') || c.title.includes('Sáb')) {
+          const match = c.title.match(/(\d{1,2}):(\d{2})/);
+          if (match) {
+            const [, h, m] = match;
+            const targetToday = new Date();
+            targetToday.setHours(Number(h), Number(m), 0, 0);
+            if (now.getTime() >= targetToday.getTime()) {
+              return true;
+            }
+          }
+        }
+
+        return false;
+      });
+
+      if (dueCampaign) {
+        console.log(`[AutoScheduler] ⏱️ Horário atingido! Disparando automaticamente: ${dueCampaign.title} (${dueCampaign.id})`);
+        isExecutingSchedulerRef.current = true;
+        try {
+          await launchCampaign(dueCampaign.id);
+        } catch (err) {
+          console.error('[AutoScheduler] Erro no disparo da campanha:', err);
+        } finally {
+          isExecutingSchedulerRef.current = false;
+        }
+      }
+    };
+
+    const intervalId = setInterval(checkAndTriggerScheduledCampaigns, 4000);
+    // Checagem imediata ao montar
+    checkAndTriggerScheduledCampaigns();
+
+    return () => clearInterval(intervalId);
+  }, [autoSchedulerEnabled, campaigns, launchCampaign]);
+
   // Audiences
   const addAudience = async (audienceData: Omit<SavedAudience, 'id' | 'tenant_id' | 'created_at'>): Promise<SavedAudience> => {
     const generateUUID = () => {
@@ -1826,6 +1904,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         isSupabaseConnected,
         isLoadingDb,
         syncWithSupabase,
+        autoSchedulerEnabled,
+        setAutoSchedulerEnabled,
       }}
     >
       {children}

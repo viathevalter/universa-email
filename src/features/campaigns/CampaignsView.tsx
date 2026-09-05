@@ -270,6 +270,8 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
     addAudience,
     deleteAudience,
     theme,
+    autoSchedulerEnabled,
+    setAutoSchedulerEnabled,
   } = useApp();
 
   const isLight = theme === 'light';
@@ -447,8 +449,22 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
     const senderObj = VERIFIED_SENDERS.find((s) => s.id === wizardSenderId) || VERIFIED_SENDERS[0];
     const newGeneratedCampaigns: MarketingCampaign[] = [];
 
-    wizardDaysConfig.forEach((day) => {
+    wizardDaysConfig.forEach((day, dayIdx) => {
       const perTemplateVolume = Math.max(50, Math.round(day.volume / chosenTemplates.length));
+
+      // Calcula data e hora corretos respeitando o fuso local do navegador
+      const targetDate = new Date();
+      if (day.dayKey === 'dom') targetDate.setDate(targetDate.getDate() + 1);
+      else if (day.dayKey === 'seg') targetDate.setDate(targetDate.getDate() + 2);
+      else if (day.dayKey === 'ter') targetDate.setDate(targetDate.getDate() + 3);
+      else if (day.dayKey === 'qua') targetDate.setDate(targetDate.getDate() + 4);
+      else if (day.dayKey === 'qui') targetDate.setDate(targetDate.getDate() + 5);
+      else if (day.dayKey === 'sex') targetDate.setDate(targetDate.getDate() + 6);
+      else if (wizardDaysPreset === '7days') targetDate.setDate(targetDate.getDate() + dayIdx);
+
+      const [hh, mm] = (day.time || '10:00').split(':').map(Number);
+      targetDate.setHours(hh || 10, mm || 0, 0, 0);
+      const scheduledIso = targetDate.toISOString();
 
       chosenTemplates.forEach((tmpl, idx) => {
         const campId = `camp_${day.dayKey}_${Date.now()}_t${idx + 1}`;
@@ -463,7 +479,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
           reply_to: senderObj.reply_to,
           target_audience_id: tmpl.category ? `aud_${tmpl.category}` : undefined,
           status: 'scheduled',
-          scheduled_at: `${new Date().toISOString().split('T')[0]}T${day.time}:00.000Z`,
+          scheduled_at: scheduledIso,
           total_recipients: perTemplateVolume,
           sent_count: 0,
           delivered_count: 0,
@@ -1451,6 +1467,26 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
             </div>
 
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => setAutoSchedulerEnabled(!autoSchedulerEnabled)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold cursor-pointer transition-all ${
+                  autoSchedulerEnabled
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/20'
+                    : isLight
+                    ? 'bg-slate-100 border-slate-300 text-slate-500 hover:bg-slate-200'
+                    : 'bg-zinc-800/60 border-zinc-700 text-zinc-400 hover:bg-zinc-800'
+                }`}
+                title="Quando ativo, o sistema dispara as campanhas no horário programado automaticamente enquanto a aba estiver aberta"
+              >
+                <span className="relative flex h-2 w-2">
+                  {autoSchedulerEnabled && (
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  )}
+                  <span className={`relative inline-flex rounded-full h-2 w-2 ${autoSchedulerEnabled ? 'bg-emerald-500' : 'bg-zinc-500'}`}></span>
+                </span>
+                <span>Auto-Disparo: <strong>{autoSchedulerEnabled ? 'Ativo' : 'Pausado'}</strong></span>
+              </button>
+
               <button
                 disabled={isLaunchingBatch}
                 onClick={handleLaunchTodayBatch}
