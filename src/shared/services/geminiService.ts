@@ -403,6 +403,28 @@ export function generateDynamicSearchQuery(niche: string | undefined, location: 
     };
   }
 
+  if (niche === 'cine_series_br') {
+    const platforms = ['Smart TV Box 4K', 'Fire TV Stick Brasil', 'Comunidade Filmes 4K', 'Foro Adrenaline TV Box', 'Foro Hardmob Streaming', 'Cinema em Casa 4K Brasil'];
+    const plat = platforms[Math.floor(Math.random() * platforms.length)];
+    const regions = BRAZILIAN_MICRO_REGIONS[cleanCity] || BRAZILIAN_MICRO_REGIONS['São Paulo'];
+    const subRegion = regions[Math.floor(Math.random() * regions.length)];
+    return {
+      query: `"${plat}" "${subRegion}" OR "${cleanCity}" contato email @gmail.com OR @hotmail.com`,
+      displayTarget: `${plat} (${subRegion}, ${cleanCity})`
+    };
+  }
+
+  if (niche === 'canais_tv_br') {
+    const categories = ['canais fechados tv por assinatura', 'esportes ao vivo premiere combate', 'grade completa canais 4k', 'assinatura tv cabo'];
+    const cat = categories[Math.floor(Math.random() * categories.length)];
+    const regions = BRAZILIAN_MICRO_REGIONS[cleanCity] || BRAZILIAN_MICRO_REGIONS['São Paulo'];
+    const subRegion = regions[Math.floor(Math.random() * regions.length)];
+    return {
+      query: `"${cat}" em ${subRegion} ou ${cleanCity} contato email @gmail.com`,
+      displayTarget: `${cat} (${subRegion}, ${cleanCity})`
+    };
+  }
+
   return {
     query: `${location} contato email publico`,
     displayTarget: location

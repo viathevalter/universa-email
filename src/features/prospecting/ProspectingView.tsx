@@ -129,12 +129,15 @@ export const ProspectingView: React.FC = () => {
   const getMissionCapturedCount = (mission: LeadProspectingMission): number => {
     const realCount = leads.filter((l) => {
       if (l.target_niche === mission.niche) return true;
-      if (mission.niche === 'laliga_es' && (l.tags?.some((t) => t.toLowerCase().includes('laliga') || t.toLowerCase().includes('peña')) || l.target_niche === 'laliga_es')) return true;
-      if (mission.niche === 'cine_series_es' && (l.tags?.some((t) => t.toLowerCase().includes('cine') || t.toLowerCase().includes('series') || t.toLowerCase().includes('smart tv')) || l.target_niche === 'cine_series_es')) return true;
-      if (mission.niche === 'brasileiros_es' && (l.tags?.some((t) => t.toLowerCase().includes('brasileiro na espanha')) || l.target_niche === 'brasileiros_es')) return true;
-      if (mission.niche === 'latinos_es' && (l.tags?.some((t) => t.toLowerCase().includes('latino na espanha')) || l.target_niche === 'latinos_es')) return true;
-      if (mission.niche === 'motorsport_es' && (l.tags?.some((t) => t.toLowerCase().includes('f1') || t.toLowerCase().includes('motogp') || t.toLowerCase().includes('motorsport')) || l.target_niche === 'motorsport_es')) return true;
-      if (mission.niche === 'brasileirao_br' && (l.tags?.some((t) => t.toLowerCase().includes('brasileirão') || t.toLowerCase().includes('premiere')) || l.target_niche === 'brasileirao_br')) return true;
+      const lowerTags = (l.tags || []).map((t) => (t || '').toLowerCase());
+      if (mission.niche === 'laliga_es' && (lowerTags.some((t) => t.includes('laliga') || t.includes('peña')) || l.target_niche === 'laliga_es')) return true;
+      if (mission.niche === 'cine_series_es' && (lowerTags.some((t) => (t.includes('cine') || t.includes('series') || t.includes('smart tv')) && !t.includes('brasil')) || l.target_niche === 'cine_series_es')) return true;
+      if (mission.niche === 'brasileiros_es' && (lowerTags.some((t) => t.includes('brasileiro na espanha')) || l.target_niche === 'brasileiros_es')) return true;
+      if (mission.niche === 'latinos_es' && (lowerTags.some((t) => t.includes('latino na espanha')) || l.target_niche === 'latinos_es')) return true;
+      if (mission.niche === 'motorsport_es' && (lowerTags.some((t) => t.includes('f1') || t.includes('motogp') || t.includes('motorsport')) || l.target_niche === 'motorsport_es')) return true;
+      if (mission.niche === 'brasileirao_br' && (lowerTags.some((t) => t.includes('brasileirão') || t.includes('premiere')) || l.target_niche === 'brasileirao_br')) return true;
+      if (mission.niche === 'cine_series_br' && (lowerTags.some((t) => t.includes('streaming brasil') || t.includes('filmes 4k')) || l.target_niche === 'cine_series_br')) return true;
+      if (mission.niche === 'canais_tv_br' && (lowerTags.some((t) => t.includes('tv por assinatura') || t.includes('canais fechados')) || l.target_niche === 'canais_tv_br')) return true;
       return false;
     }).length;
     return Math.max(mission.captured_count, realCount);

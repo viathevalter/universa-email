@@ -197,7 +197,7 @@ const MOCK_EMAILS_TO_PURGE = new Set([
   'alejandro.martinez84@gmail.com',
 ]);
 
-const sanitizeLeads = (leadsArray: Lead[]): Lead[] => {
+const sanitizeLeads = (leadsArray: any[]): Lead[] => {
   return (leadsArray || [])
     .filter(
       (l) =>
@@ -206,11 +206,21 @@ const sanitizeLeads = (leadsArray: Lead[]): Lead[] => {
         !MOCK_EMAILS_TO_PURGE.has(l.email.toLowerCase().trim())
     )
     .map((l) => {
-      // Se for lead gerado da base de 202k que veio marcado com 'qualified' artificialmente, reseta para 'new' (Novo / Sem Contato)
-      if (l.status === 'qualified' && l.id && l.id.startsWith('lead_es_202k_')) {
-        return { ...l, status: 'new' as LeadStatus };
+      let niche = l.target_niche;
+      if (!niche && l.notes && typeof l.notes === 'string' && l.notes.startsWith('niche:')) {
+        niche = l.notes.replace('niche:', '');
       }
-      return l;
+      if (!niche && Array.isArray(l.tags)) {
+        const match = l.tags.find((t: string) =>
+          ['laliga_es', 'cine_series_es', 'brasileiros_es', 'latinos_es', 'motorsport_es', 'brasileirao_br', 'cine_series_br', 'canais_tv_br'].includes(t)
+        );
+        if (match) niche = match;
+      }
+      return {
+        ...l,
+        target_niche: niche || undefined,
+        status: (l.status || 'new') as LeadStatus,
+      };
     });
 };
 
@@ -517,11 +527,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const saved = localStorage.getItem(STORAGE_KEYS.MISSIONS);
       if (saved) {
         const parsed: LeadProspectingMission[] = JSON.parse(saved);
-        const isLegacyFake = parsed.some((m) => m.captured_count > 1000);
+        const isLegacyFake = parsed.some((m) => m.captured_count > 100000);
         if (!isLegacyFake) {
-          const hasBrazil = parsed.some((m) => m.country === 'Brasil');
-          if (hasBrazil) return parsed;
-          return [...parsed, ...BRAZIL_B2C_MISSIONS];
+          const allInitial = [...SPAIN_B2C_MISSIONS, ...BRAZIL_B2C_MISSIONS];
+          const existingIds = new Set(parsed.map((m) => m.id));
+          const missing = allInitial.filter((m) => !existingIds.has(m.id));
+          return [...parsed, ...missing];
         }
       }
       const initial = [...SPAIN_B2C_MISSIONS, ...BRAZIL_B2C_MISSIONS].map((m) => ({
@@ -561,11 +572,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const saved = localStorage.getItem(STORAGE_KEYS.DORK_QUEUE);
       if (saved) {
         const parsed: DorkTargetJob[] = JSON.parse(saved);
-        const isLegacyFake = parsed.some((d) => d.leads_found > 1000);
+        const isLegacyFake = parsed.some((d) => d.leads_found > 100000);
         if (!isLegacyFake) {
-          const hasBrazil = parsed.some((d) => d.id.includes('_br') || d.city === 'São Paulo');
-          if (hasBrazil) return parsed;
-          return [...parsed, ...BRAZIL_DORK_QUEUE];
+          const allInitial = [...INITIAL_DORK_QUEUE, ...BRAZIL_DORK_QUEUE];
+          const existingIds = new Set(parsed.map((d) => d.id));
+          const missing = allInitial.filter((d) => !existingIds.has(d.id));
+          return [...parsed, ...missing];
         }
       }
       const initial = [...INITIAL_DORK_QUEUE, ...BRAZIL_DORK_QUEUE].map((d) => ({
@@ -1262,13 +1274,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         const supabase = getSupabaseClient();
         if (supabase) {
-          // Inserção em chunks para alta performance com UUID válido e company_name garantido
+          // Inserção em chunks com colunas estritas validadas no schema do Supabase
           const chunkSize = 100;
           for (let i = 0; i < leadsToAdd.length; i += chunkSize) {
             const chunk = leadsToAdd.slice(i, i + chunkSize);
+            const sanitizedChunk = chunk.map((lead) => ({
+              id: lead.id,
+              tenant_id: lead.tenant_id,
+              name: lead.name || lead.company_name || lead.email.split('@')[0],
+              company_name: lead.company_name || lead.name || 'Consumidor B2C',
+              email: lead.email,
+              phone: lead.phone || null,
+              website: lead.website || null,
+              sector: lead.sector || null,
+              role: lead.role || null,
+              company_size: lead.company_size || 'B2C (Consumidor)',
+              city: lead.city || null,
+              province: lead.province || null,
+              country: lead.country || 'Espanha',
+              tags: Array.isArray(lead.tags) ? lead.tags : [],
+              notes: lead.notes || (lead.target_niche ? `niche:${lead.target_niche}` : null),
+              status: lead.status || 'new',
+              opted_out: Boolean(lead.opted_out),
+              mx_valid: lead.mx_valid !== undefined ? Boolean(lead.mx_valid) : true,
+              mx_record: lead.mx_record || null,
+              created_at: lead.created_at || new Date().toISOString(),
+              updated_at: lead.updated_at || new Date().toISOString(),
+            }));
             supabase
               .from('leads')
-              .insert(chunk)
+              .insert(sanitizedChunk)
               .then(({ error }) => {
                 if (error) {
                   console.error('[Supabase batchImportLeads Error]', error);
