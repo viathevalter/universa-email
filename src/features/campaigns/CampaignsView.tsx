@@ -543,12 +543,18 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
   const sexTotalRecipients = useMemo(() => sexCampaigns.reduce((sum, c) => sum + (c.total_recipients || 0), 0), [sexCampaigns]);
 
   const displayedCampaigns = useMemo(() => {
-    if (campaignDayFilter === 'all') return campaigns;
-    if (campaignDayFilter === 'ter') return terCampaigns;
-    if (campaignDayFilter === 'qua') return quaCampaigns;
-    if (campaignDayFilter === 'qui') return quiCampaigns;
-    if (campaignDayFilter === 'sex') return sexCampaigns;
-    return campaigns;
+    let list = campaigns;
+    if (campaignDayFilter === 'all') list = campaigns;
+    else if (campaignDayFilter === 'ter') list = terCampaigns;
+    else if (campaignDayFilter === 'qua') list = quaCampaigns;
+    else if (campaignDayFilter === 'qui') list = quiCampaigns;
+    else if (campaignDayFilter === 'sex') list = sexCampaigns;
+
+    return [...list].sort((a, b) => {
+      const timeA = a.scheduled_at ? new Date(a.scheduled_at).getTime() : 0;
+      const timeB = b.scheduled_at ? new Date(b.scheduled_at).getTime() : 0;
+      return timeA - timeB;
+    });
   }, [campaigns, campaignDayFilter, terCampaigns, quaCampaigns, quiCampaigns, sexCampaigns]);
 
   const handleExecuteTestCampaign = async () => {
