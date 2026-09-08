@@ -113,11 +113,13 @@ interface AppContextType {
   isLoadingDb: boolean;
   syncWithSupabase: () => Promise<void>;
 
-  // Auto-Scheduler
+  // Auto-Scheduler & Postpone
   autoSchedulerEnabled: boolean;
   setAutoSchedulerEnabled: React.Dispatch<React.SetStateAction<boolean>>;
   cancelAllScheduledCampaigns: () => void;
   syncCampaignWithResend: (campaignId: string) => Promise<void>;
+  postponeCampaign: (campaignId: string, minutesToAdd: number) => Promise<void>;
+  postponeAllTodayCampaigns: (minutesToAdd: number) => Promise<void>;
 }
 
 const STORAGE_KEYS = {
@@ -656,14 +658,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         id: '00000000-0000-0001-0001-000000000001',
         tenant_id: tenantId,
         template_id: '00000000-0000-0000-0001-000000000007',
-        title: '[HOJE (Ter 08/09) 11:40] 📺 Multidispositivo Smart TV (750 envios)',
+        title: '[HOJE (Ter 08/09) 14:30] 📺 Multidispositivo Smart TV (750 envios)',
         subject: '📺 +5.000 Canales y Cine para toda tu familia en tu Smart TV (Prueba 24h gratis)',
         sender_name: 'Carlos Ventas - Universa TV España',
         sender_email: 'carlos_ventas@mail.universatv.com',
         reply_to: 'carlos_ventas@mail.universatv.com',
         target_audience_id: '00000000-0000-0000-0002-000000000001',
         status: 'scheduled',
-        scheduled_at: '2026-09-08T09:40:00.000Z',
+        scheduled_at: '2026-09-08T12:30:00.000Z',
         total_recipients: 750,
         sent_count: 0,
         delivered_count: 0,
@@ -2601,7 +2603,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // =========================================================================
   // AUTO-SCHEDULER ENGINE (MOTOR DE DISPARO AUTOMÁTICO DE CRONOGRAMA)
   // =========================================================================
-  const [autoSchedulerEnabled, setAutoSchedulerEnabled] = useState<boolean>(false);
+  const [autoSchedulerEnabled, setAutoSchedulerEnabled] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('saas_auto_scheduler_enabled');
+      return saved !== null ? saved === 'true' : true;
+    } catch {
+      return true;
+    }
+  });
 
   const cancelAllScheduledCampaigns = () => {
     setAutoSchedulerEnabled(false);
@@ -2617,6 +2626,121 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
     setCampaignQueue({});
     safeStorageSet(STORAGE_KEYS.QUEUE, {});
+  };
+
+  const postponeCampaign = async (campaignId: string, minutesToAdd: number) => {
+    const supabase = getSupabaseClient();
+    const now = new Date();
+    let updatedCampaignObj: MarketingCampaign | null = null;
+
+    updateCampaignsState((prev) =>
+      prev.map((c) => {
+        if (c.id !== campaignId) return c;
+
+        let baseTime = now.getTime();
+        if (c.scheduled_at) {
+          const sTime = new Date(c.scheduled_at).getTime();
+          if (!isNaN(sTime) && sTime > baseTime) {
+            baseTime = sTime;
+          }
+        }
+
+        const newTargetDate = new Date(baseTime + minutesToAdd * 60 * 1000);
+        const newHours = String(newTargetDate.getHours()).padStart(2, '0');
+        const newMinutes = String(newTargetDate.getMinutes()).padStart(2, '0');
+        const timeStr = `${newHours}:${newMinutes}`;
+
+        let newTitle = c.title;
+        if (newTitle.match(/\d{1,2}:\d{2}/)) {
+          newTitle = newTitle.replace(/\d{1,2}:\d{2}/, timeStr);
+        }
+
+        const updated: MarketingCampaign = {
+          ...c,
+          title: newTitle,
+          scheduled_at: newTargetDate.toISOString(),
+          status: 'scheduled',
+          updated_at: now.toISOString(),
+        };
+        updatedCampaignObj = updated;
+        return updated;
+      })
+    );
+
+    if (supabase && updatedCampaignObj) {
+      try {
+        await supabase
+          .from('marketing_campaigns')
+          .update({
+            title: (updatedCampaignObj as MarketingCampaign).title,
+            scheduled_at: (updatedCampaignObj as MarketingCampaign).scheduled_at,
+            status: 'scheduled',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', campaignId);
+      } catch (err) {
+        console.warn('[PostponeCampaign Supabase Error]', err);
+      }
+    }
+  };
+
+  const postponeAllTodayCampaigns = async (minutesToAdd: number) => {
+    const supabase = getSupabaseClient();
+    const now = new Date();
+    const affectedCampaigns: MarketingCampaign[] = [];
+
+    updateCampaignsState((prev) =>
+      prev.map((c) => {
+        const isToday = c.title.includes('HOJE') || c.title.includes('Ter') || c.id.includes('_ter_');
+        if (!isToday || c.status === 'completed') return c;
+
+        let baseTime = now.getTime();
+        if (c.scheduled_at) {
+          const sTime = new Date(c.scheduled_at).getTime();
+          if (!isNaN(sTime) && sTime > baseTime) {
+            baseTime = sTime;
+          }
+        }
+
+        const newTargetDate = new Date(baseTime + minutesToAdd * 60 * 1000);
+        const newHours = String(newTargetDate.getHours()).padStart(2, '0');
+        const newMinutes = String(newTargetDate.getMinutes()).padStart(2, '0');
+        const timeStr = `${newHours}:${newMinutes}`;
+
+        let newTitle = c.title;
+        if (newTitle.match(/\d{1,2}:\d{2}/)) {
+          newTitle = newTitle.replace(/\d{1,2}:\d{2}/, timeStr);
+        }
+
+        const updated: MarketingCampaign = {
+          ...c,
+          title: newTitle,
+          scheduled_at: newTargetDate.toISOString(),
+          status: 'scheduled',
+          updated_at: now.toISOString(),
+        };
+        affectedCampaigns.push(updated);
+        return updated;
+      })
+    );
+
+    if (supabase && affectedCampaigns.length > 0) {
+      for (const camp of affectedCampaigns) {
+        try {
+          await supabase
+            .from('marketing_campaigns')
+            .update({
+              title: camp.title,
+              scheduled_at: camp.scheduled_at,
+              status: 'scheduled',
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', camp.id);
+        } catch (err) {
+          console.warn('[PostponeAll Supabase Error]', err);
+        }
+      }
+    }
   };
 
   const isExecutingSchedulerRef = useRef<boolean>(false);
@@ -2864,6 +2988,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setAutoSchedulerEnabled,
         cancelAllScheduledCampaigns,
         syncCampaignWithResend,
+        postponeCampaign,
+        postponeAllTodayCampaigns,
       }}
     >
       {children}

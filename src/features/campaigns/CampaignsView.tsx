@@ -276,6 +276,8 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
     setAutoSchedulerEnabled,
     cancelAllScheduledCampaigns,
     syncCampaignWithResend,
+    postponeCampaign,
+    postponeAllTodayCampaigns,
   } = useApp();
 
   const isLight = theme === 'light';
@@ -378,6 +380,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
   // Cronograma de Disparos Filtro por Dia
   const [campaignDayFilter, setCampaignDayFilter] = useState<'all' | 'ter' | 'qua' | 'qui' | 'sex'>('all');
   const [isLaunchingBatch, setIsLaunchingBatch] = useState(false);
+  const [isPostponeMenuOpen, setIsPostponeMenuOpen] = useState(false);
 
   // =========================================================================
   // ASSISTENTE DE CRONOGRAMA PASSO A PASSO (SCHEDULE WIZARD)
@@ -1530,6 +1533,71 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                 <span>Auto-Disparo: <strong>{autoSchedulerEnabled ? 'Ativo' : 'Pausado'}</strong></span>
               </button>
 
+              <div className="relative inline-block">
+                <button
+                  onClick={() => setIsPostponeMenuOpen(!isPostponeMenuOpen)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-sky-500/40 bg-sky-500/10 text-sky-400 hover:bg-sky-500/20 text-xs font-bold cursor-pointer transition-all"
+                  title="Prorrogar os horários de disparo das campanhas de hoje"
+                >
+                  <Clock className="h-3.5 w-3.5" />
+                  <span>⏱️ Prorrogar Hoje</span>
+                  <ChevronDown className="h-3 w-3 opacity-70" />
+                </button>
+                {isPostponeMenuOpen && (
+                  <div
+                    className={`absolute left-0 mt-1 w-64 rounded-xl border shadow-2xl z-50 p-2 space-y-1 text-xs ${
+                      isLight ? 'bg-white border-slate-200' : 'bg-zinc-900 border-zinc-800'
+                    }`}
+                  >
+                    <div className="font-bold px-2 py-1 text-slate-400 text-[11px] uppercase tracking-wider">
+                      Adiar disparos de hoje:
+                    </div>
+                    <button
+                      onClick={async () => {
+                        setIsPostponeMenuOpen(false);
+                        await postponeAllTodayCampaigns(30);
+                        confetti({ particleCount: 50, spread: 60 });
+                        setNotification({
+                          type: 'success',
+                          message: 'Todas as campanhas de hoje foram prorrogadas em +30 minutos!',
+                        });
+                      }}
+                      className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-sky-500/15 text-sky-400 font-semibold cursor-pointer transition-colors"
+                    >
+                      ⏱️ +30 minutos
+                    </button>
+                    <button
+                      onClick={async () => {
+                        setIsPostponeMenuOpen(false);
+                        await postponeAllTodayCampaigns(60);
+                        confetti({ particleCount: 60, spread: 60 });
+                        setNotification({
+                          type: 'success',
+                          message: 'Todas as campanhas de hoje foram prorrogadas em +1 hora (pós-almoço)!',
+                        });
+                      }}
+                      className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-sky-500/15 text-sky-400 font-semibold cursor-pointer transition-colors"
+                    >
+                      ⏱️ +1 hora (Recomendado pós-almoço)
+                    </button>
+                    <button
+                      onClick={async () => {
+                        setIsPostponeMenuOpen(false);
+                        await postponeAllTodayCampaigns(120);
+                        confetti({ particleCount: 60, spread: 60 });
+                        setNotification({
+                          type: 'success',
+                          message: 'Todas as campanhas de hoje foram prorrogadas em +2 horas!',
+                        });
+                      }}
+                      className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-sky-500/15 text-sky-400 font-semibold cursor-pointer transition-colors"
+                    >
+                      ⏱️ +2 horas (Tarde / Noite)
+                    </button>
+                  </div>
+                )}
+              </div>
+
               <button
                 onClick={() => {
                   if (confirm('Tem certeza que deseja cancelar todos os agendamentos e pausar todos os disparos automáticos?')) {
@@ -1780,13 +1848,32 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                     {/* Bottom Action Controls */}
                     <div className="pt-2 flex items-center justify-between gap-2">
                       {(camp.status === 'draft' || camp.status === 'scheduled') && (
-                        <button
-                          onClick={() => launchCampaign(camp.id)}
-                          className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-slate-950 text-xs font-bold shadow-xs cursor-pointer transition-all"
-                        >
-                          <Play className="h-3.5 w-3.5 fill-current" />
-                          <span>{camp.status === 'scheduled' ? 'Disparar Agora' : 'Iniciar Disparo'}</span>
-                        </button>
+                        <div className="w-full flex items-center gap-1.5">
+                          <button
+                            onClick={() => launchCampaign(camp.id)}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-slate-950 text-xs font-bold shadow-xs cursor-pointer transition-all"
+                          >
+                            <Play className="h-3.5 w-3.5 fill-current" />
+                            <span>{camp.status === 'scheduled' ? 'Disparar Agora' : 'Iniciar Disparo'}</span>
+                          </button>
+                          {camp.status === 'scheduled' && (
+                            <button
+                              onClick={async () => {
+                                await postponeCampaign(camp.id, 60);
+                                confetti({ particleCount: 35, spread: 45 });
+                                setNotification({
+                                  type: 'success',
+                                  message: `Horário da campanha prorrogado em +1 hora com sucesso!`,
+                                });
+                              }}
+                              className="px-2.5 py-2 rounded-xl border border-sky-500/30 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 text-xs font-bold cursor-pointer transition-all flex items-center gap-1 shrink-0"
+                              title="Prorrogar o horário desta campanha em +1 hora"
+                            >
+                              <Clock className="h-3.5 w-3.5" />
+                              <span>+1h</span>
+                            </button>
+                          )}
+                        </div>
                       )}
 
                       {camp.status === 'sending' && (
