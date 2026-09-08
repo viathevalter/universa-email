@@ -2402,8 +2402,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const targetTemplate = templates.find((t) => t.id === targetCampaign?.template_id);
     if (!targetCampaign || !targetTemplate) return;
 
+    const initialSent = targetCampaign.sent_count || 0;
+    const totalGoal = targetCampaign.total_recipients || 600;
+    const remainingToTarget = Math.max(0, totalGoal - initialSent);
+
     let activeQueue = campaignQueue[campaignId] || [];
-    if (activeQueue.length === 0) {
+    if (activeQueue.length === 0 && remainingToTarget > 0) {
       const targetAudience = audiences.find((a) => a.id === targetCampaign.target_audience_id);
       const niche = targetAudience?.filters?.niche ? targetAudience.filters.niche[0] : '';
       const tags = targetAudience?.filters?.tags || [];
@@ -2439,10 +2443,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return true;
       });
 
-      const countNeeded = targetCampaign.total_recipients || 600;
+      const countNeeded = remainingToTarget;
 
-      // Seleciona novos contatos do público. Se a base de inéditos for suficiente (cada público tem 22k-38k leads),
-      // pega estritamente inéditos. Se esgotar, completa com os demais.
       let selected: Lead[] = [];
       if (freshLeads.length >= countNeeded) {
         selected = freshLeads.slice(0, countNeeded);
@@ -2474,7 +2476,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       prev.map((c) => (c.id === campaignId ? { ...c, status: 'sending', updated_at: new Date().toISOString() } : c))
     );
 
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      supabase.from('marketing_campaigns').update({ status: 'sending', updated_at: new Date().toISOString() }).eq('id', campaignId).then(() => {});
+    }
+
     const leadsMap = new Map<string, Lead>(leads.map((l) => [l.id, l]));
+    let lastUiUpdate = Date.now();
+    let pendingLeadEmailsToContacted: string[] = [];
 
     await processCampaignQueueBatch(
       targetCampaign,
@@ -2483,45 +2492,69 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       leadsMap,
       tenant.resend_api_key || '',
       (updatedItem) => {
-        setCampaignQueue((prev) => {
-          const currentQueue = prev[campaignId] || [];
-          const updated = currentQueue.map((item) => (item.id === updatedItem.id ? updatedItem : item));
-          return { ...prev, [campaignId]: updated };
-        });
+        if (updatedItem.status === 'sent' && updatedItem.lead_email) {
+          contactedEmailsRef.current.add(updatedItem.lead_email.toLowerCase().trim());
+          pendingLeadEmailsToContacted.push(updatedItem.lead_email.trim());
+        }
 
-        if (updatedItem.status === 'sent') {
-          if (updatedItem.lead_email) {
-            contactedEmailsRef.current.add(updatedItem.lead_email.toLowerCase().trim());
-          }
-
-          const supabase = getSupabaseClient();
-          if (supabase) {
-            Promise.resolve(
-              supabase
-                .from('leads')
-                .update({ status: 'contacted', updated_at: new Date().toISOString() })
-                .ilike('email', updatedItem.lead_email.trim())
-            ).catch(() => {});
-          }
+        // Flush em batch dos leads contatados no Supabase para não sobrecarregar
+        if (pendingLeadEmailsToContacted.length >= 5 && supabase) {
+          const batch = [...pendingLeadEmailsToContacted];
+          pendingLeadEmailsToContacted = [];
+          supabase
+            .from('leads')
+            .update({ status: 'contacted', updated_at: new Date().toISOString() })
+            .in('email', batch)
+            .then(() => {}, () => {});
         }
       },
-      (sent) => {
-        updateCampaignsState((prev) =>
-          prev.map((c) =>
-            c.id === campaignId
-              ? {
-                  ...c,
-                  sent_count: sent,
-                  delivered_count: sent,
-                  // Métricas reais: começam em 0 durante o envio (sem números falsos simultâneos)
-                  opened_count: c.opened_count || 0,
-                  clicked_count: c.clicked_count || 0,
-                }
-              : c
-          )
-        );
+      (batchSent) => {
+        const totalSentNow = initialSent + batchSent;
+        const now = Date.now();
+
+        // Throttle de atualização visual da UI (a cada 3 envios ou 1.2s) para não travar o Chrome
+        if (now - lastUiUpdate > 1200 || batchSent % 3 === 0 || totalSentNow >= totalGoal) {
+          lastUiUpdate = now;
+          updateCampaignsState((prev) =>
+            prev.map((c) =>
+              c.id === campaignId
+                ? {
+                    ...c,
+                    sent_count: totalSentNow,
+                    delivered_count: totalSentNow,
+                    opened_count: c.opened_count || 0,
+                    clicked_count: c.clicked_count || 0,
+                  }
+                : c
+            )
+          );
+
+          // Sincroniza periodicamente com o Supabase a cada 10 envios
+          if (supabase && (batchSent % 10 === 0 || totalSentNow >= totalGoal)) {
+            supabase
+              .from('marketing_campaigns')
+              .update({
+                sent_count: totalSentNow,
+                delivered_count: totalSentNow,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', campaignId)
+              .then(() => {}, () => {});
+          }
+        }
       }
     );
+
+    // Envia quaisquer leads pendentes para o Supabase
+    if (pendingLeadEmailsToContacted.length > 0 && supabase) {
+      supabase
+        .from('leads')
+        .update({ status: 'contacted', updated_at: new Date().toISOString() })
+        .in('email', pendingLeadEmailsToContacted)
+        .then(() => {}, () => {});
+    }
+
+    const finalSent = initialSent + activeQueue.filter((it) => it.status === 'sent').length;
 
     // Grava lista leve de e-mails contatados
     safeStorageSet(STORAGE_KEYS.CONTACTED_EMAILS, Array.from(contactedEmailsRef.current));
@@ -2531,12 +2564,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         c.id === campaignId
           ? {
               ...c,
-              status: 'completed',
+              status: finalSent >= totalGoal ? 'completed' : 'paused',
+              sent_count: finalSent,
+              delivered_count: finalSent,
               updated_at: new Date().toISOString(),
             }
           : c
       )
     );
+
+    if (supabase) {
+      await supabase
+        .from('marketing_campaigns')
+        .update({
+          status: finalSent >= totalGoal ? 'completed' : 'paused',
+          sent_count: finalSent,
+          delivered_count: finalSent,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', campaignId);
+    }
   };
 
   const pauseCampaign = (campaignId: string) => {

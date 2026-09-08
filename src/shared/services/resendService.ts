@@ -262,9 +262,6 @@ export async function processCampaignQueueBatch(
       continue;
     }
 
-    // Marca como enviando
-    onItemUpdated({ ...item, status: 'sending' });
-
     // Prepara HTML personalizado
     const personalizedHtml = interpolateEmailVariables(templateHtml, lead);
     const sender = `${campaign.sender_name} <${campaign.sender_email}>`;
