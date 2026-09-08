@@ -2406,6 +2406,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const totalGoal = targetCampaign.total_recipients || 600;
     const remainingToTarget = Math.max(0, totalGoal - initialSent);
 
+    if (targetCampaign.status === 'completed' || initialSent >= totalGoal) {
+      console.log(`[LaunchCampaign] Campanha ${targetCampaign.title} já foi finalizada com sucesso.`);
+      return;
+    }
+
     let activeQueue = campaignQueue[campaignId] || [];
     if (activeQueue.length === 0 && remainingToTarget > 0) {
       const targetAudience = audiences.find((a) => a.id === targetCampaign.target_audience_id);
@@ -2509,17 +2514,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       },
       (batchSent) => {
-        const totalSentNow = initialSent + batchSent;
+        const totalSentNow = Math.min(
+          totalGoal,
+          activeQueue.length >= totalGoal ? batchSent : initialSent + batchSent
+        );
         const now = Date.now();
+        const isDone = totalSentNow >= totalGoal;
 
         // Throttle de atualização visual da UI (a cada 3 envios ou 1.2s) para não travar o Chrome
-        if (now - lastUiUpdate > 1200 || batchSent % 3 === 0 || totalSentNow >= totalGoal) {
+        if (now - lastUiUpdate > 1200 || batchSent % 3 === 0 || isDone) {
           lastUiUpdate = now;
           updateCampaignsState((prev) =>
             prev.map((c) =>
               c.id === campaignId
                 ? {
                     ...c,
+                    status: isDone ? 'completed' : 'sending',
                     sent_count: totalSentNow,
                     delivered_count: totalSentNow,
                     opened_count: c.opened_count || 0,
@@ -2530,10 +2540,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           );
 
           // Sincroniza periodicamente com o Supabase a cada 10 envios
-          if (supabase && (batchSent % 10 === 0 || totalSentNow >= totalGoal)) {
+          if (supabase && (batchSent % 10 === 0 || isDone)) {
             supabase
               .from('marketing_campaigns')
               .update({
+                status: isDone ? 'completed' : 'sending',
                 sent_count: totalSentNow,
                 delivered_count: totalSentNow,
                 updated_at: new Date().toISOString(),
@@ -2554,7 +2565,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         .then(() => {}, () => {});
     }
 
-    const finalSent = initialSent + activeQueue.filter((it) => it.status === 'sent').length;
+    const finalSent = Math.min(
+      totalGoal,
+      activeQueue.length >= totalGoal
+        ? activeQueue.filter((it) => it.status === 'sent').length
+        : initialSent + activeQueue.filter((it) => it.status === 'sent').length
+    );
 
     // Grava lista leve de e-mails contatados
     safeStorageSet(STORAGE_KEYS.CONTACTED_EMAILS, Array.from(contactedEmailsRef.current));

@@ -1721,14 +1721,20 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {displayedCampaigns.map((camp) => {
                 const total = camp.total_recipients || 1;
-                const sent = camp.sent_count || 0;
-                const pct = Math.min(100, Math.round((sent / total) * 100));
+                const isComplete = camp.status === 'completed' || (camp.sent_count || 0) >= total;
+                const sent = isComplete ? total : Math.min(total, camp.sent_count || 0);
+                const pct = isComplete ? 100 : Math.min(99, Math.round((sent / total) * 100));
 
                 let statusBadge = {
                   label: 'Rascunho',
                   bg: 'bg-slate-500/10 text-slate-400 border-slate-500/20',
                 };
-                if (camp.status === 'scheduled') {
+                if (isComplete) {
+                  statusBadge = {
+                    label: 'Concluída',
+                    bg: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20 font-bold',
+                  };
+                } else if (camp.status === 'scheduled') {
                   let scheduleLabel = '📅 Agendada';
                   const timeMatch = camp.title.match(/(\d{1,2}:\d{2})/);
                   const timeStr = timeMatch ? ` às ${timeMatch[1]}` : '';
@@ -1750,11 +1756,6 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                   statusBadge = {
                     label: 'Em Disparo',
                     bg: 'bg-amber-500/10 text-amber-500 border-amber-500/20 animate-pulse',
-                  };
-                } else if (camp.status === 'completed') {
-                  statusBadge = {
-                    label: 'Concluída',
-                    bg: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
                   };
                 } else if (camp.status === 'paused') {
                   statusBadge = {
@@ -1853,70 +1854,72 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
 
                     {/* Bottom Action Controls */}
                     <div className="pt-2 flex items-center justify-between gap-2">
-                      {(camp.status === 'draft' || camp.status === 'scheduled') && (
-                        <div className="w-full flex items-center gap-1.5">
-                          <button
-                            onClick={() => launchCampaign(camp.id)}
-                            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-slate-950 text-xs font-bold shadow-xs cursor-pointer transition-all"
-                          >
-                            <Play className="h-3.5 w-3.5 fill-current" />
-                            <span>{camp.status === 'scheduled' ? 'Disparar Agora' : 'Iniciar Disparo'}</span>
-                          </button>
-                          {camp.status === 'scheduled' && (
+                      {isComplete ? (
+                        <span className="w-full text-center text-xs font-bold text-emerald-500 py-2 flex items-center justify-center gap-1.5 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
+                          <CheckCircle className="h-4 w-4" />
+                          <span>Finalizada ({total.toLocaleString()} envios)</span>
+                        </span>
+                      ) : (
+                        <>
+                          {(camp.status === 'draft' || camp.status === 'scheduled') && (
+                            <div className="w-full flex items-center gap-1.5">
+                              <button
+                                onClick={() => launchCampaign(camp.id)}
+                                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-slate-950 text-xs font-bold shadow-xs cursor-pointer transition-all"
+                              >
+                                <Play className="h-3.5 w-3.5 fill-current" />
+                                <span>{camp.status === 'scheduled' ? 'Disparar Agora' : 'Iniciar Disparo'}</span>
+                              </button>
+                              {camp.status === 'scheduled' && (
+                                <button
+                                  onClick={async () => {
+                                    await postponeCampaign(camp.id, 60);
+                                    confetti({ particleCount: 35, spread: 45 });
+                                    setNotification({
+                                      type: 'success',
+                                      message: `Horário da campanha prorrogado em +1 hora com sucesso!`,
+                                    });
+                                  }}
+                                  className="px-2.5 py-2 rounded-xl border border-sky-500/30 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 text-xs font-bold cursor-pointer transition-all flex items-center gap-1 shrink-0"
+                                  title="Prorrogar o horário desta campanha em +1 hora"
+                                >
+                                  <Clock className="h-3.5 w-3.5" />
+                                  <span>+1h</span>
+                                </button>
+                              )}
+                            </div>
+                          )}
+
+                          {camp.status === 'sending' && (
+                            <div className="w-full flex items-center gap-1.5">
+                              <button
+                                onClick={() => pauseCampaign(camp.id)}
+                                className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-xl border border-yellow-500/30 text-yellow-500 hover:bg-yellow-500/10 text-xs font-bold cursor-pointer"
+                              >
+                                <Pause className="h-3.5 w-3.5" />
+                                <span>Pausar</span>
+                              </button>
+                              <button
+                                onClick={() => launchCampaign(camp.id)}
+                                className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-xl bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-500 border border-yellow-500/30 text-xs font-bold cursor-pointer"
+                                title="Forçar continuidade dos envios caso o navegador tenha sido reiniciado"
+                              >
+                                <Play className="h-3.5 w-3.5 fill-current" />
+                                <span>Continuar</span>
+                              </button>
+                            </div>
+                          )}
+
+                          {camp.status === 'paused' && (
                             <button
-                              onClick={async () => {
-                                await postponeCampaign(camp.id, 60);
-                                confetti({ particleCount: 35, spread: 45 });
-                                setNotification({
-                                  type: 'success',
-                                  message: `Horário da campanha prorrogado em +1 hora com sucesso!`,
-                                });
-                              }}
-                              className="px-2.5 py-2 rounded-xl border border-sky-500/30 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 text-xs font-bold cursor-pointer transition-all flex items-center gap-1 shrink-0"
-                              title="Prorrogar o horário desta campanha em +1 hora"
+                              onClick={() => launchCampaign(camp.id)}
+                              className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-slate-950 text-xs font-bold cursor-pointer"
                             >
-                              <Clock className="h-3.5 w-3.5" />
-                              <span>+1h</span>
+                              <Play className="h-3.5 w-3.5 fill-current" />
+                              <span>Retomar Disparo</span>
                             </button>
                           )}
-                        </div>
-                      )}
-
-                      {camp.status === 'sending' && (
-                        <div className="w-full flex items-center gap-1.5">
-                          <button
-                            onClick={() => pauseCampaign(camp.id)}
-                            className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-xl border border-yellow-500/30 text-yellow-500 hover:bg-yellow-500/10 text-xs font-bold cursor-pointer"
-                          >
-                            <Pause className="h-3.5 w-3.5" />
-                            <span>Pausar</span>
-                          </button>
-                          <button
-                            onClick={() => launchCampaign(camp.id)}
-                            className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-xl bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-500 border border-yellow-500/30 text-xs font-bold cursor-pointer"
-                            title="Forçar continuidade dos envios caso o navegador tenha sido reiniciado"
-                          >
-                            <Play className="h-3.5 w-3.5 fill-current" />
-                            <span>Continuar</span>
-                          </button>
-                        </div>
-                      )}
-
-                      {camp.status === 'paused' && (
-                        <button
-                          onClick={() => launchCampaign(camp.id)}
-                          className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-slate-950 text-xs font-bold cursor-pointer"
-                        >
-                          <Play className="h-3.5 w-3.5 fill-current" />
-                          <span>Retomar Disparo</span>
-                        </button>
-                      )}
-
-                      {camp.status === 'completed' && (
-                        <span className="w-full text-center text-xs font-bold text-emerald-500 py-1.5 flex items-center justify-center gap-1">
-                          <CheckCircle className="h-3.5 w-3.5" />
-                          <span>Finalizada</span>
-                        </span>
+                        </>
                       )}
                     </div>
                   </div>
