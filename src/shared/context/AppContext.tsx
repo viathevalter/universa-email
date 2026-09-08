@@ -100,6 +100,8 @@ interface AppContextType {
   launchCampaign: (campaignId: string) => Promise<void>;
   pauseCampaign: (campaignId: string) => void;
   deleteCampaign: (campaignId: string) => Promise<void>;
+  clearAllCampaigns: () => Promise<void>;
+  restoreDefaultCampaigns: () => void;
   
   // Audiences
   audiences: SavedAudience[];
@@ -761,28 +763,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 };
 
   // Campaigns & Queues
+  const RESET_LEGACY_CAMPAIGNS_KEY = 'universa_campaigns_legacy_purged_v2';
+
   const [campaigns, setCampaigns] = useState<MarketingCampaign[]>(() => {
-    const defaultScheduled = GENERATE_SCHEDULED_CAMPAIGNS(DEFAULT_TENANT.id);
     try {
+      const purged = localStorage.getItem(RESET_LEGACY_CAMPAIGNS_KEY);
+      if (!purged) {
+        // Primeira carga da nova versão: zera definitivamente as 21 campanhas legadas criadas antes
+        localStorage.setItem(RESET_LEGACY_CAMPAIGNS_KEY, 'true');
+        safeStorageSet(STORAGE_KEYS.CAMPAIGNS, []);
+        safeStorageSet(STORAGE_KEYS.QUEUE, {});
+        return [];
+      }
+
       const saved = localStorage.getItem(STORAGE_KEYS.CAMPAIGNS);
       if (saved) {
         const parsed: MarketingCampaign[] = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const scheduledIds = new Set(defaultScheduled.map((s) => s.id));
-          const userCustom = parsed.filter((c) => !scheduledIds.has(c.id));
-          const mergedScheduled = defaultScheduled.map((s) => {
-            const existing = parsed.find((p) => p.id === s.id);
-            return existing || s;
-          });
-          const full = [...mergedScheduled, ...userCustom];
-          safeStorageSet(STORAGE_KEYS.CAMPAIGNS, full);
-          return full;
+        if (Array.isArray(parsed)) {
+          return parsed;
         }
       }
-      safeStorageSet(STORAGE_KEYS.CAMPAIGNS, defaultScheduled);
-      return defaultScheduled;
+      return [];
     } catch {
-      return defaultScheduled;
+      return [];
     }
   });
 
@@ -2012,6 +2015,43 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       safeStorageSet(STORAGE_KEYS.QUEUE, next);
       return next;
     });
+
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        await supabase.from('marketing_campaign_queue').delete().eq('campaign_id', campaignId);
+        await supabase.from('marketing_campaigns').delete().eq('id', campaignId);
+      } catch (e) {
+        console.warn('[Supabase Delete Campaign Warning]', e);
+      }
+    }
+  };
+
+  const clearAllCampaigns = async () => {
+    setCampaigns([]);
+    campaignsRef.current = [];
+    safeStorageSet(STORAGE_KEYS.CAMPAIGNS, []);
+    setCampaignQueue({});
+    safeStorageSet(STORAGE_KEYS.QUEUE, {});
+    setAutoSchedulerEnabled(false);
+    try {
+      localStorage.setItem('saas_auto_scheduler_enabled', 'false');
+    } catch {}
+
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        await supabase.from('marketing_campaign_queue').delete().neq('id', 'none');
+        await supabase.from('marketing_campaigns').delete().neq('id', 'none');
+      } catch (e) {
+        console.warn('[Supabase Clear Campaigns Warning]', e);
+      }
+    }
+  };
+
+  const restoreDefaultCampaigns = () => {
+    const defaultScheduled = GENERATE_SCHEDULED_CAMPAIGNS(tenant.id || DEFAULT_TENANT.id);
+    updateCampaignsState(() => defaultScheduled);
   };
 
   const batchCreateCampaigns = (newCampaigns: MarketingCampaign[]) => {
@@ -2276,6 +2316,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         launchCampaign,
         pauseCampaign,
         deleteCampaign,
+        clearAllCampaigns,
+        restoreDefaultCampaigns,
         audiences,
         addAudience,
         deleteAudience,

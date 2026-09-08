@@ -263,6 +263,8 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
     launchCampaign,
     pauseCampaign,
     deleteCampaign,
+    clearAllCampaigns,
+    restoreDefaultCampaigns,
     addTemplate,
     updateTemplate,
     deleteTemplate,
@@ -527,13 +529,21 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
     setIsLaunchingBatch(false);
   };
 
+  const sabCampaigns = useMemo(() => campaigns.filter((c) => c.id.startsWith('camp_sab_') || c.title.includes('Sáb') || c.title.includes('HOJE')), [campaigns]);
+  const domCampaigns = useMemo(() => campaigns.filter((c) => c.id.startsWith('camp_dom_') || c.title.includes('Dom') || c.title.includes('AMANHÃ')), [campaigns]);
+  const segCampaigns = useMemo(() => campaigns.filter((c) => c.id.startsWith('camp_seg_') || c.title.includes('Seg') || c.title.includes('SEGUNDA')), [campaigns]);
+
+  const sabTotalRecipients = useMemo(() => sabCampaigns.reduce((sum, c) => sum + (c.total_recipients || 0), 0), [sabCampaigns]);
+  const domTotalRecipients = useMemo(() => domCampaigns.reduce((sum, c) => sum + (c.total_recipients || 0), 0), [domCampaigns]);
+  const segTotalRecipients = useMemo(() => segCampaigns.reduce((sum, c) => sum + (c.total_recipients || 0), 0), [segCampaigns]);
+
   const displayedCampaigns = useMemo(() => {
     if (campaignDayFilter === 'all') return campaigns;
-    if (campaignDayFilter === 'sab') return campaigns.filter((c) => c.id.startsWith('camp_sab_') || c.title.includes('Sáb') || c.title.includes('HOJE'));
-    if (campaignDayFilter === 'dom') return campaigns.filter((c) => c.id.startsWith('camp_dom_') || c.title.includes('Dom') || c.title.includes('AMANHÃ'));
-    if (campaignDayFilter === 'seg') return campaigns.filter((c) => c.id.startsWith('camp_seg_') || c.title.includes('Seg') || c.title.includes('SEGUNDA'));
+    if (campaignDayFilter === 'sab') return sabCampaigns;
+    if (campaignDayFilter === 'dom') return domCampaigns;
+    if (campaignDayFilter === 'seg') return segCampaigns;
     return campaigns;
-  }, [campaigns, campaignDayFilter]);
+  }, [campaigns, campaignDayFilter, sabCampaigns, domCampaigns, segCampaigns]);
 
   const handleExecuteTestCampaign = async () => {
     if (templates.length === 0) return;
@@ -1441,9 +1451,9 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                     : 'bg-zinc-800 text-slate-300 hover:bg-zinc-700 border border-zinc-700'
                 }`}
               >
-                <span>🔥 Hoje - Sáb (4.200)</span>
+                <span>🔥 Hoje - Sáb {sabTotalRecipients > 0 ? `(${sabTotalRecipients.toLocaleString()})` : ''}</span>
                 <span className="text-[10px] opacity-75 font-mono">
-                  ({campaigns.filter((c) => c.id.startsWith('camp_sab_') || c.title.includes('Sáb') || c.title.includes('HOJE')).length})
+                  ({sabCampaigns.length})
                 </span>
               </button>
 
@@ -1457,9 +1467,9 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                     : 'bg-zinc-800 text-slate-300 hover:bg-zinc-700 border border-zinc-700'
                 }`}
               >
-                <span>⭐ Dom 06/09 (4.900)</span>
+                <span>⭐ Dom 06/09 {domTotalRecipients > 0 ? `(${domTotalRecipients.toLocaleString()})` : ''}</span>
                 <span className="text-[10px] opacity-75 font-mono">
-                  ({campaigns.filter((c) => c.id.startsWith('camp_dom_') || c.title.includes('Dom') || c.title.includes('AMANHÃ')).length})
+                  ({domCampaigns.length})
                 </span>
               </button>
 
@@ -1473,9 +1483,9 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                     : 'bg-zinc-800 text-slate-300 hover:bg-zinc-700 border border-zinc-700'
                 }`}
               >
-                <span>💼 Seg 07/09 (5.950)</span>
+                <span>💼 Seg 07/09 {segTotalRecipients > 0 ? `(${segTotalRecipients.toLocaleString()})` : ''}</span>
                 <span className="text-[10px] opacity-75 font-mono">
-                  ({campaigns.filter((c) => c.id.startsWith('camp_seg_') || c.title.includes('Seg') || c.title.includes('SEGUNDA')).length})
+                  ({segCampaigns.length})
                 </span>
               </button>
             </div>
@@ -1514,24 +1524,60 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                 <span>Cancelar Agendamentos</span>
               </button>
 
-              <button
-                disabled={isLaunchingBatch}
-                onClick={handleLaunchTodayBatch}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-bold text-xs shadow-sm cursor-pointer disabled:opacity-50"
-                title="Disparar em sequência as 7 campanhas programadas para hoje"
-              >
-                {isLaunchingBatch ? (
-                  <>
-                    <div className="h-3.5 w-3.5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
-                    <span>Disparando Lote de Hoje...</span>
-                  </>
-                ) : (
-                  <>
-                    <Play className="h-3.5 w-3.5 fill-current" />
-                    <span>🚀 Disparar Lote de Hoje (4.200 envios)</span>
-                  </>
-                )}
-              </button>
+              {campaigns.length > 0 && (
+                <button
+                  onClick={() => {
+                    if (
+                      confirm(
+                        'ATENÇÃO: Deseja EXCLUIR TODAS as campanhas e deixar tudo zerado?\n\nIsso removerá todas as campanhas e filas ativas para você criar ou programar novas quando desejar.'
+                      )
+                    ) {
+                      clearAllCampaigns();
+                    }
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-rose-600/50 bg-rose-600/15 text-rose-300 hover:bg-rose-600/30 text-xs font-bold cursor-pointer transition-all"
+                  title="Exclui definitivamente todas as campanhas cadastradas para deixar tudo totalmente zerado"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span>Zerar Campanhas</span>
+                </button>
+              )}
+
+              {campaigns.length === 0 && (
+                <button
+                  onClick={() => {
+                    if (confirm('Deseja recriar o cronograma padrão com as 21 campanhas programadas?')) {
+                      restoreDefaultCampaigns();
+                    }
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-yellow-500/40 bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20 text-xs font-bold cursor-pointer transition-all"
+                  title="Recria o cronograma inicial com as 21 campanhas programadas"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  <span>Restaurar Cronograma (21)</span>
+                </button>
+              )}
+
+              {campaigns.length > 0 && (
+                <button
+                  disabled={isLaunchingBatch}
+                  onClick={handleLaunchTodayBatch}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-bold text-xs shadow-sm cursor-pointer disabled:opacity-50"
+                  title="Disparar em sequência as 7 campanhas programadas para hoje"
+                >
+                  {isLaunchingBatch ? (
+                    <>
+                      <div className="h-3.5 w-3.5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                      <span>Disparando Lote de Hoje...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Play className="h-3.5 w-3.5 fill-current" />
+                      <span>🚀 Disparar Lote de Hoje (4.200 envios)</span>
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           </div>
 
@@ -1546,12 +1592,37 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
               </div>
               <div className="space-y-1">
                 <h3 className={`font-bold text-base ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
-                  Nenhuma campanha encontrada neste filtro
+                  {campaigns.length === 0 ? 'Tudo zerado! Nenhuma campanha cadastrada' : 'Nenhuma campanha encontrada neste filtro'}
                 </h3>
-                <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                  Selecione "Todas" ou crie uma nova campanha personalizada.
+                <p className="text-xs text-slate-400 max-w-md mx-auto">
+                  {campaigns.length === 0
+                    ? 'Todas as campanhas foram excluídas com sucesso. Você pode criar novas campanhas personalizadas ou restaurar o cronograma quando os e-mails estiverem prontos.'
+                    : 'Selecione "Todas" ou crie uma nova campanha personalizada.'}
                 </p>
               </div>
+
+              {campaigns.length === 0 && (
+                <div className="flex items-center justify-center gap-3 pt-2">
+                  <button
+                    onClick={() => setIsCreateModalOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-bold text-xs shadow-sm cursor-pointer transition-all"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>Criar Nova Campanha</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (confirm('Deseja recriar as 21 campanhas pré-programadas do cronograma oficial?')) {
+                        restoreDefaultCampaigns();
+                      }
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 text-slate-200 font-bold text-xs shadow-sm cursor-pointer transition-all"
+                  >
+                    <Calendar className="h-4 w-4 text-yellow-400" />
+                    <span>Restaurar Cronograma Padrão</span>
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1610,7 +1681,11 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                       </span>
 
                       <button
-                        onClick={() => deleteCampaign(camp.id)}
+                        onClick={() => {
+                          if (confirm(`Deseja realmente excluir a campanha "${camp.title}"?`)) {
+                            deleteCampaign(camp.id);
+                          }
+                        }}
                         className="text-slate-400 hover:text-rose-500 transition-colors p-1 cursor-pointer"
                         title="Excluir campanha"
                       >
