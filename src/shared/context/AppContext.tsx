@@ -838,14 +838,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     try {
-      const { data: dbLeads, error: leadsErr } = await supabase
-        .from('leads')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .range(0, 49999);
+      // Busca paginada completa de todos os leads do Supabase em lotes de 1.000 (PostgREST limit bypass)
+      const PAGE_SIZE = 1000;
+      let allDbLeads: any[] = [];
+      let from = 0;
+      let hasMore = true;
 
-      if (!leadsErr && dbLeads && dbLeads.length > 0) {
-        const sanitizedDbLeads = sanitizeLeads(dbLeads);
+      while (hasMore) {
+        const to = from + PAGE_SIZE - 1;
+        const { data: pageData, error: pageErr } = await supabase
+          .from('leads')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .range(from, to);
+
+        if (pageErr) {
+          console.warn('[Supabase Leads Page Error]', pageErr);
+          break;
+        }
+
+        if (!pageData || pageData.length === 0) {
+          hasMore = false;
+        } else {
+          allDbLeads = allDbLeads.concat(pageData);
+          if (pageData.length < PAGE_SIZE) {
+            hasMore = false;
+          } else {
+            from += PAGE_SIZE;
+          }
+        }
+      }
+
+      if (allDbLeads.length > 0) {
+        const sanitizedDbLeads = sanitizeLeads(allDbLeads);
         setLeads((currentLeads) => {
           const emailMap = new Map<string, Lead>();
           for (const l of currentLeads) {
@@ -854,7 +879,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           for (const l of sanitizedDbLeads) {
             if (l && l.email) emailMap.set(l.email.toLowerCase().trim(), l);
           }
-          return Array.from(emailMap.values());
+          const merged = Array.from(emailMap.values());
+          saveLeadsToIndexedDb(merged).catch((err) => console.warn('[IndexedDB save error]', err));
+          return merged;
         });
       }
 

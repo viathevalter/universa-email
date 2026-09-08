@@ -22,6 +22,7 @@ export function buildUniversaEmailHtml({
   senderRegion = 'UniversaTV Entertainment España',
   includePricing = true,
   isBrazil = false,
+  isPortugal = false,
 }: {
   badgeText: string;
   headline: string;
@@ -38,17 +39,26 @@ export function buildUniversaEmailHtml({
   senderRegion?: string;
   includePricing?: boolean;
   isBrazil?: boolean;
+  isPortugal?: boolean;
 }): string {
   const cleanPhone = whatsappNumber.replace(/[^0-9]/g, '');
   const whatsappUrl = `https://api.whatsapp.com/send/?phone=${cleanPhone}&text=${encodeURIComponent(whatsappMessage)}`;
-  const displayPhone = isBrazil ? '+55 (11) 99999-9999' : '+34 617 59 84 21';
+  const displayPhone = isBrazil ? '+55 (11) 99999-9999' : isPortugal ? '+351 912 345 678' : '+34 617 59 84 21';
   const optOutText = isBrazil
     ? 'Caso não deseje mais receber nossos comunicados, você pode se descadastrar a qualquer momento com um clique:'
+    : isPortugal
+    ? 'Caso não pretenda receber mais comunicações ou avisos de testes gratuitos, pode cancelar a sua subscrição a qualquer momento:'
     : 'Si no deseas recibir más avisos de pruebas gratuitas o información sobre novedades, puedes cancelar tu suscripción en cualquier momento:';
-  const optOutBtnText = isBrazil ? 'Descadastrar-se desta lista' : 'Darse de baja / Cancelar suscripción';
-  const privacyText = isBrazil ? 'Política de Privacidade' : 'Política de Privacidad';
+  const optOutBtnText = isBrazil
+    ? 'Descadastrar-se desta lista'
+    : isPortugal
+    ? 'Cancelar subscrição / Sair da lista'
+    : 'Darse de baja / Cancelar suscripción';
+  const privacyText = isBrazil || isPortugal ? 'Política de Privacidade' : 'Política de Privacidad';
   const legalText = isBrazil
     ? 'Universa TV Brasil © 2026. Todos os direitos reservados. Em conformidade com a LGPD (Lei nº 13.709/2018).'
+    : isPortugal
+    ? 'UniversaTV Portugal © 2026. Todos os direitos reservados. Cumprimento do regulamento europeu RGPD (UE) 2016/679.'
     : 'UniversaTV Entertainment © 2026. Todos los derechos reservados. Cumplimiento de la normativa europea RGPD (UE) 2016/679 y LSSI-CE 34/2002 de España.';
 
   const pricingBlock = includePricing
@@ -61,6 +71,17 @@ export function buildUniversaEmailHtml({
           • <strong>Trimestral:</strong> R$ 75,00 (Economia de 16%)<br>
           • <strong>Semestral:</strong> R$ 120,00 (Economia de 33%)<br>
           • <strong>Anual:</strong> R$ 199,00 (Menos de R$ 17 por mês!)
+        </p>
+      </div>`
+      : isPortugal
+      ? `
+      <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 18px; margin: 20px 0;">
+        <p style="margin: 0 0 8px 0; font-size: 13px; font-weight: bold; color: #1e293b;">Nossos Planos em Portugal (Sem fidelização):</p>
+        <p style="margin: 0; font-size: 12px; color: #475569; line-height: 1.6;">
+          • <strong>Mensal:</strong> 9,50€ / mês<br>
+          • <strong>Trimestral:</strong> 25€ (Poupança de 12%)<br>
+          • <strong>Semestral:</strong> 40€ (Poupança de 30%)<br>
+          • <strong>Anual:</strong> 70€ (Menos de 6€ por mês!)
         </p>
       </div>`
       : `
@@ -76,7 +97,7 @@ export function buildUniversaEmailHtml({
     : '';
 
   return `<!DOCTYPE html>
-<html lang="${isBrazil ? 'pt-BR' : 'es'}">
+<html lang="${isBrazil ? 'pt-BR' : isPortugal ? 'pt-PT' : 'es'}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -498,6 +519,86 @@ export const OFFICIAL_UNIVERSA_TEMPLATES: MarketingTemplate[] = [
       senderRegion: 'Universa TV Brasil',
       includePricing: true,
       isBrazil: true,
+    }),
+    variables: ['{{nome}}', '{{cidade}}', '{{link_descadastro}}'],
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+
+  // 9. América Latina Especial (Mailing Empregos & Expatriados)
+  {
+    id: 'tmpl_latam_tv_total',
+    tenant_id: '00000000-0000-0000-0000-000000000001',
+    title: '🌎 [América Latina] Televisión en vivo de tu país sin cortes (Prueba 24h)',
+    subject: '🌎 Todos los canales de tu país en vivo y en HD: Colombia, Perú, México, Argentina y más (Prueba 24h)',
+    category: 'latinos_europa',
+    html_content: buildUniversaEmailHtml({
+      badgeText: '🌎 Canales de toda América Latina en HD & 4K',
+      headline: '¿Extrañas la televisión, el fútbol y las noticias de tu país natal?',
+      greeting: 'Hola <strong>{{nome}}</strong>, ¿cómo estás?',
+      paragraphs: [
+        'Estar lejos de casa no significa tener que desconectarte de lo tuyo: los noticieros de la mañana, los partidos de las Eliminatorias, la Copa Libertadores, la liga de fútbol local y esas novelas y programas con los que creciste.',
+        'En <strong>UniversaTV</strong> reunimos en una sola aplicación toda la televisión en directo de <strong>Colombia, Perú, Argentina, México, Venezuela, Chile, Ecuador, Centroamérica</strong> y España, con más de 10.000 películas y series bajo demanda.',
+        'Nuestros servidores dedicados garantizan una señal fluida, sin congelamientos en el momento cumbre de los partidos y en calidad Full HD y 4K.',
+        'No compres a ciegas: te damos un <strong>acceso de prueba gratis durante 24 Horas</strong> directamente en tu Smart TV, TV Box, Fire Stick o celular para que disfrutes de tus canales favoritos hoy mismo.',
+      ],
+      boxTitle: 'Todo el entretenimiento de tu país en una sola pantalla:',
+      boxItems: [
+        '<strong>Señales nacionales en vivo:</strong> Caracol, RCN, Win Sports, Telefe, TyC Sports, América TV, Latina, Azteca, Las Estrellas y más.',
+        '<strong>Fútbol latino e internacional:</strong> Eliminatorias rumbo al Mundial, Libertadores, Sudamericana y ligas locales.',
+        '<strong>Novelas, programas de variedades, música y noticias</strong> en tiempo real.',
+        '<strong>Toda la televisión de España y Europa</strong> incluida en el mismo paquete.',
+        '<strong>Instalación fácil en menos de 5 minutos</strong> guiada por nuestro equipo de atención.',
+      ],
+      ctaText: 'Pide tu prueba gratis 24h por WhatsApp',
+      whatsappMessage: 'Hola Carlos! Quiero activar mi prueba gratis de 24 horas de los canales de Latinoamérica en UniversaTV. [Ref: T9-LatamTotal]',
+      secondaryNote: 'Sin contratos, sin permanencia y sin necesidad de tarjeta bancaria para hacer el test.',
+      senderName: 'Carlos Ventas',
+      senderRole: 'Coordinador de Comunidad Latina',
+      senderRegion: 'UniversaTV Entertainment',
+      includePricing: true,
+      isBrazil: false,
+    }),
+    variables: ['{{nome}}', '{{cidade}}', '{{link_descadastro}}'],
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+
+  // 10. Portugal & Liga Portugal (Trabalhadores & Residentes)
+  {
+    id: 'tmpl_portugal_tv_desporto',
+    tenant_id: '00000000-0000-0000-0000-000000000001',
+    title: '🇵🇹 [Portugal] Toda a Liga Portugal, Sport TV e canais nacionais em 4K',
+    subject: '📺 Todos os canais de Portugal, Sport TV e desporto em 4K sem pagar 80€/mês (Teste 24h Grátis)',
+    category: 'b2c_pt',
+    html_content: buildUniversaEmailHtml({
+      badgeText: '🇵🇹 Liga Portugal, Sport TV & Canais Nacionais em 4K',
+      headline: 'Cansado de pagar mais de 80€ por mês às operadoras tradicionais em Portugal?',
+      greeting: 'Olá <strong>{{nome}}</strong>, tudo bem?',
+      paragraphs: [
+        'Sabemos como é frustrante querer acompanhar cada jornada da <strong>Liga Portugal (Benfica, FC Porto, Sporting)</strong>, a Liga dos Campeões e os melhores canais de entretenimento e ter de subscrever pacotes caríssimos com operadoras como a MEO, NOS ou Vodafone.',
+        'Com a <strong>UniversaTV</strong> tem acesso a todos os canais de desporto (Sport TV, DAZN / Eleven Sports), canais generalistas (RTP, SIC, TVI, canais de notícias e infantis) e milhares de filmes e séries on-demand com qualidade de imagem Full HD e 4K.',
+        'Os nossos servidores europeus de alta capacidade garantem que assiste aos clássicos com <strong>estabilidade absoluta e 60 fotogramas por segundo</strong>, sem cortes nem travamentos.',
+        'Queremos que comprove a qualidade por si mesmo: oferecemos um <strong>teste gratuito de 24 Horas</strong> para experimentar na sua Smart TV, Fire Stick, telemóvel ou PC.',
+      ],
+      boxTitle: 'O que está incluído no seu teste de 24 Horas em Portugal:',
+      boxItems: [
+        '<strong>Todos os canais Sport TV e DAZN / Eleven</strong> em Full HD e 4K.',
+        '<strong>Canais nacionais completos:</strong> RTP1, RTP2, SIC, TVI, SIC Notícias, CNN Portugal e canais temáticos.',
+        '<strong>Premier League, LaLiga, Champions League</strong> e as maiores ligas europeias.',
+        '<strong>Catálogo de +10.000 filmes e séries</strong> com legendas e áudio em português.',
+        '<strong>Apoio ao cliente dedicado por WhatsApp</strong> com ativação rápida em 5 minutos.',
+      ],
+      ctaText: 'Pedir teste grátis 24h no WhatsApp',
+      whatsappMessage: 'Olá Carlos! Quero ativar o meu teste gratuito de 24 horas para ver os canais de Portugal na UniversaTV. [Ref: T10-Portugal]',
+      whatsappNumber: '351912345678',
+      secondaryNote: 'Não é necessário cartão de crédito para iniciar o seu teste de 24 horas.',
+      senderName: 'Carlos Ventas',
+      senderRole: 'Apoio ao Cliente & Ativações Portugal',
+      senderRegion: 'UniversaTV Portugal',
+      includePricing: true,
+      isBrazil: false,
+      isPortugal: true,
     }),
     variables: ['{{nome}}', '{{cidade}}', '{{link_descadastro}}'],
     created_at: new Date().toISOString(),
