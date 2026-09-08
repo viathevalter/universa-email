@@ -376,7 +376,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
   }>>([]);
 
   // Cronograma de Disparos Filtro por Dia
-  const [campaignDayFilter, setCampaignDayFilter] = useState<'all' | 'sab' | 'dom' | 'seg'>('all');
+  const [campaignDayFilter, setCampaignDayFilter] = useState<'all' | 'ter' | 'qua' | 'qui' | 'sex'>('all');
   const [isLaunchingBatch, setIsLaunchingBatch] = useState(false);
 
   // =========================================================================
@@ -520,7 +520,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
   };
 
   const handleLaunchTodayBatch = async () => {
-    const todayList = campaigns.filter((c) => (c.id.startsWith('camp_sab_') || c.title.includes('HOJE') || c.title.includes('Sáb')) && c.status !== 'completed');
+    const todayList = campaigns.filter((c) => (c.title.includes('HOJE') || c.title.includes('Ter') || c.id.includes('_ter_')) && c.status !== 'completed');
     if (todayList.length === 0) return;
     setIsLaunchingBatch(true);
     for (const c of todayList) {
@@ -529,21 +529,24 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
     setIsLaunchingBatch(false);
   };
 
-  const sabCampaigns = useMemo(() => campaigns.filter((c) => c.id.startsWith('camp_sab_') || c.title.includes('Sáb') || c.title.includes('HOJE')), [campaigns]);
-  const domCampaigns = useMemo(() => campaigns.filter((c) => c.id.startsWith('camp_dom_') || c.title.includes('Dom') || c.title.includes('AMANHÃ')), [campaigns]);
-  const segCampaigns = useMemo(() => campaigns.filter((c) => c.id.startsWith('camp_seg_') || c.title.includes('Seg') || c.title.includes('SEGUNDA')), [campaigns]);
+  const terCampaigns = useMemo(() => campaigns.filter((c) => c.title.includes('HOJE') || c.title.includes('Ter') || c.id.includes('_ter_')), [campaigns]);
+  const quaCampaigns = useMemo(() => campaigns.filter((c) => c.title.includes('AMANHÃ') || c.title.includes('Qua') || c.id.includes('_qua_')), [campaigns]);
+  const quiCampaigns = useMemo(() => campaigns.filter((c) => c.title.includes('QUINTA') || c.title.includes('Qui') || c.id.includes('_qui_')), [campaigns]);
+  const sexCampaigns = useMemo(() => campaigns.filter((c) => c.title.includes('SEXTA') || c.title.includes('Sex') || c.id.includes('_sex_')), [campaigns]);
 
-  const sabTotalRecipients = useMemo(() => sabCampaigns.reduce((sum, c) => sum + (c.total_recipients || 0), 0), [sabCampaigns]);
-  const domTotalRecipients = useMemo(() => domCampaigns.reduce((sum, c) => sum + (c.total_recipients || 0), 0), [domCampaigns]);
-  const segTotalRecipients = useMemo(() => segCampaigns.reduce((sum, c) => sum + (c.total_recipients || 0), 0), [segCampaigns]);
+  const terTotalRecipients = useMemo(() => terCampaigns.reduce((sum, c) => sum + (c.total_recipients || 0), 0), [terCampaigns]);
+  const quaTotalRecipients = useMemo(() => quaCampaigns.reduce((sum, c) => sum + (c.total_recipients || 0), 0), [quaCampaigns]);
+  const quiTotalRecipients = useMemo(() => quiCampaigns.reduce((sum, c) => sum + (c.total_recipients || 0), 0), [quiCampaigns]);
+  const sexTotalRecipients = useMemo(() => sexCampaigns.reduce((sum, c) => sum + (c.total_recipients || 0), 0), [sexCampaigns]);
 
   const displayedCampaigns = useMemo(() => {
     if (campaignDayFilter === 'all') return campaigns;
-    if (campaignDayFilter === 'sab') return sabCampaigns;
-    if (campaignDayFilter === 'dom') return domCampaigns;
-    if (campaignDayFilter === 'seg') return segCampaigns;
+    if (campaignDayFilter === 'ter') return terCampaigns;
+    if (campaignDayFilter === 'qua') return quaCampaigns;
+    if (campaignDayFilter === 'qui') return quiCampaigns;
+    if (campaignDayFilter === 'sex') return sexCampaigns;
     return campaigns;
-  }, [campaigns, campaignDayFilter, sabCampaigns, domCampaigns, segCampaigns]);
+  }, [campaigns, campaignDayFilter, terCampaigns, quaCampaigns, quiCampaigns, sexCampaigns]);
 
   const handleExecuteTestCampaign = async () => {
     if (templates.length === 0) return;
@@ -1442,50 +1445,66 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
               </button>
 
               <button
-                onClick={() => setCampaignDayFilter('sab')}
+                onClick={() => setCampaignDayFilter('ter')}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                  campaignDayFilter === 'sab'
+                  campaignDayFilter === 'ter'
                     ? 'bg-amber-500 text-slate-950 shadow-sm'
                     : isLight
                     ? 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
                     : 'bg-zinc-800 text-slate-300 hover:bg-zinc-700 border border-zinc-700'
                 }`}
               >
-                <span>🔥 Hoje - Sáb {sabTotalRecipients > 0 ? `(${sabTotalRecipients.toLocaleString()})` : ''}</span>
+                <span>🔥 Hoje - Ter 08/09 {terTotalRecipients > 0 ? `(${terTotalRecipients.toLocaleString()})` : ''}</span>
                 <span className="text-[10px] opacity-75 font-mono">
-                  ({sabCampaigns.length})
+                  ({terCampaigns.length})
                 </span>
               </button>
 
               <button
-                onClick={() => setCampaignDayFilter('dom')}
+                onClick={() => setCampaignDayFilter('qua')}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                  campaignDayFilter === 'dom'
+                  campaignDayFilter === 'qua'
                     ? 'bg-amber-500 text-slate-950 shadow-sm'
                     : isLight
                     ? 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
                     : 'bg-zinc-800 text-slate-300 hover:bg-zinc-700 border border-zinc-700'
                 }`}
               >
-                <span>⭐ Dom 06/09 {domTotalRecipients > 0 ? `(${domTotalRecipients.toLocaleString()})` : ''}</span>
+                <span>⭐ Qua 09/09 {quaTotalRecipients > 0 ? `(${quaTotalRecipients.toLocaleString()})` : ''}</span>
                 <span className="text-[10px] opacity-75 font-mono">
-                  ({domCampaigns.length})
+                  ({quaCampaigns.length})
                 </span>
               </button>
 
               <button
-                onClick={() => setCampaignDayFilter('seg')}
+                onClick={() => setCampaignDayFilter('qui')}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                  campaignDayFilter === 'seg'
+                  campaignDayFilter === 'qui'
                     ? 'bg-amber-500 text-slate-950 shadow-sm'
                     : isLight
                     ? 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
                     : 'bg-zinc-800 text-slate-300 hover:bg-zinc-700 border border-zinc-700'
                 }`}
               >
-                <span>💼 Seg 07/09 {segTotalRecipients > 0 ? `(${segTotalRecipients.toLocaleString()})` : ''}</span>
+                <span>💼 Qui 10/09 {quiTotalRecipients > 0 ? `(${quiTotalRecipients.toLocaleString()})` : ''}</span>
                 <span className="text-[10px] opacity-75 font-mono">
-                  ({segCampaigns.length})
+                  ({quiCampaigns.length})
+                </span>
+              </button>
+
+              <button
+                onClick={() => setCampaignDayFilter('sex')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                  campaignDayFilter === 'sex'
+                    ? 'bg-amber-500 text-slate-950 shadow-sm'
+                    : isLight
+                    ? 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+                    : 'bg-zinc-800 text-slate-300 hover:bg-zinc-700 border border-zinc-700'
+                }`}
+              >
+                <span>🚀 Sex 11/09 {sexTotalRecipients > 0 ? `(${sexTotalRecipients.toLocaleString()})` : ''}</span>
+                <span className="text-[10px] opacity-75 font-mono">
+                  ({sexCampaigns.length})
                 </span>
               </button>
             </div>
@@ -1546,15 +1565,15 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
               {campaigns.length === 0 && (
                 <button
                   onClick={() => {
-                    if (confirm('Deseja recriar o cronograma padrão com as 21 campanhas programadas?')) {
+                    if (confirm('Deseja recriar o cronograma padrão oficial com as 28 campanhas programadas?')) {
                       restoreDefaultCampaigns();
                     }
                   }}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-yellow-500/40 bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20 text-xs font-bold cursor-pointer transition-all"
-                  title="Recria o cronograma inicial com as 21 campanhas programadas"
+                  title="Recria o cronograma inicial com as 28 campanhas programadas"
                 >
                   <RotateCcw className="h-3.5 w-3.5" />
-                  <span>Restaurar Cronograma (21)</span>
+                  <span>Restaurar Cronograma (28)</span>
                 </button>
               )}
 
@@ -1563,7 +1582,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                   disabled={isLaunchingBatch}
                   onClick={handleLaunchTodayBatch}
                   className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-bold text-xs shadow-sm cursor-pointer disabled:opacity-50"
-                  title="Disparar em sequência as 7 campanhas programadas para hoje"
+                  title="Disparar em sequência as campanhas programadas para hoje"
                 >
                   {isLaunchingBatch ? (
                     <>
@@ -1573,7 +1592,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                   ) : (
                     <>
                       <Play className="h-3.5 w-3.5 fill-current" />
-                      <span>🚀 Disparar Lote de Hoje (4.200 envios)</span>
+                      <span>🚀 Disparar Lote de Hoje ({terTotalRecipients.toLocaleString()} envios)</span>
                     </>
                   )}
                 </button>
@@ -1612,7 +1631,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                   </button>
                   <button
                     onClick={() => {
-                      if (confirm('Deseja recriar as 21 campanhas pré-programadas do cronograma oficial?')) {
+                      if (confirm('Deseja recriar as 28 campanhas pré-programadas do cronograma oficial?')) {
                         restoreDefaultCampaigns();
                       }
                     }}
@@ -1636,13 +1655,18 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                   bg: 'bg-slate-500/10 text-slate-400 border-slate-500/20',
                 };
                 if (camp.status === 'scheduled') {
-                  let scheduleLabel = 'Agendada';
-                  if (camp.id.startsWith('camp_sab_') || camp.title.includes('HOJE') || camp.title.includes('Sáb')) {
-                    scheduleLabel = '📅 Hoje às 11:40';
-                  } else if (camp.id.startsWith('camp_dom_') || camp.title.includes('DOM') || camp.title.includes('Dom')) {
-                    scheduleLabel = '📅 Dom 06/09 às 12:00';
-                  } else if (camp.id.startsWith('camp_seg_') || camp.title.includes('SEG') || camp.title.includes('Seg')) {
-                    scheduleLabel = '📅 Seg 07/09 às 10:00';
+                  let scheduleLabel = '📅 Agendada';
+                  const timeMatch = camp.title.match(/(\d{1,2}:\d{2})/);
+                  const timeStr = timeMatch ? ` às ${timeMatch[1]}` : '';
+
+                  if (camp.title.includes('HOJE') || camp.title.includes('Ter')) {
+                    scheduleLabel = `📅 Hoje${timeStr}`;
+                  } else if (camp.title.includes('AMANHÃ') || camp.title.includes('Qua')) {
+                    scheduleLabel = `📅 Qua 09/09${timeStr}`;
+                  } else if (camp.title.includes('QUINTA') || camp.title.includes('Qui')) {
+                    scheduleLabel = `📅 Qui 10/09${timeStr}`;
+                  } else if (camp.title.includes('SEXTA') || camp.title.includes('Sex')) {
+                    scheduleLabel = `📅 Sex 11/09${timeStr}`;
                   }
                   statusBadge = {
                     label: scheduleLabel,
