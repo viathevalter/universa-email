@@ -32,9 +32,9 @@ export default async function handler(req: any, res: any) {
     const recipient = Array.isArray(data?.to) ? data.to[0] : data?.to;
     const clickUrl = data?.click?.link;
 
-    // Conecta ao Supabase se configurado para atualizar fila e status do lead no Kanban
-    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-    const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+    // Conecta ao Supabase para atualizar fila e status do lead no Kanban em tempo real
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || 'https://yqgtyxcawyjanspyvxro.supabase.co';
+    const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlxZ3R5eGNhd3lqYW5zcHl2eHJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgwMDM4MTAsImV4cCI6MjEwMzU3OTgxMH0.otB80k2ij4EKVU5ts4XU7s6xTffi3UMkmiqOpYC-fNI';
 
     if (supabaseUrl && supabaseKey) {
       const supabase = createClient(supabaseUrl, supabaseKey);
@@ -43,17 +43,17 @@ export default async function handler(req: any, res: any) {
       if (emailId) {
         if (type === 'email.clicked') {
           await supabase
-            .from('marketing_campaign_queues')
+            .from('marketing_campaign_queue')
             .update({ clicked_at: new Date().toISOString() })
             .eq('resend_email_id', emailId);
         } else if (type === 'email.opened') {
           await supabase
-            .from('marketing_campaign_queues')
+            .from('marketing_campaign_queue')
             .update({ opened_at: new Date().toISOString() })
             .eq('resend_email_id', emailId);
         } else if (type === 'email.bounced') {
           await supabase
-            .from('marketing_campaign_queues')
+            .from('marketing_campaign_queue')
             .update({ status: 'bounced', error_message: 'Bounced via Resend Webhook' })
             .eq('resend_email_id', emailId);
         }

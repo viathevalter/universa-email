@@ -55,6 +55,26 @@ export async function saveLeadsToIndexedDb(leads: Lead[]): Promise<void> {
   }
 }
 
+export async function replaceLeadsInIndexedDb(leads: Lead[]): Promise<void> {
+  try {
+    const db = await openDatabase();
+    const tx = db.transaction(STORES.LEADS, 'readwrite');
+    const store = tx.objectStore(STORES.LEADS);
+    store.clear();
+
+    for (const lead of leads) {
+      store.put(lead);
+    }
+
+    return new Promise((resolve, reject) => {
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (e) {
+    console.warn('[IndexedDB Replace Leads Error]', e);
+  }
+}
+
 export async function getLeadsFromIndexedDb(): Promise<Lead[]> {
   try {
     const db = await openDatabase();

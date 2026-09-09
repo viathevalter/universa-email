@@ -27,6 +27,7 @@ import {
 } from '../services/geminiService';
 import {
   saveLeadsToIndexedDb,
+  replaceLeadsInIndexedDb,
   getLeadsFromIndexedDb,
   clearAllIndexedDb,
 } from '../services/indexedDbService';
@@ -809,18 +810,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       if (allDbLeads.length > 0) {
         const sanitizedDbLeads = sanitizeLeads(allDbLeads);
-        setLeads((currentLeads) => {
-          const emailMap = new Map<string, Lead>();
-          for (const l of currentLeads) {
-            if (l && l.email) emailMap.set(l.email.toLowerCase().trim(), l);
-          }
-          for (const l of sanitizedDbLeads) {
-            if (l && l.email) emailMap.set(l.email.toLowerCase().trim(), l);
-          }
-          const merged = Array.from(emailMap.values());
-          saveLeadsToIndexedDb(merged).catch((err) => console.warn('[IndexedDB save error]', err));
-          return merged;
-        });
+        const finalLeads = ensureValidationLeads(sanitizedDbLeads, tenant.id);
+        setLeads(finalLeads);
+        replaceLeadsInIndexedDb(finalLeads).catch((err) => console.warn('[IndexedDB replace error]', err));
       }
 
       const { data: dbTemplates, error: tmplErr } = await supabase.from('marketing_templates').select('*');
@@ -910,13 +902,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const idbLeads = await getLeadsFromIndexedDb();
         if (isMounted) {
           if (idbLeads && idbLeads.length > 0) {
-            // Filtra e remove qualquer lead sintético gerado anteriormente
-            const genuineOnly = idbLeads.filter(
-              (l) => !l.id.startsWith('lead_es_202k_') && !l.id.startsWith('lead_sim_')
-            );
-            const finalLeads = ensureValidationLeads(genuineOnly, tenant.id);
-            setLeads(finalLeads);
-            await saveLeadsToIndexedDb(finalLeads);
+            if (idbLeads.length > 10000) {
+              await clearAllIndexedDb();
+              const initialReal = ensureValidationLeads([], tenant.id);
+              setLeads(initialReal);
+            } else {
+              const genuineOnly = idbLeads.filter(
+                (l) => !l.id.startsWith('lead_es_202k_') && !l.id.startsWith('lead_sim_')
+              );
+              const finalLeads = ensureValidationLeads(genuineOnly, tenant.id);
+              setLeads(finalLeads);
+              await saveLeadsToIndexedDb(finalLeads);
+            }
           } else {
             const initialReal = ensureValidationLeads([], tenant.id);
             setLeads(initialReal);

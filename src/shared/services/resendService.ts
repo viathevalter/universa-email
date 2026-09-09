@@ -262,8 +262,13 @@ export async function processCampaignQueueBatch(
       continue;
     }
 
-    // Prepara HTML personalizado
-    const personalizedHtml = interpolateEmailVariables(templateHtml, lead);
+    // Prepara HTML personalizado com rastreador direto de cliques (Kanban / WhatsApp)
+    let personalizedHtml = interpolateEmailVariables(templateHtml, lead);
+    const clickTrackBase = `https://universa-email.vercel.app/api/click?lead=${encodeURIComponent(lead.email)}&campaign=${encodeURIComponent(campaign.id)}&url=`;
+    personalizedHtml = personalizedHtml.replace(
+      /href=["'](https:\/\/(?:wa\.me|api\.whatsapp\.com)[^"']*)["']/gi,
+      (_match, targetUrl) => `href="${clickTrackBase}${encodeURIComponent(targetUrl)}"`
+    );
     const sender = `${campaign.sender_name} <${campaign.sender_email}>`;
 
     const result = await sendEmailViaResend({

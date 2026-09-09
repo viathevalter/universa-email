@@ -9,6 +9,7 @@ import {
   ChevronRight,
   MessageCircle,
   Building2,
+  RefreshCw,
 } from 'lucide-react';
 import { useApp } from '../../shared/context/AppContext';
 import type { Lead, LeadStatus } from '../../types';
@@ -73,8 +74,18 @@ interface KanbanViewProps {
 }
 
 export const KanbanView: React.FC<KanbanViewProps> = ({ onNavigateToCampaigns }) => {
-  const { tenant, leads, updateLead, addLead, theme } = useApp();
+  const { tenant, leads, updateLead, addLead, theme, syncWithSupabase } = useApp();
   const isLight = theme === 'light';
+
+  const [isSyncing, setIsSyncing] = useState(false);
+  const handleSync = async () => {
+    setIsSyncing(true);
+    try {
+      await syncWithSupabase();
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const [stages, setStages] = useState<KanbanStageConfig[]>(DEFAULT_STAGES);
   const [searchTerm, setSearchTerm] = useState('');
@@ -272,6 +283,21 @@ export const KanbanView: React.FC<KanbanViewProps> = ({ onNavigateToCampaigns })
           >
             <Settings className="h-3.5 w-3.5" />
             <span>Configurar Estágios</span>
+          </button>
+
+          {/* Sincronizar Banco de Dados (Supabase) */}
+          <button
+            onClick={handleSync}
+            disabled={isSyncing}
+            className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition-all cursor-pointer ${
+              isLight
+                ? 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100'
+                : 'border-blue-500/30 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20'
+            }`}
+            title="Recarregar leads e números oficiais diretamente do banco Supabase"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+            <span>{isSyncing ? 'Sincronizando...' : 'Sincronizar Supabase'}</span>
           </button>
 
           {onNavigateToCampaigns && (
