@@ -96,6 +96,7 @@ interface AppContextType {
   campaigns: MarketingCampaign[];
   campaignQueue: Record<string, MarketingCampaignQueue[]>;
   createCampaign: (campaign: Omit<MarketingCampaign, 'id' | 'tenant_id' | 'created_at' | 'updated_at' | 'sent_count' | 'delivered_count' | 'opened_count' | 'clicked_count' | 'bounced_count' | 'failed_count'>, targetLeadIds: string[]) => Promise<MarketingCampaign>;
+  updateCampaign: (campaignId: string, updates: Partial<MarketingCampaign>) => Promise<void>;
   batchCreateCampaigns: (newCampaigns: MarketingCampaign[]) => void;
   launchCampaign: (campaignId: string) => Promise<void>;
   pauseCampaign: (campaignId: string) => void;
@@ -2006,6 +2007,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   };
 
+  const updateCampaign = async (campaignId: string, updates: Partial<MarketingCampaign>): Promise<void> => {
+    const now = new Date().toISOString();
+    updateCampaignsState((prev) =>
+      prev.map((c) => (c.id === campaignId ? { ...c, ...updates, updated_at: now } : c))
+    );
+
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        await supabase
+          .from('marketing_campaigns')
+          .update({
+            ...updates,
+            updated_at: now,
+          })
+          .eq('id', campaignId);
+      } catch (e) {
+        console.warn('[Supabase Update Campaign Warning]', e);
+      }
+    }
+  };
+
   const deleteCampaign = async (campaignId: string) => {
     updateCampaignsState((prev) => prev.filter((c) => c.id !== campaignId));
     setCampaignQueue((prev) => {
@@ -2433,6 +2456,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         campaigns,
         campaignQueue,
         createCampaign,
+        updateCampaign,
         batchCreateCampaigns,
         launchCampaign,
         pauseCampaign,

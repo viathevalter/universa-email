@@ -259,6 +259,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
     leads,
     audiences,
     createCampaign,
+    updateCampaign,
     batchCreateCampaigns,
     launchCampaign,
     pauseCampaign,
@@ -381,6 +382,24 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
   const [campaignDayFilter, setCampaignDayFilter] = useState<'all' | 'ter' | 'qua' | 'qui' | 'sex'>('all');
   const [isLaunchingBatch, setIsLaunchingBatch] = useState(false);
   const [isPostponeMenuOpen, setIsPostponeMenuOpen] = useState(false);
+
+  // =========================================================================
+  // CRUD DE CAMPANHA (EDIÇÃO & CONSULTA DE TEMPLATE)
+  // =========================================================================
+  const [editingCampaign, setEditingCampaign] = useState<MarketingCampaign | null>(null);
+  const [isEditCampaignModalOpen, setIsEditCampaignModalOpen] = useState(false);
+  const [editCampaignFormData, setEditCampaignFormData] = useState({
+    title: '',
+    subject: '',
+    template_id: '',
+    sender_name: '',
+    sender_email: '',
+    reply_to: '',
+    scheduled_at: '',
+    total_recipients: 500,
+    target_audience_id: '',
+    status: 'scheduled' as 'draft' | 'scheduled' | 'paused' | 'completed',
+  });
 
   // =========================================================================
   // ASSISTENTE DE CRONOGRAMA PASSO A PASSO (SCHEDULE WIZARD)
@@ -1216,6 +1235,89 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
     setEditingTemplate(null);
   };
 
+  const handleOpenEditCampaign = (camp: MarketingCampaign) => {
+    setEditingCampaign(camp);
+
+    let formattedDate = '';
+    if (camp.scheduled_at) {
+      try {
+        const d = new Date(camp.scheduled_at);
+        if (!isNaN(d.getTime())) {
+          const offset = d.getTimezoneOffset() * 60000;
+          formattedDate = new Date(d.getTime() - offset).toISOString().slice(0, 16);
+        }
+      } catch {}
+    }
+
+    setEditCampaignFormData({
+      title: camp.title || '',
+      subject: camp.subject || '',
+      template_id: camp.template_id || (templates[0]?.id || ''),
+      sender_name: camp.sender_name || tenant.sender_name || 'Carlos Ventas - Universa TV España',
+      sender_email: camp.sender_email || tenant.marketing_sender_email || 'carlos_ventas@mail.universatv.com',
+      reply_to: camp.reply_to || 'carlos_ventas@mail.universatv.com',
+      scheduled_at: formattedDate,
+      total_recipients: camp.total_recipients || 500,
+      target_audience_id: camp.target_audience_id || '',
+      status: (camp.status as any) || 'scheduled',
+    });
+    setIsEditCampaignModalOpen(true);
+  };
+
+  const handleSaveCampaignEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCampaign) return;
+
+    try {
+      let isoDate: string | undefined = undefined;
+      if (editCampaignFormData.scheduled_at) {
+        isoDate = new Date(editCampaignFormData.scheduled_at).toISOString();
+      }
+
+      await updateCampaign(editingCampaign.id, {
+        title: editCampaignFormData.title,
+        subject: editCampaignFormData.subject,
+        template_id: editCampaignFormData.template_id,
+        sender_name: editCampaignFormData.sender_name,
+        sender_email: editCampaignFormData.sender_email,
+        reply_to: editCampaignFormData.reply_to,
+        scheduled_at: isoDate || editingCampaign.scheduled_at,
+        total_recipients: Number(editCampaignFormData.total_recipients) || editingCampaign.total_recipients,
+        target_audience_id: editCampaignFormData.target_audience_id || undefined,
+        status: editCampaignFormData.status,
+      });
+
+      setIsEditCampaignModalOpen(false);
+      setEditingCampaign(null);
+      confetti({ particleCount: 60, spread: 60 });
+      setNotification({
+        type: 'success',
+        message: `Campanha "${editCampaignFormData.title}" atualizada com sucesso!`,
+      });
+    } catch (err) {
+      console.error(err);
+      setNotification({
+        type: 'error',
+        message: 'Erro ao atualizar campanha. Verifique os campos.',
+      });
+    }
+  };
+
+  const handlePreviewCampaignTemplate = (camp: MarketingCampaign) => {
+    const tmpl = templates.find((t) => t.id === camp.template_id) || templates[0];
+    if (tmpl) {
+      setPreviewingTemplate({
+        ...tmpl,
+        subject: camp.subject || tmpl.subject,
+      });
+    } else {
+      setNotification({
+        type: 'error',
+        message: 'Template associado não encontrado.',
+      });
+    }
+  };
+
   // Leads for View Audience Members Modal
   const viewAudienceLeadsList = useMemo(() => {
     if (!viewLeadsAudience) return [];
@@ -1769,6 +1871,9 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                   };
                 }
 
+                const tmpl = templates.find((t) => t.id === camp.template_id);
+                const aud = audiences.find((a) => a.id === camp.target_audience_id);
+
                 return (
                   <div
                     key={camp.id}
@@ -1778,34 +1883,95 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                         : 'border-zinc-800 bg-zinc-950/70 hover:border-zinc-700'
                     }`}
                   >
-                    {/* Header: Status Badge & Trash */}
+                    {/* Header: Status Badge & Actions (View Email, Edit, Trash) */}
                     <div className="flex items-center justify-between">
                       <span className={`rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${statusBadge.bg}`}>
                         {statusBadge.label}
                       </span>
 
-                      <button
-                        onClick={() => {
-                          if (confirm(`Deseja realmente excluir a campanha "${camp.title}"?`)) {
-                            deleteCampaign(camp.id);
-                          }
-                        }}
-                        className="text-slate-400 hover:text-rose-500 transition-colors p-1 cursor-pointer"
-                        title="Excluir campanha"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handlePreviewCampaignTemplate(camp)}
+                          className="p-1 rounded-lg text-slate-400 hover:text-sky-400 hover:bg-sky-500/10 transition-colors cursor-pointer"
+                          title="Visualizar e-mail desta campanha"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+
+                        <button
+                          onClick={() => handleOpenEditCampaign(camp)}
+                          className="p-1 rounded-lg text-slate-400 hover:text-yellow-400 hover:bg-yellow-500/10 transition-colors cursor-pointer"
+                          title="Editar campanha (trocar template, assunto, destinatários)"
+                        >
+                          <Edit3 className="h-4 w-4" />
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            if (confirm(`Deseja realmente excluir a campanha "${camp.title}"?`)) {
+                              deleteCampaign(camp.id);
+                            }
+                          }}
+                          className="p-1 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                          title="Excluir campanha"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
 
                     {/* Campaign Info */}
-                    <div className="space-y-1.5">
-                      <h3 className={`font-bold text-sm line-clamp-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                        {camp.title}
-                      </h3>
-                      <p className="text-xs text-slate-400 line-clamp-2">
-                        <strong>Assunto:</strong> {camp.subject}
-                      </p>
-                      <div className="text-[11px] text-slate-500 flex items-center gap-1.5 pt-1">
+                    <div className="space-y-2.5">
+                      <div>
+                        <h3 className={`font-bold text-sm line-clamp-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                          {camp.title}
+                        </h3>
+                        <p className="text-xs text-slate-400 line-clamp-2 mt-0.5">
+                          <strong className="text-slate-500">Assunto:</strong> {camp.subject}
+                        </p>
+                      </div>
+
+                      {/* Template & Público Badges */}
+                      <div className="p-2.5 rounded-xl border space-y-1.5 text-[11px] bg-slate-50/70 dark:bg-zinc-900/60 border-slate-200/80 dark:border-zinc-800/80">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-slate-400 flex items-center gap-1 shrink-0 font-medium">
+                            <FileCode className="h-3 w-3 text-yellow-500" />
+                            <span>Template:</span>
+                          </span>
+                          <button
+                            onClick={() => handlePreviewCampaignTemplate(camp)}
+                            className="inline-flex items-center gap-1 font-semibold text-yellow-500 hover:text-yellow-400 truncate max-w-[190px] cursor-pointer hover:underline"
+                            title="Clique para visualizar o template HTML desta campanha"
+                          >
+                            <span className="truncate">{tmpl?.title || 'Template Oficial'}</span>
+                            <Eye className="h-2.5 w-2.5 shrink-0 opacity-80" />
+                          </button>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-slate-400 flex items-center gap-1 shrink-0 font-medium">
+                            <Users className="h-3 w-3 text-sky-400" />
+                            <span>Público:</span>
+                          </span>
+                          <span className="font-semibold text-slate-300 truncate max-w-[190px]">
+                            {aud?.name || 'Mailing Empregos / Validados'}
+                          </span>
+                        </div>
+
+                        {camp.scheduled_at && (
+                          <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-200/50 dark:border-zinc-800/50 text-[10px]">
+                            <span className="text-slate-400 flex items-center gap-1 shrink-0">
+                              <Clock className="h-2.5 w-2.5 text-purple-400" />
+                              <span>Agendado para:</span>
+                            </span>
+                            <span className="font-mono text-purple-300 font-medium truncate">
+                              {new Date(camp.scheduled_at).toLocaleDateString('pt-BR')} às {new Date(camp.scheduled_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="text-[11px] text-slate-500 flex items-center gap-1.5">
                         <span>Remetente:</span>
                         <span className="font-semibold text-slate-400 truncate">{camp.sender_email}</span>
                       </div>
@@ -1860,10 +2026,20 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                     {/* Bottom Action Controls */}
                     <div className="pt-2 flex items-center justify-between gap-2">
                       {isComplete ? (
-                        <span className="w-full text-center text-xs font-bold text-emerald-500 py-2 flex items-center justify-center gap-1.5 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
-                          <CheckCircle className="h-4 w-4" />
-                          <span>Finalizada ({total.toLocaleString()} envios)</span>
-                        </span>
+                        <div className="w-full flex items-center gap-2">
+                          <span className="flex-1 text-center text-xs font-bold text-emerald-500 py-2 flex items-center justify-center gap-1.5 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
+                            <CheckCircle className="h-4 w-4" />
+                            <span>Finalizada ({total.toLocaleString()} envios)</span>
+                          </span>
+                          <button
+                            onClick={() => handlePreviewCampaignTemplate(camp)}
+                            className="px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-800 text-xs text-slate-300 font-semibold cursor-pointer transition-colors flex items-center gap-1 shrink-0"
+                            title="Visualizar template da campanha"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                            <span>Ver E-mail</span>
+                          </button>
+                        </div>
                       ) : (
                         <>
                           {(camp.status === 'draft' || camp.status === 'scheduled') && (
@@ -1874,6 +2050,14 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                               >
                                 <Play className="h-3.5 w-3.5 fill-current" />
                                 <span>{camp.status === 'scheduled' ? 'Disparar Agora' : 'Iniciar Disparo'}</span>
+                              </button>
+                              <button
+                                onClick={() => handleOpenEditCampaign(camp)}
+                                className="px-2.5 py-2 rounded-xl border border-slate-300 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-300 text-xs font-bold cursor-pointer transition-all flex items-center gap-1 shrink-0"
+                                title="Editar configurações da campanha"
+                              >
+                                <Edit3 className="h-3.5 w-3.5" />
+                                <span>Editar</span>
                               </button>
                               {camp.status === 'scheduled' && (
                                 <button
@@ -3284,6 +3468,290 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
           </div>
         );
       })()}
+
+      {/* ========================================================================= */}
+      {/* MODAL DE EDIÇÃO DE CAMPANHA (CRUD COMPLETO & TROCA DE TEMPLATE) */}
+      {/* ========================================================================= */}
+      {isEditCampaignModalOpen && editingCampaign && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 overflow-y-auto">
+          <div
+            className={`w-full max-w-2xl rounded-2xl border p-6 shadow-2xl space-y-4 my-auto max-h-[92vh] flex flex-col ${
+              isLight ? 'border-slate-200 bg-white text-slate-900' : 'border-zinc-800 bg-zinc-900 text-white'
+            }`}
+          >
+            {/* Modal Header */}
+            <div className={`flex items-start justify-between border-b pb-3 shrink-0 ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
+              <div className="flex items-center gap-2.5">
+                <div className="h-9 w-9 rounded-xl bg-yellow-500/15 text-yellow-500 flex items-center justify-center font-bold text-base">
+                  ✏️
+                </div>
+                <div>
+                  <h3 className={`font-bold text-base ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                    Editar Campanha de Marketing
+                  </h3>
+                  <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                    Altere o template, assunto, público, remetente e horário programado
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setIsEditCampaignModalOpen(false);
+                  setEditingCampaign(null);
+                }}
+                className={`p-1.5 rounded-lg border text-sm font-bold transition-colors cursor-pointer ${
+                  isLight ? 'border-slate-200 text-slate-400 hover:text-slate-700' : 'border-zinc-800 text-slate-400 hover:text-white'
+                }`}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Form */}
+            <form onSubmit={handleSaveCampaignEdit} className="space-y-4 text-xs overflow-y-auto pr-1 flex-1">
+              {/* Título da Campanha */}
+              <div className="space-y-1">
+                <label className={`block font-semibold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
+                  Título Interno da Campanha *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editCampaignFormData.title}
+                  onChange={(e) => setEditCampaignFormData({ ...editCampaignFormData, title: e.target.value })}
+                  placeholder="Ex: [HOJE (Qua 09/09) 12:30] 📺 Smart TV & Latino (500 envios)"
+                  className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none transition-colors ${
+                    isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
+                  }`}
+                />
+              </div>
+
+              {/* Template de E-mail Dropdown + Preview */}
+              <div className="space-y-1.5 p-3 rounded-xl border bg-yellow-500/5 border-yellow-500/20">
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-yellow-500 flex items-center gap-1.5">
+                    <FileCode className="h-3.5 w-3.5" />
+                    <span>Template de E-mail Vinculado *</span>
+                  </label>
+                  {editCampaignFormData.template_id && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const selectedTmpl = templates.find((t) => t.id === editCampaignFormData.template_id);
+                        if (selectedTmpl) {
+                          setPreviewingTemplate({
+                            ...selectedTmpl,
+                            subject: editCampaignFormData.subject || selectedTmpl.subject,
+                          });
+                        }
+                      }}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-yellow-500 hover:text-yellow-400 cursor-pointer underline"
+                    >
+                      <Eye className="h-3 w-3" />
+                      <span>Visualizar Template Escolhido</span>
+                    </button>
+                  )}
+                </div>
+
+                <select
+                  value={editCampaignFormData.template_id}
+                  onChange={(e) => {
+                    const newTmplId = e.target.value;
+                    const matchedTmpl = templates.find((t) => t.id === newTmplId);
+                    setEditCampaignFormData((prev) => ({
+                      ...prev,
+                      template_id: newTmplId,
+                      subject: matchedTmpl ? matchedTmpl.subject : prev.subject,
+                    }));
+                  }}
+                  className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none transition-colors font-medium ${
+                    isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
+                  }`}
+                >
+                  {templates.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.title} — {t.subject.slice(0, 55)}...
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Assunto do E-mail */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className={`block font-semibold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
+                    Assunto do E-mail (Subject) *
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const t = templates.find((item) => item.id === editCampaignFormData.template_id);
+                      if (t) setEditCampaignFormData((prev) => ({ ...prev, subject: t.subject }));
+                    }}
+                    className="text-[10px] text-slate-400 hover:text-yellow-500 underline cursor-pointer"
+                  >
+                    Restaurar assunto original do template
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  required
+                  value={editCampaignFormData.subject}
+                  onChange={(e) => setEditCampaignFormData({ ...editCampaignFormData, subject: e.target.value })}
+                  placeholder="Ex: 📺 +5.000 Canales y Cine para toda tu familia (Prueba 24h gratis)"
+                  className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none transition-colors ${
+                    isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
+                  }`}
+                />
+              </div>
+
+              {/* Remetente e Reply-To */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className={`block font-semibold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
+                    Identidade do Remetente
+                  </label>
+                  <select
+                    onChange={(e) => {
+                      const s = VERIFIED_SENDERS.find((item) => item.id === e.target.value);
+                      if (s) {
+                        setEditCampaignFormData((prev) => ({
+                          ...prev,
+                          sender_name: s.name,
+                          sender_email: s.email,
+                          reply_to: s.reply_to,
+                        }));
+                      }
+                    }}
+                    className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none transition-colors ${
+                      isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
+                    }`}
+                  >
+                    {VERIFIED_SENDERS.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.flag} {s.name} ({s.email})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className={`block font-semibold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
+                    E-mail do Remetente (From)
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={editCampaignFormData.sender_email}
+                    onChange={(e) => setEditCampaignFormData({ ...editCampaignFormData, sender_email: e.target.value })}
+                    className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none transition-colors ${
+                      isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
+                    }`}
+                  />
+                </div>
+              </div>
+
+              {/* Data & Horário Agendado + Quantidade */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className={`block font-semibold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
+                    📅 Horário Programado de Disparo
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={editCampaignFormData.scheduled_at}
+                    onChange={(e) => setEditCampaignFormData({ ...editCampaignFormData, scheduled_at: e.target.value })}
+                    className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none transition-colors font-mono ${
+                      isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
+                    }`}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className={`block font-semibold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
+                    👥 Quantidade de Destinatários (Envios)
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={50000}
+                    required
+                    value={editCampaignFormData.total_recipients}
+                    onChange={(e) => setEditCampaignFormData({ ...editCampaignFormData, total_recipients: parseInt(e.target.value) || 0 })}
+                    className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none transition-colors font-mono font-bold text-emerald-500 ${
+                      isLight ? 'border-slate-300 bg-white' : 'border-zinc-800 bg-zinc-950'
+                    }`}
+                  />
+                </div>
+              </div>
+
+              {/* Público / Segmento e Status */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className={`block font-semibold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
+                    Segmento / Público-Alvo
+                  </label>
+                  <select
+                    value={editCampaignFormData.target_audience_id}
+                    onChange={(e) => setEditCampaignFormData({ ...editCampaignFormData, target_audience_id: e.target.value })}
+                    className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none transition-colors ${
+                      isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
+                    }`}
+                  >
+                    <option value="">Base de Leads Reais (Sem filtro específico)</option>
+                    {audiences.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name} ({a.lead_count || a.lead_ids?.length || 0} leads)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className={`block font-semibold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
+                    Status da Campanha
+                  </label>
+                  <select
+                    value={editCampaignFormData.status}
+                    onChange={(e) => setEditCampaignFormData({ ...editCampaignFormData, status: e.target.value as any })}
+                    className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none transition-colors font-semibold ${
+                      isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
+                    }`}
+                  >
+                    <option value="scheduled">📅 Agendada (Disparo automático ou manual)</option>
+                    <option value="draft">📝 Rascunho</option>
+                    <option value="paused">⏸️ Pausada</option>
+                    <option value="completed">✅ Concluída</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Botões do Rodapé */}
+              <div className={`pt-3 border-t flex items-center justify-end gap-2.5 shrink-0 ${isLight ? 'border-slate-200' : 'border-zinc-800'}`}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditCampaignModalOpen(false);
+                    setEditingCampaign(null);
+                  }}
+                  className={`px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-colors ${
+                    isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-bold text-xs shadow-md shadow-yellow-500/20 cursor-pointer transition-all flex items-center gap-1.5"
+                >
+                  <Check className="h-3.5 w-3.5 stroke-[3]" />
+                  <span>Salvar Alterações</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ========================================================================= */}
       {/* MODAL 6: DISPARAR TESTE DOS 8 TEMPLATES (CONTATOS DE VALIDAÇÃO) */}
