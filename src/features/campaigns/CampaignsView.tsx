@@ -523,7 +523,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
   };
 
   const handleLaunchTodayBatch = async () => {
-    const todayList = campaigns.filter((c) => (c.title.includes('HOJE') || c.title.includes('Ter') || c.id.includes('_ter_')) && c.status !== 'completed');
+    const todayList = campaigns.filter((c) => (c.title.includes('HOJE') || c.title.includes('Qua') || c.id.includes('_qua_')) && c.status !== 'completed');
     if (todayList.length === 0) return;
     setIsLaunchingBatch(true);
     for (const c of todayList) {
@@ -532,8 +532,8 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
     setIsLaunchingBatch(false);
   };
 
-  const terCampaigns = useMemo(() => campaigns.filter((c) => c.title.includes('HOJE') || c.title.includes('Ter') || c.id.includes('_ter_')), [campaigns]);
-  const quaCampaigns = useMemo(() => campaigns.filter((c) => c.title.includes('AMANHÃ') || c.title.includes('Qua') || c.id.includes('_qua_')), [campaigns]);
+  const terCampaigns = useMemo(() => campaigns.filter((c) => (c.title.includes('Ter') || c.id.includes('_ter_')) && !c.title.includes('Qua')), [campaigns]);
+  const quaCampaigns = useMemo(() => campaigns.filter((c) => c.title.includes('HOJE') || c.title.includes('Qua') || c.id.includes('_qua_')), [campaigns]);
   const quiCampaigns = useMemo(() => campaigns.filter((c) => c.title.includes('QUINTA') || c.title.includes('Qui') || c.id.includes('_qui_')), [campaigns]);
   const sexCampaigns = useMemo(() => campaigns.filter((c) => c.title.includes('SEXTA') || c.title.includes('Sex') || c.id.includes('_sex_')), [campaigns]);
 
@@ -541,6 +541,11 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
   const quaTotalRecipients = useMemo(() => quaCampaigns.reduce((sum, c) => sum + (c.total_recipients || 0), 0), [quaCampaigns]);
   const quiTotalRecipients = useMemo(() => quiCampaigns.reduce((sum, c) => sum + (c.total_recipients || 0), 0), [quiCampaigns]);
   const sexTotalRecipients = useMemo(() => sexCampaigns.reduce((sum, c) => sum + (c.total_recipients || 0), 0), [sexCampaigns]);
+
+  const todayPendingRecipients = useMemo(() => {
+    const todayPending = campaigns.filter((c) => (c.title.includes('HOJE') || c.title.includes('Qua') || c.id.includes('_qua_')) && c.status !== 'completed');
+    return todayPending.reduce((sum, c) => sum + (c.total_recipients || 0), 0);
+  }, [campaigns]);
 
   const displayedCampaigns = useMemo(() => {
     let list = campaigns;
@@ -1463,7 +1468,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                     : 'bg-zinc-800 text-slate-300 hover:bg-zinc-700 border border-zinc-700'
                 }`}
               >
-                <span>🔥 Hoje - Ter 08/09 {terTotalRecipients > 0 ? `(${terTotalRecipients.toLocaleString()})` : ''}</span>
+                <span>Ter 08/09 (Ontem) {terTotalRecipients > 0 ? `(${terTotalRecipients.toLocaleString()})` : ''}</span>
                 <span className="text-[10px] opacity-75 font-mono">
                   ({terCampaigns.length})
                 </span>
@@ -1479,7 +1484,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                     : 'bg-zinc-800 text-slate-300 hover:bg-zinc-700 border border-zinc-700'
                 }`}
               >
-                <span>⭐ Qua 09/09 {quaTotalRecipients > 0 ? `(${quaTotalRecipients.toLocaleString()})` : ''}</span>
+                <span>🔥 Hoje - Qua 09/09 {quaTotalRecipients > 0 ? `(${quaTotalRecipients.toLocaleString()})` : ''}</span>
                 <span className="text-[10px] opacity-75 font-mono">
                   ({quaCampaigns.length})
                 </span>
@@ -1666,7 +1671,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                   ) : (
                     <>
                       <Play className="h-3.5 w-3.5 fill-current" />
-                      <span>🚀 Disparar Lote de Hoje ({terTotalRecipients.toLocaleString()} envios)</span>
+                      <span>🚀 Disparar Lote de Hoje ({todayPendingRecipients.toLocaleString()} envios)</span>
                     </>
                   )}
                 </button>
