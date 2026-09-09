@@ -276,13 +276,12 @@ export async function processCampaignQueueBatch(
     });
 
     const now = new Date().toISOString();
+    item.status = result.success ? 'sent' : 'failed';
+    item.resend_email_id = result.id;
+    item.sent_at = result.success ? now : undefined;
+
     const updated: MarketingCampaignQueue = {
       ...item,
-      status: result.success ? 'sent' : 'failed',
-      resend_email_id: result.id,
-      sent_at: result.success ? now : undefined,
-      opened_at: undefined,
-      clicked_at: undefined,
     };
 
     if (result.success) {

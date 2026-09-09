@@ -1889,6 +1889,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let lastUiUpdate = Date.now();
     let pendingLeadEmailsToContacted: string[] = [];
 
+    let latestProgressSent = initialSent;
+
     await processCampaignQueueBatch(
       targetCampaign,
       targetTemplate.html_content,
@@ -1917,6 +1919,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           totalGoal,
           activeQueue.length >= totalGoal ? batchSent : initialSent + batchSent
         );
+        latestProgressSent = totalSentNow;
         const now = Date.now();
         const isDone = totalSentNow >= totalGoal;
 
@@ -1964,12 +1967,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         .then(() => {}, () => {});
     }
 
+    const queueSentCount = activeQueue.filter((it) => it.status === 'sent').length;
     const finalSent = Math.min(
       totalGoal,
-      activeQueue.length >= totalGoal
-        ? activeQueue.filter((it) => it.status === 'sent').length
-        : initialSent + activeQueue.filter((it) => it.status === 'sent').length
+      Math.max(latestProgressSent, activeQueue.length >= totalGoal ? queueSentCount : initialSent + queueSentCount)
     );
+    const isCompleted = finalSent >= totalGoal || finalSent >= Math.min(totalGoal, activeQueue.length);
 
     // Grava lista leve de e-mails contatados
     safeStorageSet(STORAGE_KEYS.CONTACTED_EMAILS, Array.from(contactedEmailsRef.current));
@@ -1979,7 +1982,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         c.id === campaignId
           ? {
               ...c,
-              status: finalSent >= totalGoal ? 'completed' : 'paused',
+              status: isCompleted ? 'completed' : 'paused',
               sent_count: finalSent,
               delivered_count: finalSent,
               updated_at: new Date().toISOString(),
@@ -1992,7 +1995,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await supabase
         .from('marketing_campaigns')
         .update({
-          status: finalSent >= totalGoal ? 'completed' : 'paused',
+          status: isCompleted ? 'completed' : 'paused',
           sent_count: finalSent,
           delivered_count: finalSent,
           updated_at: new Date().toISOString(),
