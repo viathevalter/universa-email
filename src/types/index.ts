@@ -175,6 +175,7 @@ export interface MarketingCampaign {
   bounced_count: number;
   failed_count: number;
   rate_limit_per_second: number;
+  cooldown_days?: string;
   created_at: string;
   updated_at: string;
 }

@@ -2037,7 +2037,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     campaignData: Omit<MarketingCampaign, 'id' | 'tenant_id' | 'created_at' | 'updated_at' | 'sent_count' | 'delivered_count' | 'opened_count' | 'clicked_count' | 'bounced_count' | 'failed_count'>,
     targetLeadIds: string[]
   ): Promise<MarketingCampaign> => {
-    const campaignId = `camp_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    const campaignId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `camp_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
     const now = new Date().toISOString();
 
     const targetLeads = leads.filter((l) => targetLeadIds.includes(l.id) && !l.opted_out);
@@ -2053,6 +2053,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       clicked_count: 0,
       bounced_count: 0,
       failed_count: 0,
+      cooldown_days: campaignData.cooldown_days || 'never',
       created_at: now,
       updated_at: now,
     };
@@ -2069,7 +2070,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
 
     setCampaigns((prev) => [newCampaign, ...prev]);
+    campaignsRef.current = [newCampaign, ...campaignsRef.current];
     setCampaignQueue((prev) => ({ ...prev, [campaignId]: queueItems }));
+
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        await supabase.from('marketing_campaigns').insert([newCampaign]);
+      } catch (e) {
+        console.warn('[Supabase Insert Campaign Warning]', e);
+      }
+    }
 
     return newCampaign;
   };
@@ -2094,7 +2105,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const niche = targetAudience?.filters?.niche ? targetAudience.filters.niche[0] : '';
       const tags = targetAudience?.filters?.tags || [];
 
-      // Coleta todos os e-mails já enviados ou em fila nas campanhas anteriores para garantir ZERO repetição
+      // Coleta todos os e-mails já enviados ou em fila nas campanhas ativas para garantir ZERO duplicidade simultânea
       const alreadyTargetedEmails = new Set<string>();
       Object.values(campaignQueue).forEach((q) => {
         if (Array.isArray(q)) {
@@ -2118,30 +2129,53 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         audienceLeads = leads.filter((l) => !l.opted_out);
       }
 
-      // Prioriza estritamente LEADS NOVOS E INÉDITOS (nunca contatados anteriormente)
-      const freshLeads = audienceLeads.filter((l) => {
-        if (l.status === 'contacted') return false;
-        if (alreadyTargetedEmails.has(l.email.toLowerCase().trim())) return false;
-        return true;
-      });
+      // Regra de Cooldown Anti-Spam configurada na campanha ('never' | '7' | '14' | '30' | 'all')
+      const cooldownRule = targetCampaign.cooldown_days || 'never';
+      const nowMs = Date.now();
 
+      const isLeadEligible = (l: Lead) => {
+        if (l.opted_out) return false;
+        if (alreadyTargetedEmails.has(l.email.toLowerCase().trim())) return false;
+
+        // Se 'all' (reenvio livre), permite reenviar
+        if (cooldownRule === 'all') return true;
+
+        // Se o lead ainda é novo e nunca foi contatado, está sempre liberado
+        if (l.status !== 'contacted') return true;
+
+        // Se a regra é 'never' (apenas inéditos) e já foi contatado, bloqueia
+        if (cooldownRule === 'never') return false;
+
+        // Se for período em dias (ex: 7, 14, 30)
+        const days = parseInt(cooldownRule, 10);
+        if (isNaN(days) || days <= 0) return true;
+
+        // Se não possui data de contato anterior, considera liberado
+        if (!l.updated_at) return true;
+
+        const leadTime = new Date(l.updated_at).getTime();
+        if (isNaN(leadTime)) return true;
+
+        const diffDays = (nowMs - leadTime) / (1000 * 60 * 60 * 24);
+        return diffDays >= days;
+      };
+
+      const eligibleAudienceLeads = audienceLeads.filter(isLeadEligible);
       const countNeeded = remainingToTarget;
 
       let selected: Lead[] = [];
-      if (freshLeads.length >= countNeeded) {
-        selected = freshLeads.slice(0, countNeeded);
+      if (eligibleAudienceLeads.length >= countNeeded) {
+        selected = eligibleAudienceLeads.slice(0, countNeeded);
       } else {
-        const remainingNeeded = countNeeded - freshLeads.length;
-        // Completa o restante da meta com outros leads NOVOS do banco que nunca foram contatados
-        const freshGeneralLeads = leads.filter(
-          (l) =>
-            !l.opted_out &&
-            l.status !== 'contacted' &&
-            !alreadyTargetedEmails.has(l.email.toLowerCase().trim()) &&
-            !freshLeads.includes(l)
+        const remainingNeeded = countNeeded - eligibleAudienceLeads.length;
+        // Completa o restante da meta com outros leads da base geral que respeitem o mesmo cooldown
+        const eligibleGeneralLeads = leads.filter(
+          (l) => isLeadEligible(l) && !eligibleAudienceLeads.includes(l)
         );
-        selected = [...freshLeads, ...freshGeneralLeads.slice(0, remainingNeeded)];
+        selected = [...eligibleAudienceLeads, ...eligibleGeneralLeads.slice(0, remainingNeeded)];
       }
+
+      console.log(`[LaunchCampaign] Campanha "${targetCampaign.title}" | Regra anti-spam: ${cooldownRule} | Elegíveis no segmento: ${eligibleAudienceLeads.length} | Selecionados: ${selected.length}/${countNeeded}`);
 
       activeQueue = selected.map((lead) => ({
         id: `queue_${Date.now()}_${lead.id}`,

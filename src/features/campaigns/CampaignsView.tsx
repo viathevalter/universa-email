@@ -30,6 +30,7 @@ import {
   TrendingUp,
   Layers,
   Zap,
+  ShieldCheck,
 } from 'lucide-react';
 import { useApp, VERIFIED_SENDERS, VALIDATION_TEST_EMAILS_DATA } from '../../shared/context/AppContext';
 import { sendEmailViaResend, interpolateEmailVariables } from '../../shared/services/resendService';
@@ -358,6 +359,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
     target_audience_id: '',
     rate_limit_per_second: 2,
     launch_now: true,
+    cooldown_days: 'never',
   });
 
   // Selected leads for campaign
@@ -398,6 +400,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
     scheduled_at: '',
     total_recipients: 500,
     target_audience_id: '',
+    cooldown_days: 'never',
     status: 'scheduled' as 'draft' | 'scheduled' | 'paused' | 'completed',
   });
 
@@ -1081,56 +1084,86 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
     });
   };
 
-  // Filter leads based on selected audience for Campaign Wizard
+  // Filter leads based on selected audience and cooldown rule for Campaign Wizard
+  const getAudienceLeadsWithCooldown = (audienceId: string, cooldown: string) => {
+    let audLeads: Lead[] = [];
+    if (!audienceId || audienceId === 'all') {
+      audLeads = leads.filter((l) => !l.opted_out && l.mx_valid);
+    } else {
+      const aud = audiences.find((a) => a.id === audienceId);
+      if (aud?.lead_ids && aud.lead_ids.length > 0) {
+        const idSet = new Set(aud.lead_ids);
+        audLeads = leads.filter((l) => idSet.has(l.id) && !l.opted_out);
+      } else if (aud) {
+        audLeads = leads.filter((lead) => {
+          if (lead.opted_out) return false;
+          const f = (aud.filters || {}) as any;
+
+          if (f.status) {
+            const statuses = Array.isArray(f.status) ? f.status : [f.status];
+            if (statuses.length > 0 && !statuses.includes(lead.status)) return false;
+          }
+          if (f.city) {
+            const cities = Array.isArray(f.city) ? f.city : [f.city];
+            if (cities.length > 0 && !cities.includes(lead.city as any)) return false;
+          }
+          if (f.country) {
+            const countries = Array.isArray(f.country) ? f.country : [f.country];
+            if (countries.length > 0 && !countries.some((c: any) => (lead.country || '').toLowerCase() === String(c).toLowerCase())) return false;
+          }
+          if (f.province) {
+            const provinces = Array.isArray(f.province) ? f.province : [f.province];
+            if (provinces.length > 0 && !provinces.includes(lead.province as any)) return false;
+          }
+          if (f.tags || f.tag) {
+            const rawTags = f.tags || f.tag;
+            const tags = Array.isArray(rawTags) ? rawTags : [rawTags];
+            if (tags.length > 0) {
+              const hasTag = (lead.tags || []).some((t) => tags.includes(t));
+              if (!hasTag) return false;
+            }
+          }
+          return true;
+        });
+      }
+    }
+
+    const totalCount = audLeads.length;
+    const nowMs = Date.now();
+
+    const isEligible = (l: Lead) => {
+      if (cooldown === 'all') return true;
+      if (l.status !== 'contacted') return true;
+      if (cooldown === 'never') return false;
+      const days = parseInt(cooldown, 10);
+      if (isNaN(days) || days <= 0) return true;
+      if (!l.updated_at) return true;
+      const leadTime = new Date(l.updated_at).getTime();
+      if (isNaN(leadTime)) return true;
+      const diffDays = (nowMs - leadTime) / (1000 * 60 * 60 * 24);
+      return diffDays >= days;
+    };
+
+    const eligibleLeads = audLeads.filter(isEligible);
+    const blockedCount = totalCount - eligibleLeads.length;
+
+    return {
+      totalCount,
+      blockedCount,
+      eligibleIds: eligibleLeads.map((l) => l.id),
+    };
+  };
+
   const handleAudienceChange = (audienceId: string) => {
     setFormData((prev) => ({ ...prev, target_audience_id: audienceId }));
-    if (!audienceId || audienceId === 'all') {
-      setSelectedLeadIds(leads.filter((l) => !l.opted_out && l.mx_valid).map((l) => l.id));
-      return;
-    }
+    const result = getAudienceLeadsWithCooldown(audienceId, formData.cooldown_days || 'never');
+    setSelectedLeadIds(result.eligibleIds);
+  };
 
-    const aud = audiences.find((a) => a.id === audienceId);
-    if (!aud) return;
-
-    // Direct lead_ids array if present
-    if (aud.lead_ids && aud.lead_ids.length > 0) {
-      setSelectedLeadIds(aud.lead_ids);
-      return;
-    }
-
-    // Fallback to dynamic filters
-    const filtered = leads.filter((lead) => {
-      if (lead.opted_out) return false;
-      const f = (aud.filters || {}) as any;
-
-      if (f.status) {
-        const statuses = Array.isArray(f.status) ? f.status : [f.status];
-        if (statuses.length > 0 && !statuses.includes(lead.status)) return false;
-      }
-      if (f.city) {
-        const cities = Array.isArray(f.city) ? f.city : [f.city];
-        if (cities.length > 0 && !cities.includes(lead.city as any)) return false;
-      }
-      if (f.country) {
-        const countries = Array.isArray(f.country) ? f.country : [f.country];
-        if (countries.length > 0 && !countries.some((c: any) => (lead.country || '').toLowerCase() === String(c).toLowerCase())) return false;
-      }
-      if (f.province) {
-        const provinces = Array.isArray(f.province) ? f.province : [f.province];
-        if (provinces.length > 0 && !provinces.includes(lead.province as any)) return false;
-      }
-      if (f.tags || f.tag) {
-        const rawTags = f.tags || f.tag;
-        const tags = Array.isArray(rawTags) ? rawTags : [rawTags];
-        if (tags.length > 0) {
-          const hasTag = (lead.tags || []).some((t) => tags.includes(t));
-          if (!hasTag) return false;
-        }
-      }
-      return true;
-    });
-
-    setSelectedLeadIds(filtered.map((l) => l.id));
+  const handleCooldownChange = (cooldown: string) => {
+    setFormData((prev) => ({ ...prev, cooldown_days: cooldown }));
+    const result = getAudienceLeadsWithCooldown(formData.target_audience_id, cooldown);
+    setSelectedLeadIds(result.eligibleIds);
   };
 
   const handleOpenWizard = (targetAudienceId?: string) => {
@@ -1138,11 +1171,9 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
     setWizardStep(1);
 
     const initialAudId = targetAudienceId || '';
-    if (initialAudId) {
-      handleAudienceChange(initialAudId);
-    } else {
-      setSelectedLeadIds(leads.filter((l) => !l.opted_out && l.mx_valid).map((l) => l.id));
-    }
+    const initialCooldown = 'never';
+    const result = getAudienceLeadsWithCooldown(initialAudId, initialCooldown);
+    setSelectedLeadIds(result.eligibleIds);
 
     const defaultTmpl = templates[0];
     setFormData({
@@ -1155,6 +1186,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
       target_audience_id: initialAudId,
       rate_limit_per_second: 2,
       launch_now: true,
+      cooldown_days: initialCooldown,
     });
   };
 
@@ -1177,6 +1209,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
           rate_limit_per_second: formData.rate_limit_per_second,
           status: 'draft',
           total_recipients: selectedLeadIds.length,
+          cooldown_days: formData.cooldown_days || 'never',
         },
         selectedLeadIds
       );
@@ -1259,6 +1292,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
       scheduled_at: formattedDate,
       total_recipients: camp.total_recipients || 500,
       target_audience_id: camp.target_audience_id || '',
+      cooldown_days: camp.cooldown_days || 'never',
       status: (camp.status as any) || 'scheduled',
     });
     setIsEditCampaignModalOpen(true);
@@ -1284,6 +1318,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
         scheduled_at: isoDate || editingCampaign.scheduled_at,
         total_recipients: Number(editCampaignFormData.total_recipients) || editingCampaign.total_recipients,
         target_audience_id: editCampaignFormData.target_audience_id || undefined,
+        cooldown_days: editCampaignFormData.cooldown_days || 'never',
         status: editCampaignFormData.status,
       });
 
@@ -1955,6 +1990,26 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                           </span>
                           <span className="font-semibold text-slate-300 truncate max-w-[190px]">
                             {aud?.name || 'Mailing Empregos / Validados'}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-slate-400 flex items-center gap-1 shrink-0 font-medium">
+                            <ShieldCheck className="h-3 w-3 text-emerald-400" />
+                            <span>Anti-Spam:</span>
+                          </span>
+                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                            camp.cooldown_days === 'all'
+                              ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                              : camp.cooldown_days && camp.cooldown_days !== 'never'
+                              ? 'bg-sky-500/10 text-sky-400 border border-sky-500/20'
+                              : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                          }`}>
+                            {camp.cooldown_days === 'all'
+                              ? '⚠️ Reenvio Livre'
+                              : camp.cooldown_days && camp.cooldown_days !== 'never'
+                              ? `⏱️ Trava ${camp.cooldown_days}d`
+                              : '🛡️ Apenas Inéditos'}
                           </span>
                         </div>
 
@@ -3132,42 +3187,100 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
               </div>
             )}
 
-            {/* Step 3: Público-Alvo */}
-            {wizardStep === 3 && (
-              <div className="space-y-4 text-xs">
-                <div>
-                  <label className={`block mb-1 font-semibold ${isLight ? 'text-slate-700' : 'text-slate-400'}`}>Segmento ou Público Salvo</label>
-                  <select
-                    value={formData.target_audience_id}
-                    onChange={(e) => handleAudienceChange(e.target.value)}
-                    className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
-                      isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
-                    }`}
-                  >
-                    <option value="all">🌍 Toda a Base Ativa (Apenas MX Válidos)</option>
-                    {audiences.map((aud) => (
-                      <option key={aud.id} value={aud.id}>
-                        🎯 {aud.name} ({aud.lead_count ? aud.lead_count.toLocaleString() : (aud.lead_ids?.length || 0).toLocaleString()} leads)
-                      </option>
-                    ))}
-                  </select>
-                </div>
+            {/* Step 3: Público-Alvo & Trava Anti-Spam */}
+            {wizardStep === 3 && (() => {
+              const metrics = getAudienceLeadsWithCooldown(
+                formData.target_audience_id,
+                formData.cooldown_days || 'never'
+              );
 
-                <div className={`p-4 rounded-xl border ${isLight ? 'border-yellow-300 bg-yellow-50 text-yellow-900' : 'border-yellow-500/20 bg-yellow-500/5 text-yellow-400'} flex items-center justify-between`}>
-                  <div className="flex items-center gap-3">
-                    <Sparkles className="h-5 w-5 text-yellow-500" />
-                    <div>
-                      <div className={`font-bold text-xs ${isLight ? 'text-yellow-800' : 'text-yellow-400'}`}>
-                        {selectedLeadIds.length.toLocaleString()} Leads Selecionados
+              return (
+                <div className="space-y-4 text-xs">
+                  <div>
+                    <label className={`block mb-1 font-semibold ${isLight ? 'text-slate-700' : 'text-slate-400'}`}>Segmento ou Público Salvo</label>
+                    <select
+                      value={formData.target_audience_id}
+                      onChange={(e) => handleAudienceChange(e.target.value)}
+                      className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
+                        isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
+                      }`}
+                    >
+                      <option value="all">🌍 Toda a Base Ativa (Apenas MX Válidos)</option>
+                      {audiences.map((aud) => (
+                        <option key={aud.id} value={aud.id}>
+                          🎯 {aud.name} ({aud.lead_count ? aud.lead_count.toLocaleString() : (aud.lead_ids?.length || 0).toLocaleString()} leads)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Seletor da Regra de Cooldown Anti-Spam */}
+                  <div className={`p-4 rounded-xl border space-y-3 ${
+                    isLight ? 'border-indigo-200 bg-indigo-50/60' : 'border-indigo-500/20 bg-indigo-500/5'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <label className={`font-bold flex items-center gap-1.5 ${isLight ? 'text-indigo-900' : 'text-indigo-300'}`}>
+                        <ShieldCheck className="h-4 w-4 text-indigo-500" />
+                        <span>🛡️ Trava de Segurança Anti-Spam (Frequência de Reenvio)</span>
+                      </label>
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                        formData.cooldown_days === 'all'
+                          ? 'bg-amber-500/20 text-amber-500'
+                          : 'bg-emerald-500/20 text-emerald-500'
+                      }`}>
+                        {formData.cooldown_days === 'never' || !formData.cooldown_days ? 'Proteção Máxima' : formData.cooldown_days === 'all' ? 'Livre' : `Intervalo ${formData.cooldown_days}d`}
+                      </span>
+                    </div>
+
+                    <select
+                      value={formData.cooldown_days || 'never'}
+                      onChange={(e) => handleCooldownChange(e.target.value)}
+                      className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none font-medium ${
+                        isLight ? 'border-indigo-200 bg-white text-slate-900' : 'border-indigo-500/30 bg-zinc-950 text-white'
+                      }`}
+                    >
+                      <option value="never">🛡️ Apenas Leads Inéditos (Recomendado — Zero repetição para contatados)</option>
+                      <option value="7">⏱️ Trava de 7 Dias (Não enviar para quem recebeu nos últimos 7 dias)</option>
+                      <option value="14">⏱️ Trava de 14 Dias (Não enviar para quem recebeu nos últimos 14 dias)</option>
+                      <option value="30">⏱️ Trava de 30 Dias (Não enviar para quem recebeu no último mês)</option>
+                      <option value="all">⚠️ Reenvio Livre (Sem trava de frequência — envia para qualquer contato)</option>
+                    </select>
+
+                    <p className={`text-[11px] leading-relaxed ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                      {formData.cooldown_days === 'all'
+                        ? 'Atenção: Os leads contatados recentemente poderão receber este e-mail novamente.'
+                        : formData.cooldown_days === 'never' || !formData.cooldown_days
+                        ? 'Garantia total: Apenas contatos inéditos que nunca receberam campanhas receberão o disparo.'
+                        : `Leads contatados há menos de ${formData.cooldown_days} dias serão automaticamente poupados da campanha.`}
+                    </p>
+
+                    {/* Resumo dinâmico de elegibilidade */}
+                    <div className="grid grid-cols-3 gap-2 pt-1">
+                      <div className={`p-2.5 rounded-lg text-center ${isLight ? 'bg-white border border-indigo-100' : 'bg-zinc-900/80 border border-zinc-800'}`}>
+                        <div className="text-[10px] text-slate-400 font-medium">Total no Segmento</div>
+                        <div className={`text-xs font-bold mt-0.5 ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
+                          {metrics.totalCount.toLocaleString()}
+                        </div>
                       </div>
-                      <div className={`text-[11px] ${isLight ? 'text-yellow-700/80' : 'text-slate-400'}`}>
-                        Prontos para receber o e-mail via motor Resend
+
+                      <div className={`p-2.5 rounded-lg text-center ${isLight ? 'bg-amber-50 border border-amber-200' : 'bg-amber-500/10 border border-amber-500/20'}`}>
+                        <div className="text-[10px] text-amber-500 font-medium">Poupados pela Trava</div>
+                        <div className="text-xs font-bold text-amber-500 mt-0.5">
+                          {metrics.blockedCount.toLocaleString()}
+                        </div>
+                      </div>
+
+                      <div className={`p-2.5 rounded-lg text-center ${isLight ? 'bg-emerald-50 border border-emerald-200' : 'bg-emerald-500/10 border border-emerald-500/20'}`}>
+                        <div className="text-[10px] text-emerald-500 font-medium">Prontos para Envio</div>
+                        <div className="text-xs font-bold text-emerald-500 mt-0.5">
+                          {metrics.eligibleIds.length.toLocaleString()}
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Step 4: Revisão & Agendamento */}
             {wizardStep === 4 && (
@@ -3185,6 +3298,16 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                     <span className={isLight ? 'text-slate-600' : 'text-slate-400'}>Remetente:</span>
                     <span className={isLight ? 'text-slate-800' : 'text-slate-200'}>
                       {formData.sender_name} &lt;{formData.sender_email}&gt;
+                    </span>
+                  </div>
+                  <div className={`flex justify-between border-b pb-2 ${isLight ? 'border-slate-200' : 'border-slate-800'}`}>
+                    <span className={isLight ? 'text-slate-600' : 'text-slate-400'}>Trava Anti-Spam:</span>
+                    <span className="font-semibold text-indigo-400">
+                      {formData.cooldown_days === 'all'
+                        ? '⚠️ Reenvio Livre'
+                        : formData.cooldown_days && formData.cooldown_days !== 'never'
+                        ? `⏱️ Cooldown de ${formData.cooldown_days} dias`
+                        : '🛡️ Apenas Leads Inéditos'}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -3724,6 +3847,33 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                     <option value="completed">✅ Concluída</option>
                   </select>
                 </div>
+              </div>
+
+              {/* Trava Anti-Spam / Frequência de Reenvio */}
+              <div className="space-y-1">
+                <label className={`block font-semibold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
+                  🛡️ Trava Anti-Spam / Frequência de Reenvio
+                </label>
+                <select
+                  value={editCampaignFormData.cooldown_days || 'never'}
+                  onChange={(e) => setEditCampaignFormData({ ...editCampaignFormData, cooldown_days: e.target.value })}
+                  className={`w-full rounded-xl border px-3 py-2 text-xs focus:outline-none transition-colors font-medium ${
+                    isLight ? 'border-slate-300 bg-white text-slate-900' : 'border-zinc-800 bg-zinc-950 text-white'
+                  }`}
+                >
+                  <option value="never">🛡️ Apenas Leads Inéditos (Recomendado — Zero repetição)</option>
+                  <option value="7">⏱️ Trava de 7 Dias (Não reenviar para quem recebeu nos últimos 7 dias)</option>
+                  <option value="14">⏱️ Trava de 14 Dias (Não reenviar para quem recebeu nos últimos 14 dias)</option>
+                  <option value="30">⏱️ Trava de 30 Dias (Não reenviar para quem recebeu no último mês)</option>
+                  <option value="all">⚠️ Reenvio Livre (Sem trava de frequência — envia para toda a lista)</option>
+                </select>
+                <p className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                  {editCampaignFormData.cooldown_days === 'all'
+                    ? '⚠️ Atenção: Todos os destinatários da base/público poderão receber esta mensagem, mesmo que contatados recentemente.'
+                    : editCampaignFormData.cooldown_days === 'never' || !editCampaignFormData.cooldown_days
+                    ? '🛡️ Apenas leads que nunca receberam nenhum e-mail da nossa base serão selecionados.'
+                    : `⏱️ Leads contatados nos últimos ${editCampaignFormData.cooldown_days} dias serão automaticamente poupados.`}
+                </p>
               </div>
 
               {/* Botões do Rodapé */}
