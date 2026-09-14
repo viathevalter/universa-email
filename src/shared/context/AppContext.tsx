@@ -2132,8 +2132,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         selected = freshLeads.slice(0, countNeeded);
       } else {
         const remainingNeeded = countNeeded - freshLeads.length;
-        const fallbackLeads = audienceLeads.filter((l) => !freshLeads.includes(l));
-        selected = [...freshLeads, ...fallbackLeads.slice(0, remainingNeeded)];
+        // Completa o restante da meta com outros leads NOVOS do banco que nunca foram contatados
+        const freshGeneralLeads = leads.filter(
+          (l) =>
+            !l.opted_out &&
+            l.status !== 'contacted' &&
+            !alreadyTargetedEmails.has(l.email.toLowerCase().trim()) &&
+            !freshLeads.includes(l)
+        );
+        selected = [...freshLeads, ...freshGeneralLeads.slice(0, remainingNeeded)];
       }
 
       activeQueue = selected.map((lead) => ({

@@ -1829,8 +1829,8 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
               {displayedCampaigns.map((camp) => {
                 const total = camp.total_recipients || 1;
                 const isComplete = camp.status === 'completed' || (camp.sent_count || 0) >= total;
-                const sent = isComplete ? total : Math.min(total, camp.sent_count || 0);
-                const pct = isComplete ? 100 : Math.min(99, Math.round((sent / total) * 100));
+                const sent = (camp.sent_count && camp.sent_count > 0) ? camp.sent_count : (isComplete ? total : 0);
+                const pct = total > 0 ? Math.min(100, Math.round((sent / total) * 100)) : 0;
 
                 let statusBadge = {
                   label: 'Rascunho',
@@ -2029,7 +2029,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                         <div className="w-full flex items-center gap-2">
                           <span className="flex-1 text-center text-xs font-bold text-emerald-500 py-2 flex items-center justify-center gap-1.5 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
                             <CheckCircle className="h-4 w-4" />
-                            <span>Finalizada ({total.toLocaleString()} envios)</span>
+                            <span>Finalizada ({sent.toLocaleString()} envios)</span>
                           </span>
                           <button
                             onClick={() => handlePreviewCampaignTemplate(camp)}
