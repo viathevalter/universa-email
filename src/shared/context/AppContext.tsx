@@ -2522,16 +2522,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       const currentList = campaignsRef.current;
 
-      // 1. Prioridade Máxima: se houver campanha que estava em 'sending' ou 'paused' de hoje incompleta,
-      // retoma os disparos automaticamente a partir de onde parou (ex: do envio 37 em diante)!
-      const interruptedCampaign = currentList.find(
-        (c) =>
-          (c.status === 'sending' || c.status === 'paused') &&
-          (c.title.includes('HOJE') || c.title.includes('Ter') || c.id.includes('_ter_')) &&
-          (c.sent_count || 0) < c.total_recipients
-      );
+      const now = new Date();
+
+      // 1. Retoma apenas se houver campanha em 'sending' de HOJE que foi interrompida
+      const interruptedCampaign = currentList.find((c) => {
+        if (c.status !== 'sending' || (c.sent_count || 0) >= c.total_recipients) return false;
+        if (!c.scheduled_at) return false;
+        const schedDate = new Date(c.scheduled_at);
+        return (
+          !isNaN(schedDate.getTime()) &&
+          schedDate.getFullYear() === now.getFullYear() &&
+          schedDate.getMonth() === now.getMonth() &&
+          schedDate.getDate() === now.getDate()
+        );
+      });
+
       if (interruptedCampaign) {
-        console.log(`[AutoScheduler] 🔄 Retomando envios da campanha interrompida/pausada: ${interruptedCampaign.title} (${interruptedCampaign.id})`);
+        console.log(`[AutoScheduler] 🔄 Retomando envios da campanha interrompida: ${interruptedCampaign.title} (${interruptedCampaign.id})`);
         isExecutingSchedulerRef.current = true;
         try {
           await launchCampaign(interruptedCampaign.id);
@@ -2543,34 +2550,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return;
       }
 
-      const now = new Date();
-
-      // Procura a próxima campanha agendada na sequência cujo horário já chegou
+      // 2. Procura a próxima campanha agendada cujo dia seja RIGOROSAMENTE HOJE e a hora já tenha chegado
       const dueCampaign = currentList.find((c) => {
-        if (c.status !== 'scheduled') return false;
+        if (c.status !== 'scheduled' || !c.scheduled_at) return false;
 
-        // 1. Checagem por timestamp ISO direto
-        if (c.scheduled_at) {
-          const schedTime = new Date(c.scheduled_at).getTime();
-          if (!isNaN(schedTime) && schedTime <= now.getTime()) {
-            return true;
-          }
-        }
+        const schedDate = new Date(c.scheduled_at);
+        if (isNaN(schedDate.getTime())) return false;
 
-        // 2. Fallback para campanhas de hoje cujo horário já passou
-        if (c.title.includes('HOJE') || c.title.includes('Ter') || c.id.includes('_ter_')) {
-          const match = c.title.match(/(\d{1,2}):(\d{2})/);
-          if (match) {
-            const [, h, m] = match;
-            const targetToday = new Date();
-            targetToday.setHours(Number(h), Number(m), 0, 0);
-            if (now.getTime() >= targetToday.getTime()) {
-              return true;
-            }
-          }
-        }
+        // A data agendada DEVE ser o mesmo dia, mês e ano de hoje
+        const isScheduledForToday =
+          schedDate.getFullYear() === now.getFullYear() &&
+          schedDate.getMonth() === now.getMonth() &&
+          schedDate.getDate() === now.getDate();
 
-        return false;
+        return isScheduledForToday && now.getTime() >= schedDate.getTime();
       });
 
       if (dueCampaign) {
