@@ -92,6 +92,7 @@ export const TemplatesView: React.FC = () => {
 
   const categories = [
     { id: 'all', label: 'Todos os Templates' },
+    { id: 'servicio_completo', label: '⭐ Servicio Completo (General)' },
     { id: 'futbol_laliga', label: '⚽ LaLiga & Futebol' },
     { id: 'real_madrid', label: '👑 Real Madrid' },
     { id: 'barcelona', label: '🔵🔴 FC Barcelona' },
@@ -106,6 +107,7 @@ export const TemplatesView: React.FC = () => {
     const matchesCategory =
       selectedCategory === 'all' ||
       t.category === selectedCategory ||
+      (selectedCategory === 'servicio_completo' && (t.title.includes('Servicio Completo') || t.title.includes('Acceso Total'))) ||
       (selectedCategory === 'futbol_laliga' && (t.title.includes('LaLiga') || t.title.includes('Fútbol'))) ||
       (selectedCategory === 'real_madrid' && t.title.includes('Real Madrid')) ||
       (selectedCategory === 'barcelona' && (t.title.includes('Barça') || t.title.includes('Barcelona'))) ||
