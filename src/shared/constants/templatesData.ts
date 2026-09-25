@@ -231,7 +231,7 @@ export function buildUniversaEmailHtml({
 export const OFFICIAL_UNIVERSA_TEMPLATES: MarketingTemplate[] = [
   // 0.1 Template Geral 1: Solução All-in-One Completa (Institucional & Economia)
   {
-    id: 'tmpl_servicio_completo_allinone',
+    id: '00000000-0000-0000-0001-000000000091',
     tenant_id: '00000000-0000-0000-0000-000000000001',
     title: '⭐ [Servicio Completo] TV en español, canales latinos, deportes y cine en un solo acceso',
     subject: '📺 TV en español, canales latinos y deportes en un solo acceso (Prueba 24h sin compromiso)',
@@ -270,7 +270,7 @@ export const OFFICIAL_UNIVERSA_TEMPLATES: MarketingTemplate[] = [
 
   // 0.2 Template Geral 2: Alta Performance, Esportes Sem Cortes e Lançamentos Diários (Estabilidade)
   {
-    id: 'tmpl_servicio_completo_deportes_estrenos',
+    id: '00000000-0000-0000-0001-000000000092',
     tenant_id: '00000000-0000-0000-0000-000000000001',
     title: '🚀 [Servicio Completo] Deportes en directo, estrenos diarios y máxima estabilidad 4K sin cortes',
     subject: '⚽ Deportes en directo, +10.000 series y estrenos siempre disponibles en 4K (Acceso de prueba)',
@@ -309,7 +309,7 @@ export const OFFICIAL_UNIVERSA_TEMPLATES: MarketingTemplate[] = [
 
   // 0.3 Template Geral 3: Especial Residentes na Europa & Família (Afetivo & Comunidade Hispana)
   {
-    id: 'tmpl_servicio_completo_europa_latinos',
+    id: '00000000-0000-0000-0001-000000000093',
     tenant_id: '00000000-0000-0000-0000-000000000001',
     title: '🌎 [Servicio Completo] Ideal para quienes viven en Europa: TV en español y canales latinos',
     subject: '🌎 La mejor televisión en español y canales de tu país en Europa (Tu prueba gratuita 24h)',
@@ -334,7 +334,7 @@ export const OFFICIAL_UNIVERSA_TEMPLATES: MarketingTemplate[] = [
       ],
       ctaText: 'Solicitar Prueba Gratuita de Canales y Cine por WhatsApp',
       whatsappMessage: 'Hola Carlos! Vivo en Europa y me gustaría activar la prueba gratuita de 24 horas de UniversaTV con canales latinos y deportes. [Ref: General-EuropaLatam]',
-      secondaryNote: 'Prueba 100% gratuita y sin permanencia. Le enviamos sus datos de acceso inmediatamente por WhatsApp.',
+      secondaryNote: 'Prueba 100% gratuita y sin permanencia. Le enviamos sus datos de acesso inmediatamente por WhatsApp.',
       senderName: 'Carlos Ventas',
       senderRole: 'Coordinador de Atención a la Comunidad',
       senderRegion: 'UniversaTV Entertainment España',
@@ -348,7 +348,7 @@ export const OFFICIAL_UNIVERSA_TEMPLATES: MarketingTemplate[] = [
 
   // 1. LaLiga & Esportes em Geral (Espanha)
   {
-    id: 'tmpl_laliga_futbol_es',
+    id: '00000000-0000-0000-0001-000000000001',
     tenant_id: '00000000-0000-0000-0000-000000000001',
     title: '⚽ [LaLiga & Champions] Fútbol en 4K sin pagar 120€/mes',
     subject: '⚽ ¿Ver todo el fútbol y Champions en 4K sin pagar 120€/mes? (Prueba 24h gratis)',
@@ -385,7 +385,7 @@ export const OFFICIAL_UNIVERSA_TEMPLATES: MarketingTemplate[] = [
 
   // 2. Real Madrid CF (Comunidade Madridista)
   {
-    id: 'tmpl_real_madrid_es',
+    id: '00000000-0000-0000-0001-000000000002',
     tenant_id: '00000000-0000-0000-0000-000000000001',
     title: '👑 [Real Madrid] Todos los partidos del Madrid en directo',
     subject: '⚪ ¿Dónde ver al Real Madrid en directo y en 4K sin cortes? Prueba 24 Horas Gratis',
@@ -422,7 +422,7 @@ export const OFFICIAL_UNIVERSA_TEMPLATES: MarketingTemplate[] = [
 
   // 3. FC Barcelona (Comunidade Culé)
   {
-    id: 'tmpl_fc_barcelona_es',
+    id: '00000000-0000-0000-0001-000000000003',
     tenant_id: '00000000-0000-0000-0000-000000000001',
     title: '🔵🔴 [FC Barcelona] Vive cada partido del Barça en 4K',
     subject: '🔵🔴 Vive cada partido del Barça en máxima calidad 4K (Test 24 Horas Gratis)',
@@ -458,7 +458,7 @@ export const OFFICIAL_UNIVERSA_TEMPLATES: MarketingTemplate[] = [
 
   // 4. Fórmula 1 & MotoGP (Motores)
   {
-    id: 'tmpl_formula1_motogp_es',
+    id: '00000000-0000-0000-0001-000000000004',
     tenant_id: '00000000-0000-0000-0000-000000000001',
     title: '🏎️ [Fórmula 1 & MotoGP] Toda la velocidad a 60 FPS sin cortes',
     subject: '🏎️ Toda la temporada de Fórmula 1 y MotoGP en directo (Prueba 24 Horas Gratis)',
@@ -495,7 +495,7 @@ export const OFFICIAL_UNIVERSA_TEMPLATES: MarketingTemplate[] = [
 
   // 5. Filmes e Séries (Cinefilos & Família)
   {
-    id: 'tmpl_cine_series_es',
+    id: '00000000-0000-0000-0001-000000000005',
     tenant_id: '00000000-0000-0000-0000-000000000001',
     title: '🎬 [Cine & Series] Estrenos de cine y +10.000 títulos en 4K',
     subject: '🎬 Todos los estrenos de cine y series en una sola app (Tu prueba de 24h gratis)',
@@ -532,7 +532,7 @@ export const OFFICIAL_UNIVERSA_TEMPLATES: MarketingTemplate[] = [
 
   // 6. Canais Latinos na Espanha / Europa (Comunidade Latina)
   {
-    id: 'tmpl_canales_latinos_eu',
+    id: '00000000-0000-0000-0001-000000000006',
     tenant_id: '00000000-0000-0000-0000-000000000001',
     title: '🌎 [Canales Latinos en Europa] La televisión de tu país en directo',
     subject: '🌎 Los canales de tu país en directo desde España (Pide tu prueba gratis 24h)',
@@ -569,7 +569,7 @@ export const OFFICIAL_UNIVERSA_TEMPLATES: MarketingTemplate[] = [
 
   // 7. Multidispositivo & Estabilidade Premium (Família / Geral)
   {
-    id: 'tmpl_multidispositivo_premium_es',
+    id: '00000000-0000-0000-0001-000000000007',
     tenant_id: '00000000-0000-0000-0000-000000000001',
     title: '📺 [Multidispositivo] Smart TV, TV Box, Fire Stick, Móvil y PC',
     subject: '📺 +5.000 Canales y Cine para toda tu familia en tu Smart TV (Prueba 24h gratis)',
@@ -606,7 +606,7 @@ export const OFFICIAL_UNIVERSA_TEMPLATES: MarketingTemplate[] = [
 
   // 8. Brasil & Brasileirão (Remetente Jackson Vendas)
   {
-    id: 'tmpl_brasil_tv_24h_br',
+    id: '00000000-0000-0000-0001-000000000008',
     tenant_id: '00000000-0000-0000-0000-000000000001',
     title: '⚽ [BR] Brasileirão, Premiere & +8.000 Canais - Teste 24h Grátis',
     subject: '⚽ Brasileirão, Premiere e Filmes 4K sem travar (Seu Teste 24 Horas Grátis)',
@@ -646,7 +646,7 @@ export const OFFICIAL_UNIVERSA_TEMPLATES: MarketingTemplate[] = [
 
   // 9. América Latina Especial (Mailing Empregos & Expatriados)
   {
-    id: 'tmpl_latam_tv_total',
+    id: '00000000-0000-0000-0001-000000000009',
     tenant_id: '00000000-0000-0000-0000-000000000001',
     title: '🌎 [América Latina] Televisión en vivo de tu país sin cortes (Prueba 24h)',
     subject: '🌎 Todos los canales de tu país en vivo y en HD: Colombia, Perú, México, Argentina y más (Prueba 24h)',
@@ -685,7 +685,7 @@ export const OFFICIAL_UNIVERSA_TEMPLATES: MarketingTemplate[] = [
 
   // 10. Portugal & Liga Portugal (Trabalhadores & Residentes)
   {
-    id: 'tmpl_portugal_tv_desporto',
+    id: '00000000-0000-0000-0001-000000000010',
     tenant_id: '00000000-0000-0000-0000-000000000001',
     title: '🇵🇹 [Portugal] Toda a Liga Portugal, Sport TV e canais nacionais em 4K',
     subject: '📺 Todos os canais de Portugal, Sport TV e desporto em 4K sem pagar 80€/mês (Teste 24h Grátis)',

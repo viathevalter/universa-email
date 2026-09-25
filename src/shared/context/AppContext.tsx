@@ -1205,9 +1205,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         .range(0, 49999);
 
       if (!campErr && dbCampaigns && dbCampaigns.length > 0) {
-        setCampaigns(dbCampaigns);
-        campaignsRef.current = dbCampaigns;
-        safeStorageSet(STORAGE_KEYS.CAMPAIGNS, dbCampaigns);
+        setCampaigns((prev) => {
+          const dbIds = new Set(dbCampaigns.map((c: any) => c.id));
+          const localOnly = prev.filter((c) => !dbIds.has(c.id));
+          const fullList = [...localOnly, ...dbCampaigns];
+          campaignsRef.current = fullList;
+          safeStorageSet(STORAGE_KEYS.CAMPAIGNS, fullList);
+          return fullList;
+        });
       }
 
       const { data: dbResults, error: resErr } = await supabase
@@ -2088,15 +2093,47 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     campaignData: Omit<MarketingCampaign, 'id' | 'tenant_id' | 'created_at' | 'updated_at' | 'sent_count' | 'delivered_count' | 'opened_count' | 'clicked_count' | 'bounced_count' | 'failed_count'>,
     targetLeadIds: string[]
   ): Promise<MarketingCampaign> => {
-    const campaignId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `camp_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    const generateUUID = () => {
+      if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID();
+      }
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0;
+        const v = c === 'x' ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+      });
+    };
+
+    const campaignId = generateUUID();
     const now = new Date().toISOString();
 
     const targetLeads = leads.filter((l) => targetLeadIds.includes(l.id) && !l.opted_out);
+
+    // Mapeamento seguro de template_id para garantir UUID válido no PostgreSQL
+    let safeTemplateId: string = campaignData.template_id;
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(safeTemplateId);
+    if (!isUUID) {
+      const foundTmpl = templates.find((t) => t.id === safeTemplateId || t.title === safeTemplateId);
+      if (foundTmpl && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(foundTmpl.id)) {
+        safeTemplateId = foundTmpl.id;
+      } else {
+        safeTemplateId = '00000000-0000-0000-0001-000000000091'; // Fallback oficial
+      }
+    }
+
+    // Mapeamento seguro de target_audience_id para garantir UUID válido ou null
+    let safeAudienceId: string | undefined = undefined;
+    if (campaignData.target_audience_id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(campaignData.target_audience_id)) {
+      safeAudienceId = campaignData.target_audience_id;
+    }
 
     const newCampaign: MarketingCampaign = {
       ...campaignData,
       id: campaignId,
       tenant_id: tenant.id,
+      template_id: safeTemplateId,
+      target_audience_id: safeAudienceId,
+      scheduled_at: campaignData.scheduled_at || now,
       total_recipients: targetLeads.length,
       sent_count: 0,
       delivered_count: 0,
@@ -2120,14 +2157,46 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       created_at: now,
     }));
 
-    setCampaigns((prev) => [newCampaign, ...prev]);
-    campaignsRef.current = [newCampaign, ...campaignsRef.current];
+    setCampaigns((prev) => {
+      const updated = [newCampaign, ...prev.filter((c) => c.id !== campaignId)];
+      safeStorageSet(STORAGE_KEYS.CAMPAIGNS, updated);
+      return updated;
+    });
+    campaignsRef.current = [newCampaign, ...campaignsRef.current.filter((c) => c.id !== campaignId)];
     setCampaignQueue((prev) => ({ ...prev, [campaignId]: queueItems }));
 
     const supabase = getSupabaseClient();
     if (supabase) {
       try {
-        await supabase.from('marketing_campaigns').insert([newCampaign]);
+        const payload: any = {
+          id: newCampaign.id,
+          tenant_id: newCampaign.tenant_id,
+          template_id: newCampaign.template_id,
+          title: newCampaign.title,
+          subject: newCampaign.subject,
+          sender_name: newCampaign.sender_name,
+          sender_email: newCampaign.sender_email,
+          reply_to: newCampaign.reply_to || null,
+          target_audience_id: newCampaign.target_audience_id || null,
+          status: newCampaign.status || 'draft',
+          scheduled_at: newCampaign.scheduled_at || now,
+          total_recipients: newCampaign.total_recipients,
+          sent_count: 0,
+          delivered_count: 0,
+          opened_count: 0,
+          clicked_count: 0,
+          bounced_count: 0,
+          failed_count: 0,
+          rate_limit_per_second: newCampaign.rate_limit_per_second || 2,
+          created_at: newCampaign.created_at,
+          updated_at: newCampaign.updated_at,
+        };
+        const { error } = await supabase.from('marketing_campaigns').insert([payload]);
+        if (error) {
+          console.warn('[Supabase Insert Campaign Error]', error);
+        } else {
+          console.log('[Supabase Insert Campaign Success]', newCampaign.id);
+        }
       } catch (e) {
         console.warn('[Supabase Insert Campaign Warning]', e);
       }

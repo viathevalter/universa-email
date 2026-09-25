@@ -555,7 +555,12 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
   };
 
   const terCampaigns = useMemo(() => campaigns.filter((c) => (c.title.includes('Ter') || c.id.includes('_ter_')) && !c.title.includes('Qua')), [campaigns]);
-  const quaCampaigns = useMemo(() => campaigns.filter((c) => c.title.includes('HOJE') || c.title.includes('Qua') || c.id.includes('_qua_')), [campaigns]);
+  const quaCampaigns = useMemo(() => campaigns.filter((c) => 
+    c.title.includes('HOJE') || 
+    c.title.includes('Qua') || 
+    c.id.includes('_qua_') ||
+    (!c.title.includes('Ter') && !c.title.includes('Qui') && !c.title.includes('Sex') && !c.title.includes('Dom') && !c.title.includes('Seg'))
+  ), [campaigns]);
   const quiCampaigns = useMemo(() => campaigns.filter((c) => c.title.includes('QUINTA') || c.title.includes('Qui') || c.id.includes('_qui_')), [campaigns]);
   const sexCampaigns = useMemo(() => campaigns.filter((c) => c.title.includes('SEXTA') || c.title.includes('Sex') || c.id.includes('_sex_')), [campaigns]);
 
@@ -565,9 +570,9 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
   const sexTotalRecipients = useMemo(() => sexCampaigns.reduce((sum, c) => sum + (c.total_recipients || 0), 0), [sexCampaigns]);
 
   const todayPendingRecipients = useMemo(() => {
-    const todayPending = campaigns.filter((c) => (c.title.includes('HOJE') || c.title.includes('Qua') || c.id.includes('_qua_')) && c.status !== 'completed');
+    const todayPending = quaCampaigns.filter((c) => c.status !== 'completed');
     return todayPending.reduce((sum, c) => sum + (c.total_recipients || 0), 0);
-  }, [campaigns]);
+  }, [quaCampaigns]);
 
   const displayedCampaigns = useMemo(() => {
     let list = campaigns;
@@ -578,9 +583,9 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
     else if (campaignDayFilter === 'sex') list = sexCampaigns;
 
     return [...list].sort((a, b) => {
-      const timeA = a.scheduled_at ? new Date(a.scheduled_at).getTime() : 0;
-      const timeB = b.scheduled_at ? new Date(b.scheduled_at).getTime() : 0;
-      return timeA - timeB;
+      const timeA = a.created_at ? new Date(a.created_at).getTime() : (a.scheduled_at ? new Date(a.scheduled_at).getTime() : 0);
+      const timeB = b.created_at ? new Date(b.created_at).getTime() : (b.scheduled_at ? new Date(b.scheduled_at).getTime() : 0);
+      return timeB - timeA;
     });
   }, [campaigns, campaignDayFilter, terCampaigns, quaCampaigns, quiCampaigns, sexCampaigns]);
 
