@@ -672,115 +672,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const GENERATE_SCHEDULED_CAMPAIGNS = (tenantId = '00000000-0000-0000-0000-000000000001'): MarketingCampaign[] => {
     return [
-      // TERÇA (08/09) - Histórico Concluído (600 envios com 100% de sucesso)
-      {
-        id: '00000000-0000-0001-0001-000000000002',
-        tenant_id: tenantId,
-        template_id: '327a5d0a-7165-4d49-b0d3-f8b527d82698',
-        title: '[Ter 08/09] 🇨🇴 Colombianos & América Latina (600 envios - Concluída)',
-        subject: '🌎 Todos los canales de tu país en vivo y en HD: Colombia, Perú, México, Argentina y más (Prueba 24h)',
-        sender_name: 'Carlos Ventas - Universa TV España',
-        sender_email: 'carlos_ventas@mail.universatv.com',
-        reply_to: 'carlos_ventas@mail.universatv.com',
-        target_audience_id: '04d519aa-23d5-4da3-a0bb-5f2030cfdb09',
-        status: 'completed',
-        scheduled_at: '2026-09-08T13:30:00.000Z',
-        total_recipients: 600,
-        sent_count: 600,
-        delivered_count: 600,
-        opened_count: 84,
-        clicked_count: 12,
-        bounced_count: 0,
-        failed_count: 0,
-        rate_limit_per_second: 2,
-        created_at: '2026-09-08T13:00:00.000Z',
-        updated_at: '2026-09-08T14:30:00.000Z',
-      },
-      // QUARTA (09/09) 12:30 - Concluída
-      {
-        id: '00000000-0000-0002-0001-000000000001',
-        tenant_id: tenantId,
-        template_id: '00000000-0000-0000-0001-000000000007',
-        title: '[Qua 09/09 12:30] 📺 Smart TV & Latino / Espanha (500 envios - Concluída)',
-        subject: '📺 +5.000 Canales y Cine para toda tu familia en tu Smart TV (Prueba 24h gratis)',
-        sender_name: 'Carlos Ventas - Universa TV España',
-        sender_email: 'carlos_ventas@mail.universatv.com',
-        reply_to: 'carlos_ventas@mail.universatv.com',
-        target_audience_id: '54307c0b-f715-478e-85e4-839f6ac45188',
-        status: 'completed',
-        scheduled_at: '2026-09-09T10:30:00.000Z',
-        total_recipients: 500,
-        sent_count: 500,
-        delivered_count: 500,
-        opened_count: 0,
-        clicked_count: 0,
-        bounced_count: 0,
-        failed_count: 0,
-        rate_limit_per_second: 2,
-        created_at: '2026-09-09T08:50:58.000Z',
-        updated_at: '2026-09-09T16:50:37.000Z',
-      },
-      // DOMINGO (13/09)
-      {
-        id: '00000000-0000-0003-0001-000000000001',
-        tenant_id: tenantId,
-        template_id: '00000000-0000-0000-0001-000000000001',
-        title: '[Dom 13/09 12:00] ⚽ LaLiga & Futebol 4K / Smart TV (500 envios)',
-        subject: '⚽ ¿Ver todo el fútbol y Champions en 4K sin pagar 120€/mes? (Prueba 24h gratis)',
-        sender_name: 'Carlos Ventas - Universa TV España',
-        sender_email: 'carlos_ventas@mail.universatv.com',
-        reply_to: 'carlos_ventas@mail.universatv.com',
-        target_audience_id: '8f263c2c-5a89-4dc8-96e1-03cebc6d9026',
-        status: 'scheduled',
-        scheduled_at: '2026-09-13T10:00:00.000Z',
-        total_recipients: 500,
-        sent_count: 0,
-        delivered_count: 0,
-        opened_count: 0,
-        clicked_count: 0,
-        bounced_count: 0,
-        failed_count: 0,
-        rate_limit_per_second: 2,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-      {
-        id: '00000000-0000-0003-0001-000000000002',
-        tenant_id: tenantId,
-        template_id: '00000000-0000-0000-0001-000000000007',
-        title: '[Dom 13/09 16:30] 📺 Smart TV & Cinema em Família (500 envios)',
-        subject: '📺 +5.000 Canales y Cine para toda tu familia en tu Smart TV (Prueba 24h gratis)',
-        sender_name: 'Carlos Ventas - Universa TV España',
-        sender_email: 'carlos_ventas@mail.universatv.com',
-        reply_to: 'carlos_ventas@mail.universatv.com',
-        target_audience_id: '54307c0b-f715-478e-85e4-839f6ac45188',
-        status: 'scheduled',
-        scheduled_at: '2026-09-13T14:30:00.000Z',
-        total_recipients: 500,
-        sent_count: 0,
-        delivered_count: 0,
-        opened_count: 0,
-        clicked_count: 0,
-        bounced_count: 0,
-        failed_count: 0,
-        rate_limit_per_second: 2,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-      // SEGUNDA (14/09)
+      // 1. SEXTA (25/09) 17:30 - Serviço Completo
       {
         id: '00000000-0000-0004-0001-000000000001',
         tenant_id: tenantId,
-        template_id: '00000000-0000-0000-0001-000000000005',
-        title: '[Seg 14/09 10:30] 🎬 Estreias de Cinema & Séries On Demand (500 envios)',
-        subject: '🎬 Todos los estrenos de cine y series en una sola app (Tu prueba de 24h gratis)',
+        template_id: '00000000-0000-0000-0001-000000000091',
+        title: '[Sex 25/09 17:30] 📺 Acceso Total Espanha (3.000 envios)',
+        subject: '📺 Acceso Total: TV en español, deportes y estrenos en 4K (Prueba 24h gratis)',
         sender_name: 'Carlos Ventas - Universa TV España',
         sender_email: 'carlos_ventas@mail.universatv.com',
         reply_to: 'carlos_ventas@mail.universatv.com',
-        target_audience_id: '54307c0b-f715-478e-85e4-839f6ac45188',
+        target_audience_id: '00000000-0000-0003-0001-000000000001',
         status: 'scheduled',
-        scheduled_at: '2026-09-14T08:30:00.000Z',
-        total_recipients: 500,
+        scheduled_at: '2026-09-25T15:30:00.000Z',
+        total_recipients: 3000,
         sent_count: 0,
         delivered_count: 0,
         opened_count: 0,
@@ -788,22 +693,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         bounced_count: 0,
         failed_count: 0,
         rate_limit_per_second: 2,
+        cooldown_days: 'all',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       },
+      // 2. SÁBADO (26/09) 10:30 - Futebol & Deportes 4K
       {
         id: '00000000-0000-0004-0001-000000000002',
         tenant_id: tenantId,
-        template_id: '327a5d0a-7165-4d49-b0d3-f8b527d82698',
-        title: '[Seg 14/09 18:00] 🌎 Latinos na Espanha & Canais Nacionais (500 envios)',
-        subject: '🌎 Todos los canales de tu país en vivo y en HD: Colombia, Perú, México, Argentina y más (Prueba 24h)',
+        template_id: '00000000-0000-0000-0001-000000000092',
+        title: '[Sáb 26/09 10:30] ⚽ Fútbol & Deportes 4K Espanha (3.000 envios)',
+        subject: '⚽ Fútbol en directo, series y estrenos en 4K sin cortes (Tu prueba de 24h gratis)',
         sender_name: 'Carlos Ventas - Universa TV España',
         sender_email: 'carlos_ventas@mail.universatv.com',
         reply_to: 'carlos_ventas@mail.universatv.com',
-        target_audience_id: '04d519aa-23d5-4da3-a0bb-5f2030cfdb09',
+        target_audience_id: '00000000-0000-0003-0001-000000000002',
         status: 'scheduled',
-        scheduled_at: '2026-09-14T16:00:00.000Z',
-        total_recipients: 500,
+        scheduled_at: '2026-09-26T08:30:00.000Z',
+        total_recipients: 3000,
         sent_count: 0,
         delivered_count: 0,
         opened_count: 0,
@@ -811,23 +718,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         bounced_count: 0,
         failed_count: 0,
         rate_limit_per_second: 2,
+        cooldown_days: 'all',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       },
-      // TERÇA (15/09)
+      // 3. SÁBADO (26/09) 17:00 - Serviço Completo
       {
-        id: '00000000-0000-0005-0001-000000000001',
+        id: '00000000-0000-0004-0001-000000000003',
         tenant_id: tenantId,
-        template_id: '00000000-0000-0000-0001-000000000002',
-        title: '[Ter 15/09 10:30] 👑 Real Madrid & Champions League (600 envios)',
-        subject: '⚪ ¿Dónde ver al Real Madrid en directo y en 4K sin cortes? Prueba 24 Horas Gratis',
+        template_id: '00000000-0000-0000-0001-000000000091',
+        title: '[Sáb 26/09 17:00] 📺 Acceso Total Espanha (3.000 envios)',
+        subject: '📺 Acceso Total: TV en español, deportes y estrenos en 4K (Prueba 24h gratis)',
         sender_name: 'Carlos Ventas - Universa TV España',
         sender_email: 'carlos_ventas@mail.universatv.com',
         reply_to: 'carlos_ventas@mail.universatv.com',
-        target_audience_id: '00000000-0000-0000-0002-000000000002',
+        target_audience_id: '00000000-0000-0003-0001-000000000003',
         status: 'scheduled',
-        scheduled_at: '2026-09-15T08:30:00.000Z',
-        total_recipients: 600,
+        scheduled_at: '2026-09-26T15:00:00.000Z',
+        total_recipients: 3000,
         sent_count: 0,
         delivered_count: 0,
         opened_count: 0,
@@ -835,22 +743,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         bounced_count: 0,
         failed_count: 0,
         rate_limit_per_second: 2,
+        cooldown_days: 'all',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       },
+      // 4. DOMINGO (27/09) 10:30 - Futebol Meio-Dia
       {
-        id: '00000000-0000-0005-0001-000000000002',
+        id: '00000000-0000-0004-0001-000000000004',
         tenant_id: tenantId,
-        template_id: '00000000-0000-0000-0001-000000000003',
-        title: '[Ter 15/09 18:00] 🔵🔴 FC Barcelona & Futebol Europeu (600 envios)',
-        subject: '🔵🔴 Vive cada partido del Barça en máxima calidad 4K (Test 24 Horas Gratis)',
+        template_id: '00000000-0000-0000-0001-000000000092',
+        title: '[Dom 27/09 10:30] ⚽ Fútbol & Deportes 4K Espanha (2.993 envios)',
+        subject: '⚽ Fútbol en directo, series y estrenos en 4K sin cortes (Tu prueba de 24h gratis)',
         sender_name: 'Carlos Ventas - Universa TV España',
         sender_email: 'carlos_ventas@mail.universatv.com',
         reply_to: 'carlos_ventas@mail.universatv.com',
-        target_audience_id: '00000000-0000-0000-0002-000000000003',
+        target_audience_id: '00000000-0000-0003-0001-000000000004',
         status: 'scheduled',
-        scheduled_at: '2026-09-15T16:00:00.000Z',
-        total_recipients: 600,
+        scheduled_at: '2026-09-27T08:30:00.000Z',
+        total_recipients: 2993,
         sent_count: 0,
         delivered_count: 0,
         opened_count: 0,
@@ -858,23 +768,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         bounced_count: 0,
         failed_count: 0,
         rate_limit_per_second: 2,
+        cooldown_days: 'all',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       },
-      // QUARTA (16/09)
+      // 5. DOMINGO (27/09) 17:00 - Estrenos & Cine Noite
       {
-        id: '00000000-0000-0006-0001-000000000001',
+        id: '00000000-0000-0004-0001-000000000005',
         tenant_id: tenantId,
-        template_id: '00000000-0000-0000-0001-000000000004',
-        title: '[Qua 16/09 10:30] 🏎️ F1, MotoGP & Desporto em Direto (600 envios)',
-        subject: '🏎️ Toda la temporada de Fórmula 1 y MotoGP en directo (Prueba 24 Horas Gratis)',
+        template_id: '00000000-0000-0000-0001-000000000091',
+        title: '[Dom 27/09 17:00] 📺 Acceso Total & Estrenos Espanha (3.000 envios)',
+        subject: '📺 Acceso Total: TV en español, deportes y estrenos en 4K (Prueba 24h gratis)',
         sender_name: 'Carlos Ventas - Universa TV España',
         sender_email: 'carlos_ventas@mail.universatv.com',
         reply_to: 'carlos_ventas@mail.universatv.com',
-        target_audience_id: '00000000-0000-0000-0002-000000000004',
+        target_audience_id: '00000000-0000-0003-0001-000000000005',
         status: 'scheduled',
-        scheduled_at: '2026-09-16T08:30:00.000Z',
-        total_recipients: 600,
+        scheduled_at: '2026-09-27T15:00:00.000Z',
+        total_recipients: 3000,
         sent_count: 0,
         delivered_count: 0,
         opened_count: 0,
@@ -882,123 +793,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         bounced_count: 0,
         failed_count: 0,
         rate_limit_per_second: 2,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-      {
-        id: '00000000-0000-0006-0001-000000000002',
-        tenant_id: tenantId,
-        template_id: '00000000-0000-0000-0001-000000000007',
-        title: '[Qua 16/09 18:00] 📺 Smart TV & Casa Conectada (600 envios)',
-        subject: '📺 +5.000 Canales y Cine para toda tu familia en tu Smart TV (Prueba 24h gratis)',
-        sender_name: 'Carlos Ventas - Universa TV España',
-        sender_email: 'carlos_ventas@mail.universatv.com',
-        reply_to: 'carlos_ventas@mail.universatv.com',
-        target_audience_id: '54307c0b-f715-478e-85e4-839f6ac45188',
-        status: 'scheduled',
-        scheduled_at: '2026-09-16T16:00:00.000Z',
-        total_recipients: 600,
-        sent_count: 0,
-        delivered_count: 0,
-        opened_count: 0,
-        clicked_count: 0,
-        bounced_count: 0,
-        failed_count: 0,
-        rate_limit_per_second: 2,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-      // QUINTA (17/09)
-      {
-        id: '00000000-0000-0007-0001-000000000001',
-        tenant_id: tenantId,
-        template_id: '00000000-0000-0000-0001-000000000005',
-        title: '[Qui 17/09 10:30] 🎬 Cinema 4K & Séries Completas (750 envios)',
-        subject: '🎬 Todos los estrenos de cine y series en una sola app (Tu prueba de 24h gratis)',
-        sender_name: 'Carlos Ventas - Universa TV España',
-        sender_email: 'carlos_ventas@mail.universatv.com',
-        reply_to: 'carlos_ventas@mail.universatv.com',
-        target_audience_id: '54307c0b-f715-478e-85e4-839f6ac45188',
-        status: 'scheduled',
-        scheduled_at: '2026-09-17T08:30:00.000Z',
-        total_recipients: 750,
-        sent_count: 0,
-        delivered_count: 0,
-        opened_count: 0,
-        clicked_count: 0,
-        bounced_count: 0,
-        failed_count: 0,
-        rate_limit_per_second: 2,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-      {
-        id: '00000000-0000-0007-0001-000000000002',
-        tenant_id: tenantId,
-        template_id: '00000000-0000-0000-0001-000000000006',
-        title: '[Qui 17/09 18:00] 🌎 Comunidade Latina & TV em Direto (750 envios)',
-        subject: '🌎 Los canales de tu país en directo desde España (Pide tu prueba gratis 24h)',
-        sender_name: 'Carlos Ventas - Universa TV España',
-        sender_email: 'carlos_ventas@mail.universatv.com',
-        reply_to: 'carlos_ventas@mail.universatv.com',
-        target_audience_id: '04d519aa-23d5-4da3-a0bb-5f2030cfdb09',
-        status: 'scheduled',
-        scheduled_at: '2026-09-17T16:00:00.000Z',
-        total_recipients: 750,
-        sent_count: 0,
-        delivered_count: 0,
-        opened_count: 0,
-        clicked_count: 0,
-        bounced_count: 0,
-        failed_count: 0,
-        rate_limit_per_second: 2,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-      // SEXTA (18/09)
-      {
-        id: '00000000-0000-0008-0001-000000000001',
-        tenant_id: tenantId,
-        template_id: '00000000-0000-0000-0001-000000000001',
-        title: '[Sex 18/09 10:30] ⚽ Pré-Fim de Semana LaLiga & Champions (750 envios)',
-        subject: '⚽ ¿Ver todo el fútbol y Champions en 4K sin pagar 120€/mes? (Prueba 24h gratis)',
-        sender_name: 'Carlos Ventas - Universa TV España',
-        sender_email: 'carlos_ventas@mail.universatv.com',
-        reply_to: 'carlos_ventas@mail.universatv.com',
-        target_audience_id: '8f263c2c-5a89-4dc8-96e1-03cebc6d9026',
-        status: 'scheduled',
-        scheduled_at: '2026-09-18T08:30:00.000Z',
-        total_recipients: 750,
-        sent_count: 0,
-        delivered_count: 0,
-        opened_count: 0,
-        clicked_count: 0,
-        bounced_count: 0,
-        failed_count: 0,
-        rate_limit_per_second: 2,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-      {
-        id: '00000000-0000-0008-0001-000000000002',
-        tenant_id: tenantId,
-        template_id: '00000000-0000-0000-0001-000000000007',
-        title: '[Sex 18/09 17:00] 📺 Fim de Semana Smart TV Especial (750 envios)',
-        subject: '📺 +5.000 Canales y Cine para toda tu familia en tu Smart TV (Prueba 24h gratis)',
-        sender_name: 'Carlos Ventas - Universa TV España',
-        sender_email: 'carlos_ventas@mail.universatv.com',
-        reply_to: 'carlos_ventas@mail.universatv.com',
-        target_audience_id: '54307c0b-f715-478e-85e4-839f6ac45188',
-        status: 'scheduled',
-        scheduled_at: '2026-09-18T15:00:00.000Z',
-        total_recipients: 750,
-        sent_count: 0,
-        delivered_count: 0,
-        opened_count: 0,
-        clicked_count: 0,
-        bounced_count: 0,
-        failed_count: 0,
-        rate_limit_per_second: 2,
+        cooldown_days: 'all',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       },
@@ -1205,14 +1000,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         .range(0, 49999);
 
       if (!campErr && dbCampaigns && dbCampaigns.length > 0) {
-        setCampaigns((prev) => {
-          const dbIds = new Set(dbCampaigns.map((c: any) => c.id));
-          const localOnly = prev.filter((c) => !dbIds.has(c.id));
-          const fullList = [...localOnly, ...dbCampaigns];
-          campaignsRef.current = fullList;
-          safeStorageSet(STORAGE_KEYS.CAMPAIGNS, fullList);
-          return fullList;
-        });
+        setCampaigns(dbCampaigns);
+        campaignsRef.current = dbCampaigns;
+        safeStorageSet(STORAGE_KEYS.CAMPAIGNS, dbCampaigns);
       }
 
       const { data: dbResults, error: resErr } = await supabase
@@ -2221,10 +2011,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     let activeQueue = campaignQueue[campaignId] || [];
     if (activeQueue.length === 0 && remainingToTarget > 0) {
-      const targetAudience = audiences.find((a) => a.id === targetCampaign.target_audience_id);
-      const niche = targetAudience?.filters?.niche ? targetAudience.filters.niche[0] : '';
-      const tags = targetAudience?.filters?.tags || [];
-
       // Coleta todos os e-mails já enviados ou em fila nas campanhas ativas para garantir ZERO duplicidade simultânea
       const alreadyTargetedEmails = new Set<string>();
       Object.values(campaignQueue).forEach((q) => {
@@ -2238,15 +2024,53 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
 
       // Filtra os leads que pertencem ao público segmentado e não pediram opt-out
+      const targetAudience = audiences.find((a) => a.id === targetCampaign.target_audience_id);
+      const explicitLeadIds = targetAudience?.filters?.lead_ids ? new Set(targetAudience.filters.lead_ids) : null;
+      const targetCountries = targetAudience?.filters?.country || [];
+      const niche = targetAudience?.filters?.niche ? targetAudience.filters.niche[0] : '';
+      const tags = targetAudience?.filters?.tags || [];
+
+      const isPortugueseOrBrazilian = (l: Lead) => {
+        if (l.country === 'Brasil' || l.country === 'Portugal') return true;
+        if (l.tags && l.tags.some((t) => {
+          const lower = t.toLowerCase();
+          return lower.includes('brasil') || lower.includes('portug') || lower.includes('pt-br') || lower.includes('pt-pt');
+        })) return true;
+        return false;
+      };
+
+      const isSpainLead = (l: Lead) => {
+        return (l.country === 'Espanha' || l.country === 'Spain' || (l.tags && l.tags.some((t) => t.includes('ES') || t.includes('Espanha'))));
+      };
+
       let audienceLeads = leads.filter((l) => {
         if (l.opted_out) return false;
+        if (isPortugueseOrBrazilian(l)) return false;
+
+        // Se o público tem IDs específicos de leads gravados
+        if (explicitLeadIds && explicitLeadIds.size > 0) {
+          return explicitLeadIds.has(l.id);
+        }
+
+        // Filtro por país da audiência se especificado
+        if (targetCountries.length > 0 && (!l.country || !targetCountries.includes(l.country))) {
+          return false;
+        }
+
         if (niche && l.target_niche === niche) return true;
         if (tags.length > 0 && l.tags && tags.some((t) => l.tags.includes(t))) return true;
+
+        // Se a audiência tem filtro de Espanha ou se o lead é da Espanha
+        if (targetCountries.includes('Espanha') || targetCountries.includes('Spain')) {
+          return isSpainLead(l);
+        }
+
         return false;
       });
 
       if (audienceLeads.length === 0) {
-        audienceLeads = leads.filter((l) => !l.opted_out);
+        // Fallback seguro: exclusivamente Espanha e sem leads em português/brasileiros
+        audienceLeads = leads.filter((l) => !l.opted_out && isSpainLead(l) && !isPortugueseOrBrazilian(l));
       }
 
       // Regra de Cooldown Anti-Spam configurada na campanha ('never' | '7' | '14' | '30' | 'all')
@@ -2255,6 +2079,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       const isLeadEligible = (l: Lead) => {
         if (l.opted_out) return false;
+        if (isPortugueseOrBrazilian(l)) return false;
         if (alreadyTargetedEmails.has(l.email.toLowerCase().trim())) return false;
 
         // Se 'all' (reenvio livre), permite reenviar
@@ -2288,14 +2113,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         selected = eligibleAudienceLeads.slice(0, countNeeded);
       } else {
         const remainingNeeded = countNeeded - eligibleAudienceLeads.length;
-        // Completa o restante da meta com outros leads da base geral que respeitem o mesmo cooldown
+        // Completa o restante da meta exclusivamente com leads da Espanha sem PT/BR
         const eligibleGeneralLeads = leads.filter(
-          (l) => isLeadEligible(l) && !eligibleAudienceLeads.includes(l)
+          (l) => isLeadEligible(l) && !eligibleAudienceLeads.includes(l) && isSpainLead(l) && !isPortugueseOrBrazilian(l)
         );
         selected = [...eligibleAudienceLeads, ...eligibleGeneralLeads.slice(0, remainingNeeded)];
       }
 
-      console.log(`[LaunchCampaign] Campanha "${targetCampaign.title}" | Regra anti-spam: ${cooldownRule} | Elegíveis no segmento: ${eligibleAudienceLeads.length} | Selecionados: ${selected.length}/${countNeeded}`);
+      console.log(`[LaunchCampaign] Campanha "${targetCampaign.title}" | Regra anti-spam: ${cooldownRule} | Elegíveis na Espanha: ${eligibleAudienceLeads.length} | Selecionados: ${selected.length}/${countNeeded}`);
 
       activeQueue = selected.map((lead) => ({
         id: `queue_${Date.now()}_${lead.id}`,
