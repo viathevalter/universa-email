@@ -1181,8 +1181,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               sector: toArray(rawFilters.sector),
               status: toArray(rawFilters.status),
             },
-            lead_count: rawFilters.lead_count || a.lead_count || (Array.isArray(a.lead_ids) ? a.lead_ids.length : 0),
-            lead_ids: a.lead_ids || [],
+            lead_count:
+              rawFilters.lead_count !== undefined
+                ? rawFilters.lead_count
+                : a.lead_count !== undefined
+                ? a.lead_count
+                : Array.isArray(rawFilters.lead_ids)
+                ? rawFilters.lead_ids.length
+                : Array.isArray(a.lead_ids)
+                ? a.lead_ids.length
+                : 0,
+            lead_ids: rawFilters.lead_ids || a.lead_ids || [],
             created_at: a.created_at || new Date().toISOString(),
           };
         });
@@ -2716,10 +2725,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
     };
 
+    const calculatedCount =
+      audienceData.lead_count ??
+      audienceData.lead_ids?.length ??
+      (audienceData.filters as any)?.lead_count ??
+      0;
+    const resolvedIds = audienceData.lead_ids ?? (audienceData.filters as any)?.lead_ids ?? [];
+
     const newAudience: SavedAudience = {
       ...audienceData,
       id: generateUUID(),
       tenant_id: tenant.id,
+      lead_count: calculatedCount,
+      lead_ids: resolvedIds,
+      filters: {
+        ...audienceData.filters,
+        lead_count: calculatedCount,
+        lead_ids: resolvedIds,
+      },
       created_at: new Date().toISOString(),
     };
 
@@ -2734,7 +2757,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           tenant_id: newAudience.tenant_id,
           name: newAudience.name,
           description: newAudience.description,
-          filters_json: newAudience.filters,
+          filters_json: {
+            ...newAudience.filters,
+            lead_count: calculatedCount,
+            lead_ids: resolvedIds,
+          },
           created_at: newAudience.created_at,
         });
       } catch (err) {

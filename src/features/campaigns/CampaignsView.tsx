@@ -1066,6 +1066,8 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
         search_query: audienceFilters.sectorKeyword || undefined,
         limit: audienceFilters.limit ? parseInt(audienceFilters.limit) : undefined,
         offset: audienceFilters.offset ? parseInt(audienceFilters.offset) : undefined,
+        lead_count: selectedAudienceLeadIds.size,
+        lead_ids: Array.from(selectedAudienceLeadIds),
       },
       lead_ids: Array.from(selectedAudienceLeadIds),
       lead_count: selectedAudienceLeadIds.size,
@@ -2294,7 +2296,40 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
                       SEGMENTO
                     </span>
                     <span className="rounded-md bg-emerald-500/10 text-emerald-500 px-2 py-0.5 text-[11px] font-bold">
-                      {aud.lead_count ? aud.lead_count.toLocaleString() : (aud.lead_ids?.length || 0).toLocaleString()} leads
+                      {(() => {
+                        if (typeof aud.lead_count === 'number' && aud.lead_count > 0) {
+                          return `${aud.lead_count.toLocaleString()} leads`;
+                        }
+                        if (aud.lead_ids && aud.lead_ids.length > 0) {
+                          return `${aud.lead_ids.length.toLocaleString()} leads`;
+                        }
+                        const f = (aud.filters || {}) as any;
+                        const hasFilters = f.country || f.region || f.province || f.city || f.tags || f.niche || f.sector;
+                        if (hasFilters) {
+                          const count = leads.filter((l) => {
+                            if (l.opted_out) return false;
+                            if (f.country) {
+                              const countries = Array.isArray(f.country) ? f.country : [f.country];
+                              if (countries.length > 0 && !countries.some((c: any) => (l.country || '').toLowerCase() === String(c).toLowerCase())) return false;
+                            }
+                            if (f.city) {
+                              const cities = Array.isArray(f.city) ? f.city : [f.city];
+                              if (cities.length > 0 && !cities.some((c: any) => (l.city || '').toLowerCase() === String(c).toLowerCase())) return false;
+                            }
+                            if (f.province) {
+                              const provinces = Array.isArray(f.province) ? f.province : [f.province];
+                              if (provinces.length > 0 && !provinces.some((p: any) => (l.province || '').toLowerCase() === String(p).toLowerCase())) return false;
+                            }
+                            if (f.tags || f.niche) {
+                              const tags = Array.isArray(f.tags || f.niche) ? (f.tags || f.niche) : [f.tags || f.niche];
+                              if (tags.length > 0 && !tags.some((t: any) => (l.tags || []).some((lt: string) => lt.toLowerCase().includes(String(t).toLowerCase())))) return false;
+                            }
+                            return true;
+                          }).length;
+                          return `${count.toLocaleString()} leads`;
+                        }
+                        return '0 leads';
+                      })()}
                     </span>
                   </div>
 

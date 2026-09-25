@@ -228,6 +228,9 @@ export interface SavedAudience {
     search_query?: string;
     limit?: number;
     offset?: number;
+    lead_count?: number;
+    lead_ids?: string[];
+    [key: string]: any;
   };
   lead_ids?: string[];
   lead_count?: number;
