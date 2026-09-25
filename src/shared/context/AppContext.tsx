@@ -634,13 +634,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (saved) {
         const parsed: MarketingTemplate[] = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          const officialMap = new Map(OFFICIAL_UNIVERSA_TEMPLATES.map((t) => [t.id, t]));
-          const userTemplates = parsed.filter(
-            (t) =>
-              !officialMap.has(t.id) &&
-              t.id !== 'tmpl_laliga_24h_es' &&
-              t.id !== 'tmpl_cine_24h_es'
-          );
+          const officialIds = new Set(OFFICIAL_UNIVERSA_TEMPLATES.map((t) => t.id));
+          const officialTitles = new Set(OFFICIAL_UNIVERSA_TEMPLATES.map((t) => t.title.trim().toLowerCase()));
+
+          // Mantém templates personalizados criados pelo usuário
+          const userTemplates = parsed.filter((t) => {
+            const titleLower = (t.title || '').trim().toLowerCase();
+            return (
+              !officialIds.has(t.id) &&
+              !officialTitles.has(titleLower) &&
+              !t.title?.includes('LaLiga') &&
+              !t.title?.includes('Real Madrid') &&
+              !t.title?.includes('FC Barcelona') &&
+              !t.title?.includes('Fórmula 1') &&
+              !t.title?.includes('Cine & Series') &&
+              !t.title?.includes('Canales Latinos') &&
+              !t.title?.includes('Multidispositivo') &&
+              !t.title?.includes('[BR]') &&
+              !t.title?.includes('América Latina') &&
+              !t.title?.includes('[Portugal]') &&
+              !t.title?.includes('Servicio Completo')
+            );
+          });
+
+          // Os templates oficiais sempre lideram a lista com os dados mais recentes
           const fullList = [...OFFICIAL_UNIVERSA_TEMPLATES, ...userTemplates];
           safeStorageSet(STORAGE_KEYS.TEMPLATES, fullList);
           return fullList;
@@ -1104,11 +1121,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             !t.html_content?.includes('LUMINOUS') &&
             !t.html_content?.includes('Soldadores')
         );
-        if (cleanTemplates.length > 0) {
-          setTemplates(cleanTemplates);
-        } else {
-          setTemplates(OFFICIAL_UNIVERSA_TEMPLATES);
-        }
+
+        // Identifica templates personalizados do usuário no Supabase
+        const officialIds = new Set(OFFICIAL_UNIVERSA_TEMPLATES.map((t) => t.id));
+        const officialTitles = new Set(OFFICIAL_UNIVERSA_TEMPLATES.map((t) => t.title.trim().toLowerCase()));
+
+        const userDbTemplates = cleanTemplates.filter((t: any) => {
+          const titleLower = (t.title || '').trim().toLowerCase();
+          return (
+            !officialIds.has(t.id) &&
+            !officialTitles.has(titleLower) &&
+            !t.title?.includes('LaLiga') &&
+            !t.title?.includes('Real Madrid') &&
+            !t.title?.includes('FC Barcelona') &&
+            !t.title?.includes('Fórmula 1') &&
+            !t.title?.includes('Cine & Series') &&
+            !t.title?.includes('Canales Latinos') &&
+            !t.title?.includes('Multidispositivo') &&
+            !t.title?.includes('[BR]') &&
+            !t.title?.includes('América Latina') &&
+            !t.title?.includes('[Portugal]') &&
+            !t.title?.includes('Servicio Completo')
+          );
+        });
+
+        const mergedTemplates = [...OFFICIAL_UNIVERSA_TEMPLATES, ...userDbTemplates];
+        setTemplates(mergedTemplates);
+        safeStorageSet(STORAGE_KEYS.TEMPLATES, mergedTemplates);
+      } else {
+        setTemplates(OFFICIAL_UNIVERSA_TEMPLATES);
+        safeStorageSet(STORAGE_KEYS.TEMPLATES, OFFICIAL_UNIVERSA_TEMPLATES);
       }
 
       const { data: dbAudiences, error: audErr } = await supabase.from('saved_audiences').select('*');
@@ -2016,7 +2058,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
         }
         const toInsert = OFFICIAL_UNIVERSA_TEMPLATES.map((t, idx) => ({
-          id: `00000000-0000-0000-0001-00000000000${idx + 1}`,
+          id: `00000000-0000-0000-0001-${String(idx + 1).padStart(12, '0')}`,
           tenant_id: tenant.id,
           title: t.title,
           subject: t.subject,

@@ -2190,7 +2190,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateToLeads 
             </div>
             <button
               onClick={async () => {
-                if (window.confirm('Carregar e restaurar todos os 8 templates oficiais de alta conversão da UniversaTV?')) {
+                if (window.confirm('Carregar e restaurar todos os 11 templates oficiais de alta conversão da UniversaTV (incluindo os novos templates do Serviço Completo)?')) {
                   await resetTemplatesToOfficial();
                 }
               }}
