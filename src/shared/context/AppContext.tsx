@@ -2010,10 +2010,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     let activeQueue = campaignQueue[campaignId] || [];
-    if (activeQueue.length === 0 && remainingToTarget > 0) {
+    const hasUnsentItems = activeQueue.some((it) => it.status !== 'sent');
+    if ((activeQueue.length === 0 || !hasUnsentItems || initialSent === 0) && remainingToTarget > 0) {
       // Coleta todos os e-mails já enviados ou em fila nas campanhas ativas para garantir ZERO duplicidade simultânea
       const alreadyTargetedEmails = new Set<string>();
-      Object.values(campaignQueue).forEach((q) => {
+      Object.entries(campaignQueue).forEach(([cId, q]) => {
+        if (cId === campaignId) return;
         if (Array.isArray(q)) {
           q.forEach((item) => {
             if (item.lead_email) {
@@ -2080,10 +2082,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const isLeadEligible = (l: Lead) => {
         if (l.opted_out) return false;
         if (isPortugueseOrBrazilian(l)) return false;
-        if (alreadyTargetedEmails.has(l.email.toLowerCase().trim())) return false;
-
         // Se 'all' (reenvio livre), permite reenviar
         if (cooldownRule === 'all') return true;
+
+        if (alreadyTargetedEmails.has(l.email.toLowerCase().trim())) return false;
 
         // Se o lead ainda é novo e nunca foi contatado, está sempre liberado
         if (l.status !== 'contacted') return true;
